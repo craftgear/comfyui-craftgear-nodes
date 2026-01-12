@@ -2,11 +2,16 @@ import { app } from '../../../../scripts/app.js';
 
 import { scoreFuzzy } from './loraFuzzyMatch.js';
 
-const TARGET_NODE_NAME = 'AutoLoraLoader';
-const TARGET_WIDGET_NAME = 'lora_name';
+const TARGET_NODE_NAMES = [
+	'LoadLoraWithTriggers',
+	'LoadLoraWithTriggersStack',
+	'load_lora_with_triggers_stack',
+];
 
 const getNodeName = (node) => node?.comfyClass || node?.type || '';
-const isTargetNode = (node) => getNodeName(node).includes(TARGET_NODE_NAME);
+const isTargetNode = (node) => TARGET_NODE_NAMES.some((name) => getNodeName(node).includes(name));
+const isTargetWidget = (widget) =>
+	widget?.name === 'lora_name' || widget?.name?.startsWith('lora_name_');
 
 const getMenuItems = (menu) =>
 	Array.from(menu.querySelectorAll('.litemenu-entry')).filter((item) => item.dataset && 'value' in item.dataset);
@@ -114,7 +119,7 @@ app.registerExtension({
 		const observer = new MutationObserver((mutations) => {
 			const node = app.canvas?.current_node;
 			const widget = app.canvas?.getWidgetAtCursor?.();
-			if (!node || !widget || widget.name !== TARGET_WIDGET_NAME || !isTargetNode(node)) {
+			if (!node || !widget || !isTargetWidget(widget) || !isTargetNode(node)) {
 				return;
 			}
 

@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from auto_lora_loader.logic import trigger_words as logic_triggers
+from load_lora_with_triggers.logic import trigger_words as logic_triggers
 
 
 def write_safetensors_with_metadata(path: str, metadata: dict[str, object]) -> None:

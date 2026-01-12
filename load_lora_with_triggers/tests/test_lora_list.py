@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))  # テストからローカルモジュールを読み込むため
 
-from auto_lora_loader.logic.main import collect_lora_names
+from load_lora_with_triggers.logic.main import collect_lora_names
 
 
 def test_collect_lora_names_filters_and_recursive() -> None:

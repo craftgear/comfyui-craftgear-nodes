@@ -21,10 +21,10 @@ if 'comfy' not in sys.modules:
     sys.modules['comfy.utils'] = utils
     sys.modules['comfy.sd'] = sd
 
-from auto_lora_loader.ui.nodes import auto_lora_loader as ui_node
+from load_lora_with_triggers.ui.nodes import load_lora_with_triggers as ui_node
 
 
-class AutoLoraLoaderInputTypesTest(unittest.TestCase):
+class LoadLoraWithTriggersInputTypesTest(unittest.TestCase):
     def test_input_types_include_strength_slider(self) -> None:
         original_collect = ui_node.collect_lora_names
         original_get_paths = ui_node.folder_paths.get_folder_paths
@@ -35,7 +35,7 @@ class AutoLoraLoaderInputTypesTest(unittest.TestCase):
             ui_node.folder_paths.get_folder_paths = lambda *_args, **_kwargs: []
             ui_node.folder_paths.supported_pt_extensions = {'.safetensors'}
 
-            inputs = ui_node.AutoLoraLoader.INPUT_TYPES()
+            inputs = ui_node.LoadLoraWithTriggers.INPUT_TYPES()
             required = inputs['required']
             strength = required['lora_strength']
             meta = strength[1]
@@ -53,11 +53,11 @@ class AutoLoraLoaderInputTypesTest(unittest.TestCase):
 
     def test_output_types_include_trigger_strings(self) -> None:
         self.assertEqual(
-            ui_node.AutoLoraLoader.RETURN_TYPES,
+            ui_node.LoadLoraWithTriggers.RETURN_TYPES,
             ('MODEL', 'CLIP', 'STRING'),
         )
         self.assertEqual(
-            ui_node.AutoLoraLoader.RETURN_NAMES,
+            ui_node.LoadLoraWithTriggers.RETURN_NAMES,
             (
                 'model',
                 'clip',
@@ -75,7 +75,7 @@ class AutoLoraLoaderInputTypesTest(unittest.TestCase):
             ui_node.folder_paths.get_folder_paths = lambda *_args, **_kwargs: []
             ui_node.folder_paths.supported_pt_extensions = {'.safetensors'}
 
-            inputs = ui_node.AutoLoraLoader.INPUT_TYPES()
+            inputs = ui_node.LoadLoraWithTriggers.INPUT_TYPES()
             required = inputs['required']
             trigger_selection = required['trigger_selection']
             meta = trigger_selection[1]
@@ -97,7 +97,7 @@ class AutoLoraLoaderInputTypesTest(unittest.TestCase):
             ui_node.folder_paths.get_folder_paths = lambda *_args, **_kwargs: []
             ui_node.folder_paths.supported_pt_extensions = {'.safetensors'}
 
-            inputs = ui_node.AutoLoraLoader.INPUT_TYPES()
+            inputs = ui_node.LoadLoraWithTriggers.INPUT_TYPES()
             required = inputs['required']
 
             self.assertEqual(required['model'][0], 'MODEL')

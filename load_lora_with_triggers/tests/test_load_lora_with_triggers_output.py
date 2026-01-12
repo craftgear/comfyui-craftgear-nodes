@@ -24,12 +24,12 @@ if 'comfy' not in sys.modules:
     sys.modules['comfy.utils'] = utils
     sys.modules['comfy.sd'] = sd
 
-from auto_lora_loader.ui.nodes import auto_lora_loader as ui_node
+from load_lora_with_triggers.ui.nodes import load_lora_with_triggers as ui_node
 
 
-class AutoLoraLoaderOutputTest(unittest.TestCase):
+class LoadLoraWithTriggersOutputTest(unittest.TestCase):
     def test_select_lora_builds_prompt_strings(self) -> None:
-        node = ui_node.AutoLoraLoader()
+        node = ui_node.LoadLoraWithTriggers()
         original_get_path = ui_node.folder_paths.get_full_path
         original_extract = ui_node.extract_lora_triggers
         original_filter = ui_node.filter_lora_triggers
@@ -52,7 +52,7 @@ class AutoLoraLoaderOutputTest(unittest.TestCase):
             ui_node.filter_lora_triggers = original_filter
 
     def test_select_lora_handles_empty_triggers(self) -> None:
-        node = ui_node.AutoLoraLoader()
+        node = ui_node.LoadLoraWithTriggers()
         original_get_path = ui_node.folder_paths.get_full_path
         original_extract = ui_node.extract_lora_triggers
         original_filter = ui_node.filter_lora_triggers
@@ -75,7 +75,7 @@ class AutoLoraLoaderOutputTest(unittest.TestCase):
             ui_node.filter_lora_triggers = original_filter
 
     def test_select_lora_skips_when_none(self) -> None:
-        node = ui_node.AutoLoraLoader()
+        node = ui_node.LoadLoraWithTriggers()
         model, clip, trigger_words = node.select_lora(
             'model', 'clip', 'None', 1.0, ''
         )

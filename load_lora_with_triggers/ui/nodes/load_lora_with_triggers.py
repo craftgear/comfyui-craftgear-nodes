@@ -8,7 +8,7 @@ from ...logic.main import collect_lora_names
 from ...logic.trigger_words import extract_lora_triggers, filter_lora_triggers
 
 
-class AutoLoraLoader:
+class LoadLoraWithTriggers:
     def __init__(self) -> None:
         self.loaded_lora: tuple[str, Any] | None = None
 

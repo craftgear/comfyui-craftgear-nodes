@@ -145,11 +145,11 @@ Text only example.
 
 ## Project layout
 
-- auto_lora_loader/logic: LoRA helpers
-- auto_lora_loader/ui: Node and API code
-- auto_lora_loader/tests: Unit tests
+- load_lora_with_triggers/logic: LoRA helpers
+- load_lora_with_triggers/ui: Node and API code
+- load_lora_with_triggers/tests: Unit tests
 - image_batch_loader: Image batch loader node
-- web/auto_lora_loader: Load Lora With Triggers UI extensions
+- web/load_lora_with_triggers: Load Lora With Triggers UI extensions
 - web/image_batch_loader: Image batch loader UI extensions
 - camera_shake: Camera shake node
 - camera_shake/tests: Camera shake tests
@@ -160,7 +160,7 @@ Text only example.
 
 Python tests:
 
-- python -m unittest discover -s auto_lora_loader/tests
+- python -m unittest discover -s load_lora_with_triggers/tests
 - python -m unittest discover -s image_batch_loader/tests
 - python -m unittest discover -s camera_shake/tests
 - python -m unittest discover -s join_text_node/tests
@@ -168,4 +168,4 @@ Python tests:
 
 Node script test:
 
-- node auto_lora_loader/tests/loraFuzzyMatch.test.mjs
+- node load_lora_with_triggers/tests/loraFuzzyMatch.test.mjs

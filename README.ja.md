@@ -144,11 +144,11 @@ image_batch_loader の場合:
 
 ## 構成
 
-- auto_lora_loader/logic: LoRA の補助関数
-- auto_lora_loader/ui: ノードと API
-- auto_lora_loader/tests: テスト
+- load_lora_with_triggers/logic: LoRA の補助関数
+- load_lora_with_triggers/ui: ノードと API
+- load_lora_with_triggers/tests: テスト
 - image_batch_loader: 画像バッチローダー
-- web/auto_lora_loader: Load Lora With Triggers の UI 拡張
+- web/load_lora_with_triggers: Load Lora With Triggers の UI 拡張
 - web/image_batch_loader: image_batch_loader の UI 拡張
 - camera_shake: Camera Shake ノード
 - camera_shake/tests: Camera Shake のテスト
@@ -159,7 +159,7 @@ image_batch_loader の場合:
 
 Python テスト:
 
-- python -m unittest discover -s auto_lora_loader/tests
+- python -m unittest discover -s load_lora_with_triggers/tests
 - python -m unittest discover -s image_batch_loader/tests
 - python -m unittest discover -s camera_shake/tests
 - python -m unittest discover -s join_text_node/tests
@@ -167,4 +167,4 @@ Python テスト:
 
 Node スクリプトテスト:
 
-- node auto_lora_loader/tests/loraFuzzyMatch.test.mjs
+- node load_lora_with_triggers/tests/loraFuzzyMatch.test.mjs
