@@ -27,7 +27,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             meta_value = json.dumps({"set": {"tag1": 5, "tag2": 1}, "set2": {"tag2": 2}})
             write_safetensors_with_metadata(lora_path, {"ss_tag_frequency": meta_value})
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["tag1"])
+            self.assertEqual(triggers, ["tag1", "tag2"])
 
     def test_extracts_top_count_from_ss_tag_frequency(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

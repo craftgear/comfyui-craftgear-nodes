@@ -1,6 +1,10 @@
 from typing import Any
 
 from .camera_shake.camera_shake_node import CameraShakeNode
+from .commentable_multiline_text.commentable_multiline_text_node import (
+    CommentableMultilineTextNode,
+)
+from .join_text_node.join_text_node import JoinTextNode
 from .auto_lora_loader.ui import trigger_api
 from .auto_lora_loader.ui.nodes.auto_lora_loader import AutoLoraLoader
 from .image_batch_loader.ui import select_directory_api
@@ -11,11 +15,15 @@ WEB_DIRECTORY: str = "web"
 NODE_CLASS_MAPPINGS: dict[str, Any] = {
     "AutoLoraLoader": AutoLoraLoader,
     "CameraShakeNode": CameraShakeNode,
+    "CommentableMultilineTextNode": CommentableMultilineTextNode,
     "ImageBatchLoader": ImageBatchLoader,
+    "JoinTextNode": JoinTextNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
-    "AutoLoraLoader": "Auto Lora Loader",
+    "AutoLoraLoader": "Load Lora With Triggers",
     "CameraShakeNode": "Camera Shake",
+    "CommentableMultilineTextNode": "Commentable Multiline Text",
     "ImageBatchLoader": "Image Batch Loader",
+    "JoinTextNode": "join_text_node",
 }

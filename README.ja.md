@@ -4,22 +4,25 @@ ComfyUI 用のカスタムノード集です。
 
 ## ノード
 
-### Auto Lora Loader (craftgear/loras)
+### Load Lora With Triggers (craftgear/loras)
 
-ComfyUI の loras フォルダから LoRA を選択し、名前と強度とトリガーワードを返します。
+ComfyUI の loras フォルダから LoRA を選択し、model と clip に適用して選択トリガーを返します。
 
 入力:
+- model: Model
+- clip: CLIP
 - lora_name: LoRA ファイルのドロップダウン
 - lora_strength: Float, 既定 1.0, 範囲 -2.0 から 2.0
 - trigger_selection: 文字列。選択したトリガーの JSON 配列
 
 出力:
-- lora_name: 文字列
-- lora_strength: Float
-- lora_triggers: 文字列のリスト
+- model: Model
+- clip: CLIP
+- selected triggers: カンマ区切り文字列
 
 動作:
-- lora_name が None の場合は空の名前と空のリストを返します
+- lora_name が None の場合は入力の model と clip と空文字列を返します
+- lora_strength が 0 の場合は入力の model と clip と選択トリガー文字列を返します
 - safetensors のメタデータからトリガーワードを抽出します
 - trigger_selection がある場合は選択したものだけに絞り込みます
 
@@ -56,6 +59,41 @@ UI 補助:
   - 2_crop: 枠取りを優先し、再サンプルの影響を許容できる時
   - 3_prepad: 枠取りを保ちつつ黒縁を避けたい時
 
+### Commentable Multiline Text (craftgear/text)
+
+複数行のテキスト入力を 1 行の文字列に変換します。
+
+入力:
+- text: 複数行文字列
+- separator: 文字列, 既定 ","
+
+出力:
+- text: 文字列
+
+動作:
+- 行頭が # または // の行は除外します。先頭の空白は無視します
+- 前後の空白をトリムします
+- 空行は残します
+- 残った行を separator で連結します
+- separator をトリムして空なら "," で連結します
+
+### join_text_node (craftgear/text)
+
+複数のテキスト入力を 1 行の文字列に連結します。
+
+入力:
+- text_1: テキスト入力, ソケットのみ
+- separator: 文字列, 既定 ","
+- 最後の入力が接続されると入力が追加されます
+
+出力:
+- text: 文字列
+
+動作:
+- 空行と空文字は除外します
+- 残った行を separator で連結します
+- 最後の接続が外れると末尾の空入力を削除します
+
 ### image_batch_loader (craftgear/image)
 
 ディレクトリ内の画像をすべて読み込み、バッチを返します。
@@ -87,7 +125,7 @@ ComfyUI の custom nodes 配下に配置して下さい。
 ## 使い方
 
 1. ComfyUI を起動または再起動します。
-2. Auto Lora Loader または Camera Shake、image_batch_loader を追加します。
+2. Load Lora With Triggers または Camera Shake、image_batch_loader を追加します。
 3. 入力を接続して必要に応じて調整します。
 
 image_batch_loader の場合:
@@ -110,9 +148,12 @@ image_batch_loader の場合:
 - auto_lora_loader/ui: ノードと API
 - auto_lora_loader/tests: テスト
 - image_batch_loader: 画像バッチローダー
-- web/auto_lora_loader: Auto Lora Loader の UI 拡張
+- web/auto_lora_loader: Load Lora With Triggers の UI 拡張
 - web/image_batch_loader: image_batch_loader の UI 拡張
 - camera_shake: Camera Shake ノード
+- camera_shake/tests: Camera Shake のテスト
+- join_text_node: join_text_node
+- join_text_node/tests: join_text_node のテスト
 
 ## テスト
 
@@ -120,6 +161,9 @@ Python テスト:
 
 - python -m unittest discover -s auto_lora_loader/tests
 - python -m unittest discover -s image_batch_loader/tests
+- python -m unittest discover -s camera_shake/tests
+- python -m unittest discover -s join_text_node/tests
+- python -m unittest discover -s commentable_multiline_text/tests
 
 Node スクリプトテスト:
 
