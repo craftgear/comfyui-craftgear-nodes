@@ -8,6 +8,7 @@ import { getTagVisibility } from './tagFilterUtils.js';
 import { compactSlotValues, isFilledName } from './stackOrderUtils.js';
 import { getLockedHeight } from './dialogSizeUtils.js';
 import { normalizeSelectionValue } from './selectionValueUtils.js';
+import { ensureSelectionSerializable } from './selectionSerializeUtils.js';
 
 const SINGLE_NODE_NAME = 'LoadLoraWithTriggers';
 const STACK_NODE_NAMES = ['LoadLoraWithTriggersStack', 'load_lora_with_triggers_stack'];
@@ -184,13 +185,19 @@ const fetchTriggers = async (loraName) => {
     body: JSON.stringify({ lora_name: loraName }),
   });
   if (!response.ok) {
-    return [];
+    return { triggers: [], frequencies: {} };
   }
   const data = await response.json();
   if (!data || !Array.isArray(data.triggers)) {
-    return [];
+    return { triggers: [], frequencies: {} };
   }
-  return data.triggers.map((trigger) => String(trigger));
+  const rawFrequencies = data.frequencies;
+  const frequencies =
+    rawFrequencies && typeof rawFrequencies === 'object' ? rawFrequencies : {};
+  return {
+    triggers: data.triggers.map((trigger) => String(trigger)),
+    frequencies,
+  };
 };
 
 const closeDialog = () => {
@@ -257,7 +264,7 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
     showMessage('Please select a LoRA.');
     return;
   }
-  const triggers = await fetchTriggers(loraName);
+  const { triggers, frequencies } = await fetchTriggers(loraName);
   if (triggers.length === 0) {
     showMessage('No trigger words found.');
     return;
@@ -337,13 +344,29 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
     },
   });
 
+  const formatFrequency = (value) => {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) {
+      return String(value);
+    }
+    return Number.isInteger(numberValue) ? String(numberValue) : String(numberValue);
+  };
+
   const items = triggers.map((trigger) => {
     const checkbox = $el('input', { type: 'checkbox' });
     checkbox.checked = selected.has(trigger);
+    const countText = formatFrequency(frequencies?.[trigger]);
+    const countLabel = $el('span', {
+      textContent: countText,
+      style: { minWidth: '40px', textAlign: 'right', opacity: 0.7 },
+    });
     const label = $el('label', {
       style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' },
     });
-    label.append(checkbox, $el('span', { textContent: trigger }));
+    label.append(checkbox, countLabel, $el('span', { textContent: trigger }));
     list.append(label);
     return { trigger, checkbox, row: label };
   });
@@ -444,6 +467,7 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
 
 const hideSelectionWidget = (node) => {
   const selectionWidget = getWidget(node, SELECTION_WIDGET_NAME);
+  ensureSelectionSerializable(selectionWidget);
   if (selectionWidget) {
     selectionWidget.value = normalizeSelectionValue(selectionWidget.value);
   }
@@ -540,6 +564,7 @@ const setupStackUi = (node) => {
     if (!loraWidget || !strengthWidget || !selectionWidget) {
       return null;
     }
+    ensureSelectionSerializable(selectionWidget);
     return { index, loraWidget, strengthWidget, selectionWidget };
   };
 

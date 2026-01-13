@@ -6,14 +6,19 @@ USE_SS_TAG_FREQUENCY = True
 USE_TRAINED_WORDS = True
 USE_TRIGGER_WORDS = True
 USE_SS_TAG_STRINGS = False
-SS_TAG_FREQUENCY_TOP_COUNT = 20
-
 
 def extract_lora_triggers(lora_path: str) -> list[str]:
     metadata = _read_safetensors_metadata(lora_path)
     if not metadata:
         return []
     return _extract_triggers_from_metadata(metadata)
+
+
+def extract_lora_trigger_frequencies(lora_path: str) -> list[tuple[str, float]]:
+    metadata = _read_safetensors_metadata(lora_path)
+    if not metadata:
+        return []
+    return _extract_trigger_frequencies_from_metadata(metadata)
 
 
 def filter_lora_triggers(triggers: list[str], selection_text: str) -> list[str]:
@@ -76,7 +81,17 @@ def _extract_triggers_from_metadata(metadata: dict[str, Any]) -> list[str]:
     return []
 
 
-def _tags_from_frequency(value: Any) -> list[str]:
+def _extract_trigger_frequencies_from_metadata(
+    metadata: dict[str, Any],
+) -> list[tuple[str, float]]:
+    if not isinstance(metadata, dict):
+        return []
+    if USE_SS_TAG_FREQUENCY and "ss_tag_frequency" in metadata:
+        return _frequency_from_metadata(metadata["ss_tag_frequency"])
+    return []
+
+
+def _frequency_from_metadata(value: Any) -> list[tuple[str, float]]:
     parsed = value
     if isinstance(parsed, str):
         try:
@@ -99,10 +114,14 @@ def _tags_from_frequency(value: Any) -> list[str]:
                 count_value = 1.0
             counts[tag_text] = counts.get(tag_text, 0.0) + count_value
     ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return ordered
+
+
+def _tags_from_frequency(value: Any) -> list[str]:
+    ordered = _frequency_from_metadata(value)
     if not ordered:
         return []
-    limit = max(1, min(len(ordered), SS_TAG_FREQUENCY_TOP_COUNT))
-    return [tag for tag, _count in ordered[:limit]]
+    return [tag for tag, _count in ordered]
 
 
 def _parse_trigger_values(value: Any) -> list[str]:

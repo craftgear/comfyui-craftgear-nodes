@@ -4,7 +4,10 @@ from typing import Any
 import folder_paths
 from aiohttp import web
 
-from ..logic.trigger_words import extract_lora_triggers
+from ..logic.trigger_words import (
+    extract_lora_trigger_frequencies,
+    extract_lora_triggers,
+)
 
 
 @server.PromptServer.instance.routes.post("/my_custom_node/lora_triggers")
@@ -20,4 +23,10 @@ async def load_lora_triggers(request: web.Request) -> web.Response:
     if not lora_path:
         return web.json_response({"triggers": []})
     triggers = extract_lora_triggers(lora_path)
-    return web.json_response({"triggers": triggers})
+    frequencies = extract_lora_trigger_frequencies(lora_path)
+    return web.json_response(
+        {
+            "triggers": triggers,
+            "frequencies": {tag: count for tag, count in frequencies},
+        }
+    )
