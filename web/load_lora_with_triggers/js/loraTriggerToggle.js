@@ -3,7 +3,11 @@ import { api } from '../../../../scripts/api.js';
 import { $el } from '../../../../scripts/ui.js';
 import { normalizeSavedValues } from './stackUtils.js';
 import { formatLabel } from './labelUtils.js';
-import { formatPercentLabel, normalizePercentValue } from './percentUtils.js';
+import { getResizedNodeSize } from './nodeSizeUtils.js';
+import { getTagVisibility } from './tagFilterUtils.js';
+import { compactSlotValues, isFilledName } from './stackOrderUtils.js';
+import { getLockedHeight } from './dialogSizeUtils.js';
+import { normalizeSelectionValue } from './selectionValueUtils.js';
 
 const SINGLE_NODE_NAME = 'LoadLoraWithTriggers';
 const STACK_NODE_NAMES = ['LoadLoraWithTriggersStack', 'load_lora_with_triggers_stack'];
@@ -78,9 +82,9 @@ const applyReadableLabels = (node) => {
   });
 };
 
-const resizeNodeToWidgets = (node) => {
-  const size = node?.computeSize?.();
-  if (!size || !Array.isArray(size)) {
+const resizeNodeToWidgets = (node, options = {}) => {
+  const size = getResizedNodeSize(node, options);
+  if (!size) {
     return;
   }
   if (typeof node.setSize === 'function') {
@@ -233,6 +237,21 @@ const showMessage = (message) => {
   document.body.append(overlay);
 };
 
+const lockDialogHeight = (panel) => {
+  if (!panel) {
+    return;
+  }
+  requestAnimationFrame(() => {
+    const maxHeight = Math.floor(window.innerHeight * 0.7);
+    const currentHeight = panel.getBoundingClientRect().height;
+    const lockedHeight = getLockedHeight(currentHeight, maxHeight);
+    if (!lockedHeight) {
+      return;
+    }
+    panel.style.height = `${lockedHeight}px`;
+  });
+};
+
 const openTriggerDialog = async (loraName, selectionWidget) => {
   if (!loraName || loraName === 'None') {
     showMessage('Please select a LoRA.');
@@ -283,6 +302,31 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
       marginBottom: '12px',
     },
   });
+  const filterInput = $el('input', {
+    type: 'text',
+    placeholder: 'Filter tags',
+    style: { flex: '1 1 auto', paddingRight: '28px' },
+  });
+  const clearFilterButton = $el('button', {
+    textContent: 'Clear',
+    style: {
+      position: 'absolute',
+      right: '4px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      padding: '2px 6px',
+    },
+  });
+  const filterContainer = $el('div', {
+    style: {
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      flex: '1 1 auto',
+      marginLeft: '8px',
+    },
+  });
+  filterContainer.append(filterInput, clearFilterButton);
   const list = $el('div', {
     style: {
       overflow: 'auto',
@@ -319,39 +363,26 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
   const applyButton = $el('button', { textContent: 'Apply' });
   const cancelButton = $el('button', { textContent: 'Cancel' });
 
-  const percentContainer = $el('div', {
-    style: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      marginLeft: 'auto',
-      width: '45%',
-      maxWidth: '45%',
-    },
-  });
-  const percentLabel = $el('span', {
-    textContent: formatPercentLabel(100),
-    style: { minWidth: '48px', textAlign: 'right' },
-  });
-  const percentSlider = $el('input', {
-    type: 'range',
-    min: '1',
-    max: '100',
-    value: '100',
-    style: { flex: '1 1 auto' },
-  });
-  const percentCaption = $el('span', { textContent: 'Show top', style: { whiteSpace: 'nowrap' } });
-
-  const updateVisibleByPercent = (value) => {
-    const percentValue = normalizePercentValue(value);
-    const visibleCount = Math.max(1, Math.floor(triggers.length * (percentValue / 100)));
+  const updateVisibleByFilter = (value) => {
+    const query = String(value ?? '');
+    const visibility = getTagVisibility(
+      items.map((item) => item.trigger),
+      query,
+    );
     items.forEach((item, index) => {
-      const isVisible = index < visibleCount;
+      const isVisible = visibility[index] ?? true;
       item.row.style.display = isVisible ? 'flex' : 'none';
-      if (!isVisible) {
-        item.checkbox.checked = false;
-      }
     });
+  };
+
+  const updateVisibility = () => {
+    const query = filterInput?.value ?? '';
+    const hasQuery = String(query).trim() !== '';
+    if (hasQuery) {
+      updateVisibleByFilter(query);
+      return;
+    }
+    updateVisibleByFilter('');
   };
 
   selectAllButton.onclick = () => {
@@ -390,26 +421,32 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
   };
   document.addEventListener('keydown', dialogKeydownHandler, true);
 
-  percentSlider.oninput = (event) => {
-    const value = event?.target?.value ?? '100';
-    percentLabel.textContent = formatPercentLabel(value);
-    updateVisibleByPercent(value);
+  filterInput.oninput = () => {
+    updateVisibility();
+  };
+  clearFilterButton.onclick = () => {
+    filterInput.value = '';
+    updateVisibility();
+    filterInput.focus();
   };
 
-  percentContainer.append(percentCaption, percentSlider, percentLabel);
-  topControls.append(selectAllButton, selectNoneButton, percentContainer);
+  topControls.append(selectAllButton, selectNoneButton, filterContainer);
   rightActions.append(cancelButton, applyButton);
   actions.append(leftActions, rightActions);
 
-  updateVisibleByPercent(100);
+  updateVisibility();
 
   panel.append(title, topControls, list, actions);
   overlay.append(panel);
   document.body.append(overlay);
+  lockDialogHeight(panel);
 };
 
 const hideSelectionWidget = (node) => {
   const selectionWidget = getWidget(node, SELECTION_WIDGET_NAME);
+  if (selectionWidget) {
+    selectionWidget.value = normalizeSelectionValue(selectionWidget.value);
+  }
   setWidgetHidden(selectionWidget, true);
 };
 
@@ -538,7 +575,27 @@ const setupStackUi = (node) => {
     if (typeof raw === 'number') {
       return raw > 0;
     }
-    return text !== '' && text !== 'None' && text !== '[None]';
+    return isFilledName(text);
+  };
+
+  const getSlotValueData = (slot) => ({
+    loraName: getLoraValue(slot).text,
+    strength: slot.strengthWidget?.value ?? null,
+    selection: slot.selectionWidget?.value ?? '',
+  });
+
+  const applySlotValueData = (slot, data) => {
+    if (!slot || !data) {
+      return;
+    }
+    const name = isFilledName(data.loraName) ? data.loraName : 'None';
+    setComboWidgetValue(slot.loraWidget, name);
+    const defaultStrength = slot.strengthWidget?.options?.default ?? 1.0;
+    const nextStrength = Number.isFinite(data.strength) ? data.strength : defaultStrength;
+    setWidgetValue(slot.strengthWidget, nextStrength);
+    if (slot.selectionWidget) {
+      slot.selectionWidget.value = normalizeSelectionValue(data.selection);
+    }
   };
 
   const clearSlot = (slot) => {
@@ -548,6 +605,22 @@ const setupStackUi = (node) => {
     if (slot.selectionWidget) {
       slot.selectionWidget.value = '';
     }
+    updateVisibility();
+    node.setDirtyCanvas(true, true);
+  };
+
+  const compactSlotsFromIndex = (startIndex) => {
+    if (node.__stackIsCompacting) {
+      return;
+    }
+    const values = slots.map(getSlotValueData);
+    const compacted = compactSlotValues(values, startIndex);
+    node.__stackIsCompacting = true;
+    compacted.forEach((data, index) => {
+      const slot = slots[index];
+      applySlotValueData(slot, data);
+    });
+    node.__stackIsCompacting = false;
     updateVisibility();
     node.setDirtyCanvas(true, true);
   };
@@ -676,17 +749,30 @@ const setupStackUi = (node) => {
     applyReadableLabels(node);
     updateActiveCount();
     slots.forEach((slot) => {
-      hookLoraWidget(slot.loraWidget, slot.selectionWidget, updateVisibility);
+      hookLoraWidget(slot.loraWidget, slot.selectionWidget, () => {
+        if (node.__stackIsCompacting) {
+          return;
+        }
+        const { text } = getLoraValue(slot);
+        if (!isFilledName(text)) {
+          compactSlotsFromIndex(slot.index - 1);
+          return;
+        }
+        updateVisibility();
+      });
       const visible = slot.index <= state.activeCount;
       setWidgetHidden(slot.loraWidget, !visible);
       setWidgetHidden(slot.strengthWidget, !visible);
+      if (slot.selectionWidget) {
+        slot.selectionWidget.value = normalizeSelectionValue(slot.selectionWidget.value);
+      }
       setWidgetHidden(slot.selectionWidget, true);
       const controls = ensureControls(slot);
       setWidgetHidden(controls.selectWidget, !visible);
       const showSeparator = visible && slot.index < state.activeCount;
       setWidgetHidden(controls.separatorWidget, !showSeparator);
     });
-    resizeNodeToWidgets(node);
+    resizeNodeToWidgets(node, { keepWidth: true });
     node.setDirtyCanvas(true, true);
   };
 
