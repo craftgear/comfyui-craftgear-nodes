@@ -4,9 +4,8 @@ import { $el } from '../../../../scripts/ui.js';
 import { normalizeSavedValues } from './stackUtils.js';
 import { formatLabel } from './labelUtils.js';
 import { getResizedNodeSize } from './nodeSizeUtils.js';
-import { getTagVisibility } from './tagFilterUtils.js';
+import { getTagVisibility, getTopNVisibility } from './tagFilterUtils.js';
 import { compactSlotValues, isFilledName } from './stackOrderUtils.js';
-import { getLockedHeight } from './dialogSizeUtils.js';
 import { normalizeSelectionValue } from './selectionValueUtils.js';
 import { ensureSelectionSerializable } from './selectionSerializeUtils.js';
 
@@ -16,6 +15,7 @@ const LORA_WIDGET_NAME = 'lora_name';
 const SELECTION_WIDGET_NAME = 'trigger_selection';
 const LABEL_TARGETS = [LORA_WIDGET_NAME, 'lora_strength', SELECTION_WIDGET_NAME, 'select_trigger'];
 const DIALOG_ID = 'my-custom-node-trigger-dialog';
+const TOP_N_STORAGE_KEY = 'craftgear-trigger-dialog-top-n';
 const MAX_LORA_STACK = 10;
 const DEFAULT_LORA_STACK = 1;
 const TRASH_ICON_URL = new URL('../../../icons/MaterialSymbolsDelete.svg', import.meta.url).toString();
@@ -244,21 +244,6 @@ const showMessage = (message) => {
   document.body.append(overlay);
 };
 
-const lockDialogHeight = (panel) => {
-  if (!panel) {
-    return;
-  }
-  requestAnimationFrame(() => {
-    const maxHeight = Math.floor(window.innerHeight * 0.7);
-    const currentHeight = panel.getBoundingClientRect().height;
-    const lockedHeight = getLockedHeight(currentHeight, maxHeight);
-    if (!lockedHeight) {
-      return;
-    }
-    panel.style.height = `${lockedHeight}px`;
-  });
-};
-
 const openTriggerDialog = async (loraName, selectionWidget) => {
   if (!loraName || loraName === 'None') {
     showMessage('Please select a LoRA.');
@@ -291,7 +276,7 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
       padding: '16px',
       borderRadius: '8px',
       width: '60vw',
-      maxHeight: '70vh',
+      height: '70vh',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: 'sans-serif',
@@ -315,13 +300,21 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
     style: { flex: '1 1 auto', paddingRight: '28px' },
   });
   const clearFilterButton = $el('button', {
-    textContent: 'Clear',
+    textContent: '\u00d7',
     style: {
       position: 'absolute',
       right: '4px',
       top: '50%',
       transform: 'translateY(-50%)',
-      padding: '2px 6px',
+      padding: '0',
+      width: '20px',
+      height: '20px',
+      fontSize: '16px',
+      lineHeight: '1',
+      border: 'none',
+      background: 'transparent',
+      cursor: 'pointer',
+      opacity: '0.7',
     },
   });
   const filterContainer = $el('div', {
@@ -334,6 +327,29 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
     },
   });
   filterContainer.append(filterInput, clearFilterButton);
+  // 上位N件表示スライダー（保存された値を復元）
+  const savedTopN = localStorage.getItem(TOP_N_STORAGE_KEY);
+  const initialTopN = savedTopN ? Math.min(Math.max(1, Number(savedTopN)), triggers.length) : triggers.length;
+  const topNSlider = $el('input', {
+    type: 'range',
+    min: '1',
+    max: String(triggers.length),
+    value: String(initialTopN),
+    style: { width: '200px' },
+  });
+  const topNLabel = $el('span', {
+    textContent: `Show top ${initialTopN} tags`,
+    style: { minWidth: '130px', fontSize: '12px' },
+  });
+  const topNContainer = $el('div', {
+    style: {
+      display: 'flex',
+      gap: '4px',
+      alignItems: 'center',
+      marginLeft: '12px',
+    },
+  });
+  topNContainer.append(topNLabel, topNSlider);
   const list = $el('div', {
     style: {
       overflow: 'auto',
@@ -386,26 +402,33 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
   const applyButton = $el('button', { textContent: 'Apply' });
   const cancelButton = $el('button', { textContent: 'Cancel' });
 
-  const updateVisibleByFilter = (value) => {
+  const updateVisibleByFilter = (value, topN) => {
     const query = String(value ?? '');
-    const visibility = getTagVisibility(
-      items.map((item) => item.trigger),
-      query,
-    );
+    const tagList = items.map((item) => item.trigger);
+    const textVisibility = getTagVisibility(tagList, query);
+    const topNValue = Number(topN) || 0;
+    const topNVisibility = getTopNVisibility(tagList, frequencies, topNValue);
     items.forEach((item, index) => {
-      const isVisible = visibility[index] ?? true;
+      // 両方のフィルタを満たす場合のみ表示
+      const isVisible = (textVisibility[index] ?? true) && (topNVisibility[index] ?? true);
       item.row.style.display = isVisible ? 'flex' : 'none';
+      // スライダーで非表示になったタグの選択を解除
+      if (!(topNVisibility[index] ?? true)) {
+        item.checkbox.checked = false;
+      }
     });
+  };
+
+  const updateTopNLabel = (value) => {
+    const topNValue = Number(value) || 1;
+    topNLabel.textContent = `Show top ${topNValue} tags`;
   };
 
   const updateVisibility = () => {
     const query = filterInput?.value ?? '';
-    const hasQuery = String(query).trim() !== '';
-    if (hasQuery) {
-      updateVisibleByFilter(query);
-      return;
-    }
-    updateVisibleByFilter('');
+    const topNValue = Number(topNSlider?.value) || triggers.length;
+    updateVisibleByFilter(query, topNValue);
+    updateTopNLabel(topNValue);
   };
 
   selectAllButton.onclick = () => {
@@ -452,8 +475,12 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
     updateVisibility();
     filterInput.focus();
   };
+  topNSlider.oninput = () => {
+    localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
+    updateVisibility();
+  };
 
-  topControls.append(selectAllButton, selectNoneButton, filterContainer);
+  topControls.append(selectAllButton, selectNoneButton, filterContainer, topNContainer);
   rightActions.append(cancelButton, applyButton);
   actions.append(leftActions, rightActions);
 
@@ -462,7 +489,7 @@ const openTriggerDialog = async (loraName, selectionWidget) => {
   panel.append(title, topControls, list, actions);
   overlay.append(panel);
   document.body.append(overlay);
-  lockDialogHeight(panel);
+  filterInput.focus();
 };
 
 const hideSelectionWidget = (node) => {
