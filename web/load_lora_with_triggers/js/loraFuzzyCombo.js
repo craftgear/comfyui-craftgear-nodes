@@ -1,6 +1,7 @@
 import { app } from '../../../../scripts/app.js';
 
-import { scoreFuzzy } from './loraFuzzyMatch.js';
+import { filterFuzzyIndices, matchFuzzyPositions } from './loraFuzzyMatch.js';
+import { buildFuzzyReindexMap } from './loraFuzzyOrderUtils.js';
 
 const TARGET_NODE_NAMES = [
 	'LoadLoraWithTriggers',
@@ -24,62 +25,134 @@ const getItemLabel = (item) => {
 	return item.textContent?.trim() ?? '';
 };
 
+const getOriginalLabel = (item) => {
+	const stored = item.dataset.loraFuzzyLabel;
+	if (stored !== undefined) {
+		return stored;
+	}
+	const label = getItemLabel(item);
+	item.dataset.loraFuzzyLabel = label;
+	return label;
+};
+
+const restoreItemLabels = (items) => {
+	items.forEach((item) => {
+		item.textContent = getOriginalLabel(item);
+	});
+};
+
+const ensureHighlightStyle = () => {
+	if (document.getElementById('lora-fuzzy-highlight-style')) {
+		return;
+	}
+	const style = document.createElement('style');
+	style.id = 'lora-fuzzy-highlight-style';
+	style.textContent = `.lora-fuzzy-hit{background:rgba(255,230,0,0.35);border-radius:2px;padding:0 1px;}`;
+	document.head?.appendChild(style);
+};
+
+const escapeHtml = (text) =>
+	text.replace(/[&<>"']/g, (char) => {
+		const map = {
+			'&': '&amp;',
+			'<': '&lt;',
+			'>': '&gt;',
+			'"': '&quot;',
+			"'": '&#39;',
+		};
+		return map[char] ?? char;
+	});
+
+const buildHighlightHtml = (label, positions) => {
+	if (!positions || positions.length === 0) {
+		return escapeHtml(label);
+	}
+	const hitSet = new Set(positions);
+	let html = '';
+	for (let i = 0; i < label.length; i += 1) {
+		const char = escapeHtml(label[i]);
+		if (hitSet.has(i)) {
+			html += `<span class="lora-fuzzy-hit">${char}</span>`;
+		} else {
+			html += char;
+		}
+	}
+	return html;
+};
+
 const ensureItemMetadata = (items) => {
 	items.forEach((item, index) => {
 		if (!item.dataset.loraFuzzyIndex) {
 			item.dataset.loraFuzzyIndex = String(index);
 		}
+		if (!item.dataset.loraFuzzyOriginalIndex) {
+			item.dataset.loraFuzzyOriginalIndex = String(index);
+		}
 	});
 };
 
-const restoreOriginalOrder = (items) => {
+const restoreOriginalOrder = (items, parentOverride) => {
 	const sorted = items.slice().sort((a, b) => {
-		const aIndex = Number(a.dataset.loraFuzzyIndex ?? 0);
-		const bIndex = Number(b.dataset.loraFuzzyIndex ?? 0);
+		const aIndex = Number(a.dataset.loraFuzzyOriginalIndex ?? 0);
+		const bIndex = Number(b.dataset.loraFuzzyOriginalIndex ?? 0);
 		return aIndex - bIndex;
 	});
 
-	const parent = sorted[0]?.parentElement;
+	const parent =
+		parentOverride ??
+		sorted.find((item) => item.parentElement)?.parentElement ??
+		sorted[0]?.parentElement;
 	if (!parent) {
 		return;
 	}
 	for (const item of sorted) {
 		item.style.display = '';
+		item.dataset.loraFuzzyIndex = item.dataset.loraFuzzyOriginalIndex ?? '0';
 		parent.appendChild(item);
 	}
 };
 
-const applyFuzzyFilter = (items, query) => {
+const applyFuzzyFilter = (menu, items, query) => {
 	const trimmed = query.trim();
 	if (!trimmed) {
-		restoreOriginalOrder(items);
+		restoreItemLabels(items);
+		restoreOriginalOrder(items, menu);
 		return;
 	}
 
-	const scored = items
-		.map((item) => ({ item, label: getItemLabel(item), score: scoreFuzzy(trimmed, getItemLabel(item)) }))
-		.filter((entry) => entry.score !== Number.NEGATIVE_INFINITY)
-		.sort((a, b) => {
-			if (b.score !== a.score) {
-				return b.score - a.score;
-			}
-			const aIndex = Number(a.item.dataset.loraFuzzyIndex ?? 0);
-			const bIndex = Number(b.item.dataset.loraFuzzyIndex ?? 0);
-			return aIndex - bIndex;
-		});
-
-	const parent = items[0]?.parentElement;
+	const labels = items.map((item) => getOriginalLabel(item));
+	const { visible, hidden } = filterFuzzyIndices(trimmed, labels);
+	const reindexMap = buildFuzzyReindexMap(visible);
+	const parent = menu;
 	if (!parent) {
 		return;
 	}
 
-	for (const item of items) {
+	for (const index of hidden) {
+		const item = items[index];
+		if (!item) {
+			continue;
+		}
 		item.style.display = 'none';
+		item.dataset.loraFuzzyIndex = item.dataset.loraFuzzyOriginalIndex ?? '0';
+		item.textContent = getOriginalLabel(item);
+		if (item.parentElement) {
+			item.parentElement.removeChild(item);
+		}
 	}
 
-	for (const entry of scored) {
-		entry.item.style.display = '';
-		parent.appendChild(entry.item);
+	ensureHighlightStyle();
+	for (const index of visible) {
+		const item = items[index];
+		if (!item) {
+			continue;
+		}
+		const label = labels[index];
+		const positions = matchFuzzyPositions(trimmed, label);
+		item.innerHTML = buildHighlightHtml(label, positions ?? []);
+		item.dataset.loraFuzzyIndex = String(reindexMap[index] ?? 0);
+		item.style.display = '';
+		parent.appendChild(item);
 	}
 };
 
@@ -103,26 +176,29 @@ const attachFuzzyFilter = (menu) => {
 
 	const onInput = (event) => {
 		event.stopImmediatePropagation();
-		applyFuzzyFilter(items, filterInput.value ?? '');
+		applyFuzzyFilter(menu, items, filterInput.value ?? '');
 	};
 
 	filterInput.addEventListener('input', onInput, true);
 	filterInput.addEventListener('keyup', onInput, true);
 	filterInput.addEventListener('change', onInput, true);
 
-	applyFuzzyFilter(items, filterInput.value ?? '');
+	applyFuzzyFilter(menu, items, filterInput.value ?? '');
 };
 
 app.registerExtension({
 	name: 'my_custom_node.loraFuzzyCombo',
 	init() {
-		const observer = new MutationObserver((mutations) => {
-			const node = app.canvas?.current_node;
-			const widget = app.canvas?.getWidgetAtCursor?.();
-			if (!node || !widget || !isTargetWidget(widget) || !isTargetNode(node)) {
-				return;
-			}
+		const attachExistingMenus = () => {
+			const menus = document.querySelectorAll('.litecontextmenu');
+			menus.forEach((menu) => {
+				if (menu.querySelector('.comfy-context-menu-filter')) {
+					attachFuzzyFilter(menu);
+				}
+			});
+		};
 
+		const observer = new MutationObserver((mutations) => {
 			for (const mutation of mutations) {
 				for (const added of mutation.addedNodes) {
 					if (added.classList?.contains('litecontextmenu')) {
@@ -136,6 +212,7 @@ app.registerExtension({
 			}
 		});
 
-		observer.observe(document.body, { childList: true, subtree: false });
+		observer.observe(document.body, { childList: true, subtree: true });
+		attachExistingMenus();
 	},
 });
