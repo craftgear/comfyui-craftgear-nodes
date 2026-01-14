@@ -4,6 +4,7 @@ from .camera_shake.camera_shake_node import CameraShakeNode
 from .commentable_multiline_text.commentable_multiline_text_node import (
     CommentableMultilineTextNode,
 )
+from .hoge.ui.nodes.hoge import Hoge
 from .join_text_node.join_text_node import JoinTextNode
 from .load_lora_with_triggers.ui import trigger_api
 from .load_lora_with_triggers.ui.nodes.load_lora_with_triggers import (
@@ -22,6 +23,7 @@ NODE_CLASS_MAPPINGS: dict[str, Any] = {
     "LoadLoraWithTriggersStack": LoadLoraWithTriggersStack,
     "CameraShakeNode": CameraShakeNode,
     "CommentableMultilineTextNode": CommentableMultilineTextNode,
+    "Hoge": Hoge,
     "ImageBatchLoader": ImageBatchLoader,
     "JoinTextNode": JoinTextNode,
 }
@@ -31,6 +33,7 @@ NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "LoadLoraWithTriggersStack": "Load Lora With Triggers Stack",
     "CameraShakeNode": "Camera Shake",
     "CommentableMultilineTextNode": "Commentable Multiline Text",
+    "Hoge": "hoge",
     "ImageBatchLoader": "Image Batch Loader",
     "JoinTextNode": "join_text_node",
 }

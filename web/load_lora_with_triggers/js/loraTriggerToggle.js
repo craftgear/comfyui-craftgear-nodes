@@ -13,6 +13,7 @@ const SINGLE_NODE_NAME = 'LoadLoraWithTriggers';
 const STACK_NODE_NAMES = ['LoadLoraWithTriggersStack', 'load_lora_with_triggers_stack'];
 const LORA_WIDGET_NAME = 'lora_name';
 const SELECTION_WIDGET_NAME = 'trigger_selection';
+const TOGGLE_WIDGET_NAME = 'lora_on';
 const LABEL_TARGETS = [LORA_WIDGET_NAME, 'lora_strength', SELECTION_WIDGET_NAME, 'select_trigger'];
 const DIALOG_ID = 'my-custom-node-trigger-dialog';
 const TOP_N_STORAGE_KEY = 'craftgear-trigger-dialog-top-n';
@@ -20,8 +21,8 @@ const MAX_LORA_STACK = 10;
 const DEFAULT_LORA_STACK = 1;
 const TRASH_ICON_URL = new URL('../../../icons/MaterialSymbolsDelete.svg', import.meta.url).toString();
 const TRASH_ICON_SIZE = 12;
-const TRASH_ICON_PADDING = 6;
-const TRASH_ICON_RIGHT_GUTTER = 22;
+const TOGGLE_LEFT_PADDING = 12;
+const TOGGLE_LABEL_TEXT = 'Toggle All';
 let dialogKeydownHandler = null;
 
 const trashIconImage = new Image();
@@ -40,9 +41,6 @@ const isStackNode = (node) => {
 };
 const isTargetNode = (node) => isSingleNode(node) || isStackNode(node);
 const getWidget = (node, name) => node.widgets?.find((widget) => widget.name === name);
-const getWidgetsByPrefix = (node, prefix) =>
-  node.widgets?.filter((widget) => widget.name?.startsWith(prefix)) ?? [];
-
 const setWidgetHidden = (widget, hidden) => {
   if (!widget) {
     return;
@@ -95,14 +93,64 @@ const resizeNodeToWidgets = (node, options = {}) => {
   node.size = size;
 };
 
-const getWidgetHeight = (widget, width) => {
-  const size = widget?.computeSize?.(width);
-  if (Array.isArray(size) && typeof size[1] === 'number') {
-    return size[1];
+const normalizeToggleValue = (value) => {
+  if (value === false || value === 0) {
+    return false;
   }
-  return typeof LiteGraph !== 'undefined' && LiteGraph.NODE_WIDGET_HEIGHT
-    ? LiteGraph.NODE_WIDGET_HEIGHT
-    : 24;
+  return true;
+};
+
+const drawRoundedRect = (ctx, x, y, width, height, radius) => {
+  const safeRadius = Math.min(radius, height / 2, width / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + safeRadius, safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.arcTo(x + width, y + height, x + width - safeRadius, y + height, safeRadius);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.arcTo(x, y + height, x, y + height - safeRadius, safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.arcTo(x, y, x + safeRadius, y, safeRadius);
+  ctx.closePath();
+};
+
+const drawToggleSwitch = (ctx, rect, isOn, isMixed = false) => {
+  const radius = rect.height / 2;
+  const knobSize = Math.max(2, rect.height - 4);
+  let knobX = rect.x + 2;
+  if (isOn) {
+    knobX = rect.x + rect.width - knobSize - 2;
+  }
+  if (isMixed) {
+    knobX = rect.x + (rect.width - knobSize) / 2;
+  }
+  ctx.save();
+  ctx.fillStyle = isOn ? '#3ba55d' : '#5a5a5a';
+  if (isMixed) {
+    ctx.fillStyle = '#6b6b6b';
+  }
+  drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, radius);
+  ctx.fill();
+  ctx.fillStyle = '#f2f2f2';
+  ctx.beginPath();
+  ctx.arc(
+    knobX + knobSize / 2,
+    rect.y + rect.height / 2,
+    knobSize / 2,
+    0,
+    Math.PI * 2,
+  );
+  ctx.fill();
+  ctx.restore();
+};
+
+const isPointInRect = (pos, rect) => {
+  if (!rect || !Array.isArray(pos)) {
+    return false;
+  }
+  const [x, y] = pos;
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
 };
 
 const drawTrashIcon = (ctx, rect, isActive) => {
@@ -113,6 +161,79 @@ const drawTrashIcon = (ctx, rect, isActive) => {
   ctx.globalAlpha = isActive ? 0.85 : 0.35;
   ctx.drawImage(trashIconImage, rect.x, rect.y, rect.size, rect.size);
   ctx.restore();
+};
+
+const clampNumber = (value, min, max) => {
+  if (Number.isNaN(value)) {
+    return min;
+  }
+  return Math.min(Math.max(value, min), max);
+};
+
+const fitText = (ctx, text, maxWidth) => {
+  const raw = String(text ?? '');
+  if (!maxWidth || ctx.measureText(raw).width <= maxWidth) {
+    return raw;
+  }
+  const ellipsis = '...';
+  const ellipsisWidth = ctx.measureText(ellipsis).width;
+  let trimmed = raw;
+  while (trimmed.length > 0) {
+    trimmed = trimmed.slice(0, -1);
+    if (ctx.measureText(trimmed).width + ellipsisWidth <= maxWidth) {
+      return `${trimmed}${ellipsis}`;
+    }
+  }
+  return ellipsis;
+};
+
+const drawTriangle = (ctx, rect, direction) => {
+  const centerX = rect.x + rect.width / 2;
+  const centerY = rect.y + rect.height / 2;
+  const size = Math.min(rect.width, rect.height) * 0.35;
+  ctx.beginPath();
+  if (direction === 'left') {
+    ctx.moveTo(centerX + size, centerY - size);
+    ctx.lineTo(centerX - size, centerY);
+    ctx.lineTo(centerX + size, centerY + size);
+  } else {
+    ctx.moveTo(centerX - size, centerY - size);
+    ctx.lineTo(centerX + size, centerY);
+    ctx.lineTo(centerX - size, centerY + size);
+  }
+  ctx.closePath();
+  ctx.fill();
+};
+
+const drawStrengthControl = (ctx, rect, valueText) => {
+  const arrowWidth = rect.height;
+  const valueWidth = Math.max(24, rect.width - arrowWidth * 2);
+  const decRect = { x: rect.x, y: rect.y, width: arrowWidth, height: rect.height };
+  const valRect = {
+    x: rect.x + arrowWidth,
+    y: rect.y,
+    width: valueWidth,
+    height: rect.height,
+  };
+  const incRect = {
+    x: rect.x + arrowWidth + valueWidth,
+    y: rect.y,
+    width: arrowWidth,
+    height: rect.height,
+  };
+  ctx.save();
+  ctx.globalAlpha *= 0.9;
+  ctx.fillStyle = '#2b2b2b';
+  drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, rect.height / 2);
+  ctx.fill();
+  ctx.fillStyle = '#f0f0f0';
+  drawTriangle(ctx, decRect, 'left');
+  drawTriangle(ctx, incRect, 'right');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(valueText, valRect.x + valRect.width / 2, valRect.y + valRect.height / 2);
+  ctx.restore();
+  return { decRect, valRect, incRect };
 };
 
 const setWidgetValue = (widget, value) => {
@@ -138,29 +259,6 @@ const setComboWidgetValue = (widget, value) => {
     }
   }
   setWidgetValue(widget, value);
-};
-
-const getNodeBaseY = (node) => {
-  const inputCount = Array.isArray(node?.inputs) ? node.inputs.length : 0;
-  const outputCount = Array.isArray(node?.outputs) ? node.outputs.length : 0;
-  const slotHeight = typeof LiteGraph !== 'undefined' && LiteGraph.NODE_SLOT_HEIGHT
-    ? LiteGraph.NODE_SLOT_HEIGHT
-    : 20;
-  return Math.max(inputCount, outputCount) * slotHeight + 6;
-};
-
-const getWidgetLayout = (node, width) => {
-  const layout = new Map();
-  let currentY = getNodeBaseY(node);
-  (node?.widgets ?? []).forEach((widget) => {
-    if (typeof widget?.y === 'number') {
-      currentY = widget.y;
-    }
-    const height = getWidgetHeight(widget, width);
-    layout.set(widget, { y: currentY, height });
-    currentY += height;
-  });
-  return layout;
 };
 
 const parseSelection = (selectionText, triggers) => {
@@ -539,6 +637,49 @@ const createSeparatorWidget = (node) => {
 	return widget;
 };
 
+const createHeaderWidget = (node, getAllToggleState) => {
+	const widget = {
+		type: 'stack-header',
+		name: 'lora_stack_header',
+		value: '',
+    serialize: false,
+    computeSize: () => [0, 24],
+    draw(ctx, _node, width, y, height) {
+      const lineY = y + (height ?? 24) - 2;
+      ctx.save();
+      ctx.strokeStyle = '#3a3a3a';
+      ctx.beginPath();
+      ctx.moveTo(12, lineY);
+      ctx.lineTo(width - 12, lineY);
+      ctx.stroke();
+      const rowHeight = height ?? 24;
+      const toggleHeight = Math.max(10, Math.min(14, rowHeight - 8));
+      const toggleWidth = Math.round(toggleHeight * 1.8);
+      const toggleRect = {
+        x: TOGGLE_LEFT_PADDING,
+        y: y + (rowHeight - toggleHeight) / 2,
+        width: toggleWidth,
+        height: toggleHeight,
+      };
+      widget.__toggleRect = toggleRect;
+      const state = getAllToggleState?.() ?? null;
+      drawToggleSwitch(ctx, toggleRect, state === true, state === null);
+      ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(
+        TOGGLE_LABEL_TEXT,
+        toggleRect.x + toggleRect.width + 8,
+        y + rowHeight / 2,
+      );
+      ctx.restore();
+    },
+  };
+  node.widgets = node.widgets || [];
+	node.widgets.push(widget);
+	return widget;
+};
+
 const insertBeforeWidget = (node, targetWidget, widgets) => {
 	const list = node.widgets || [];
 	widgets.forEach((widget) => {
@@ -555,15 +696,47 @@ const insertBeforeWidget = (node, targetWidget, widgets) => {
 	list.splice(targetIndex, 0, ...widgets);
 };
 
-const applySavedWidgetValues = (node) => {
+const removeWidgets = (node, widgets) => {
+  const list = node.widgets || [];
+  const indices = widgets
+    .map((widget) => list.indexOf(widget))
+    .filter((index) => index >= 0)
+    .sort((a, b) => b - a);
+  indices.forEach((index) => {
+    if (typeof node.removeWidget === 'function') {
+      node.removeWidget(index);
+    } else {
+      list.splice(index, 1);
+    }
+  });
+  widgets.forEach((widget) => {
+    if (widget?.inputEl?.remove) {
+      widget.inputEl.remove();
+    }
+    if (widget && 'inputEl' in widget) {
+      widget.inputEl = null;
+    }
+  });
+};
+
+const applySavedWidgetValues = (node, slots) => {
   const savedValues = node.__stackSavedValues;
-  if (!Array.isArray(savedValues) || !node.widgets?.length) {
+  if (!Array.isArray(savedValues) || !Array.isArray(slots)) {
     return;
   }
-  const serializableWidgets = node.widgets.filter((widget) => widget.serialize !== false);
-  serializableWidgets.forEach((widget, index) => {
-    if (index < savedValues.length) {
-      widget.value = savedValues[index];
+  slots.forEach((slot, index) => {
+    const base = index * 4;
+    if (savedValues.length > base) {
+      slot.loraWidget.value = savedValues[base];
+    }
+    if (savedValues.length > base + 1) {
+      slot.strengthWidget.value = savedValues[base + 1];
+    }
+    if (savedValues.length > base + 2) {
+      slot.toggleWidget.value = normalizeToggleValue(savedValues[base + 2]);
+    }
+    if (savedValues.length > base + 3) {
+      slot.selectionWidget.value = normalizeSelectionValue(savedValues[base + 3]);
     }
   });
   node.__stackSavedValues = null;
@@ -575,25 +748,99 @@ const setupStackUi = (node) => {
   }
   node.__stackReady = true;
 
-  applySavedWidgetValues(node);
   applyReadableLabels(node);
 
   const state = { activeCount: DEFAULT_LORA_STACK };
 	const selectButtons = new Map();
 	const separators = new Map();
 	const slots = [];
-	let topSeparator = null;
+	let headerWidget = null;
 
   const getSlotWidgets = (index) => {
     const loraWidget = getWidget(node, `${LORA_WIDGET_NAME}_${index}`);
     const strengthWidget = getWidget(node, `lora_strength_${index}`);
+    const toggleWidget = getWidget(node, `${TOGGLE_WIDGET_NAME}_${index}`);
     const selectionWidget = getWidget(node, `${SELECTION_WIDGET_NAME}_${index}`);
     if (!loraWidget || !strengthWidget || !selectionWidget) {
       return null;
     }
     ensureSelectionSerializable(selectionWidget);
-    return { index, loraWidget, strengthWidget, selectionWidget };
+    return { index, loraWidget, strengthWidget, toggleWidget, selectionWidget };
   };
+
+  const createRowWidget = (slot) => ({
+    type: 'custom',
+    name: `lora_row_${slot.index}`,
+    value: '',
+    serialize: false,
+    computeSize: (width) => [width ?? 0, 28],
+    draw(ctx, _node, width, y, height) {
+      const rowHeight = height ?? 28;
+      const margin = 10;
+      const innerMargin = margin * 0.33;
+      const midY = y + rowHeight / 2;
+      const isOn = normalizeToggleValue(slot.toggleWidget?.value);
+      ctx.save();
+      ctx.fillStyle = '#2a2a2a';
+      drawRoundedRect(ctx, margin, y, width - margin * 2, rowHeight, 6);
+      ctx.fill();
+
+      const toggleHeight = Math.max(10, Math.min(14, rowHeight - 8));
+      const toggleWidth = Math.round(toggleHeight * 1.8);
+      const toggleRect = {
+        x: TOGGLE_LEFT_PADDING,
+        y: y + (rowHeight - toggleHeight) / 2,
+        width: toggleWidth,
+        height: toggleHeight,
+      };
+      slot.__toggleRect = toggleRect;
+      drawToggleSwitch(ctx, toggleRect, isOn);
+
+      const trashSize = Math.max(10, Math.min(TRASH_ICON_SIZE, rowHeight - 6));
+      const trashRect = {
+        x: width - margin - trashSize,
+        y: y + (rowHeight - trashSize) / 2,
+        size: trashSize,
+      };
+      slot.__trashIconRect = trashRect;
+      drawTrashIcon(ctx, trashRect, isSlotFilled(slot));
+
+      const strengthValue = Number(slot.strengthWidget?.value ?? 1);
+      const stepValue = Number(slot.strengthWidget?.options?.step ?? 0.1);
+      const decimals =
+        stepValue > 0 && stepValue < 1 ? String(stepValue).split('.')[1]?.length ?? 1 : 0;
+      const strengthText = Number.isFinite(strengthValue)
+        ? strengthValue.toFixed(decimals)
+        : '0';
+      const strengthWidth = Math.max(80, rowHeight * 3.4);
+      const strengthHeight = Math.max(12, rowHeight - 8);
+      const strengthRect = {
+        x: trashRect.x - innerMargin - strengthWidth,
+        y: y + (rowHeight - strengthHeight) / 2,
+        width: strengthWidth,
+        height: strengthHeight,
+      };
+
+      const labelX = toggleRect.x + toggleRect.width + innerMargin;
+      const labelWidth = Math.max(10, strengthRect.x - innerMargin - labelX);
+      const loraLabel = getLoraValue(slot).text || 'None';
+
+      if (!isOn) {
+        ctx.globalAlpha *= 0.4;
+      }
+      ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(fitText(ctx, loraLabel, labelWidth), labelX, midY);
+      slot.__loraRect = { x: labelX, y, width: labelWidth, height: rowHeight };
+
+      const strengthRects = drawStrengthControl(ctx, strengthRect, strengthText);
+      slot.__strengthDecRect = strengthRects.decRect;
+      slot.__strengthValRect = strengthRects.valRect;
+      slot.__strengthIncRect = strengthRects.incRect;
+      ctx.restore();
+    },
+  });
 
   const getLoraValue = (slot) => {
     const raw = slot.loraWidget?.value;
@@ -634,6 +881,7 @@ const setupStackUi = (node) => {
     loraName: getLoraValue(slot).text,
     strength: slot.strengthWidget?.value ?? null,
     selection: slot.selectionWidget?.value ?? '',
+    on: normalizeToggleValue(slot.toggleWidget?.value),
   });
 
   const applySlotValueData = (slot, data) => {
@@ -645,6 +893,9 @@ const setupStackUi = (node) => {
     const defaultStrength = slot.strengthWidget?.options?.default ?? 1.0;
     const nextStrength = Number.isFinite(data.strength) ? data.strength : defaultStrength;
     setWidgetValue(slot.strengthWidget, nextStrength);
+    if (slot.toggleWidget) {
+      setWidgetValue(slot.toggleWidget, normalizeToggleValue(data.on));
+    }
     if (slot.selectionWidget) {
       slot.selectionWidget.value = normalizeSelectionValue(data.selection);
     }
@@ -654,6 +905,9 @@ const setupStackUi = (node) => {
     setComboWidgetValue(slot.loraWidget, 'None');
     const defaultStrength = slot.strengthWidget?.options?.default ?? 1.0;
     setWidgetValue(slot.strengthWidget, defaultStrength);
+    if (slot.toggleWidget) {
+      setWidgetValue(slot.toggleWidget, true);
+    }
     if (slot.selectionWidget) {
       slot.selectionWidget.value = '';
     }
@@ -677,67 +931,121 @@ const setupStackUi = (node) => {
     node.setDirtyCanvas(true, true);
   };
 
-  const getSlotTrashRect = (slot, controls, layout, width) => {
-    if (slot?.loraWidget?.__isHidden || controls?.selectWidget?.__isHidden) {
+  const isSlotVisible = (slot) => !slot?.rowWidget?.hidden;
+
+  const getAllToggleState = () => {
+    let allOn = true;
+    let allOff = true;
+    let hasVisible = false;
+    slots.forEach((slot) => {
+      if (!isSlotVisible(slot)) {
+        return;
+      }
+      hasVisible = true;
+      const isOn = normalizeToggleValue(slot.toggleWidget?.value);
+      allOn = allOn && isOn;
+      allOff = allOff && !isOn;
+    });
+    if (!hasVisible) {
       return null;
     }
-    const loraLayout = layout.get(slot.loraWidget);
-    const selectLayout = layout.get(controls.selectWidget);
-    if (!loraLayout || !selectLayout) {
-      return null;
+    if (allOn) {
+      return true;
     }
-    const top = loraLayout.y;
-    const bottom = selectLayout.y + selectLayout.height;
-    const height = Math.max(0, bottom - top);
-    if (height <= 0) {
-      return null;
+    if (allOff) {
+      return false;
     }
-    const centerY = top + height / 2;
-    const size = Math.max(10, Math.min(TRASH_ICON_SIZE, height - 6));
-    const x = Math.max(0, width - size - TRASH_ICON_PADDING - TRASH_ICON_RIGHT_GUTTER);
-    return { x, y: centerY - size / 2, size };
+    return null;
   };
 
-  const ensureTrashHandlers = () => {
-    if (node.__stackTrashHandlers) {
+  const setAllToggleState = (nextValue) => {
+    slots.forEach((slot) => {
+      if (!isSlotVisible(slot)) {
+        return;
+      }
+      if (slot.toggleWidget) {
+        setWidgetValue(slot.toggleWidget, nextValue);
+      }
+    });
+  };
+
+  const ensureRowHandlers = () => {
+    if (node.__stackRowHandlers) {
       return;
     }
-    node.__stackTrashHandlers = true;
+    node.__stackRowHandlers = true;
 
-    const originalDrawForeground = node.onDrawForeground;
-    node.onDrawForeground = function () {
-      originalDrawForeground?.apply(this, arguments);
-      const ctx = arguments[0];
-      if (this?.flags?.collapsed) {
+    const openLoraMenu = (slot, event, canvasRef) => {
+      const options = slot.loraWidget?.options?.values;
+      if (!options) {
         return;
       }
-      const width = this?.size?.[0] ?? 0;
-      if (!width) {
+      const values = Array.isArray(options) ? options : Object.values(options);
+      if (!Array.isArray(values) || values.length === 0) {
         return;
       }
-      const layout = getWidgetLayout(this, width);
-      slots.forEach((slot) => {
-        const controls = ensureControls(slot);
-        const rect = getSlotTrashRect(slot, controls, layout, width);
-        if (!rect) {
-          return;
-        }
-        slot.__trashIconRect = rect;
-        drawTrashIcon(ctx, rect, isSlotFilled(slot));
-      });
+      const menuOptions = {
+        event,
+        scale: Math.max(1, canvasRef?.ds?.scale ?? 1),
+        className: 'dark',
+        callback: (value) => {
+          setComboWidgetValue(slot.loraWidget, value);
+          if (slot.selectionWidget) {
+            slot.selectionWidget.value = '';
+          }
+          updateVisibility();
+          node.setDirtyCanvas(true, true);
+        },
+      };
+      new LiteGraph.ContextMenu(values, menuOptions);
     };
 
     const originalMouseDown = node.onMouseDown;
     node.onMouseDown = function (event, pos, canvas) {
       if (Array.isArray(pos)) {
+        if (headerWidget?.__toggleRect && isPointInRect(pos, headerWidget.__toggleRect)) {
+          const allState = getAllToggleState();
+          setAllToggleState(allState === true ? false : true);
+          this.setDirtyCanvas?.(true, true);
+          return true;
+        }
         for (const slot of slots) {
-          const rect = slot.__trashIconRect;
-          if (!rect) {
+          if (!isSlotVisible(slot)) {
             continue;
           }
-          const inX = pos[0] >= rect.x && pos[0] <= rect.x + rect.size;
-          const inY = pos[1] >= rect.y && pos[1] <= rect.y + rect.size;
-          if (inX && inY) {
+          if (isPointInRect(pos, slot.__toggleRect)) {
+            if (slot.toggleWidget) {
+              setWidgetValue(slot.toggleWidget, !normalizeToggleValue(slot.toggleWidget.value));
+              this.setDirtyCanvas?.(true, true);
+              return true;
+            }
+          }
+          if (isPointInRect(pos, slot.__loraRect)) {
+            const canvasRef = canvas ?? app?.canvas;
+            openLoraMenu(slot, event, canvasRef);
+            return true;
+          }
+          if (isPointInRect(pos, slot.__strengthDecRect)) {
+            const step = Number(slot.strengthWidget?.options?.step ?? 0.1);
+            const min = Number(slot.strengthWidget?.options?.min ?? -2);
+            const max = Number(slot.strengthWidget?.options?.max ?? 2);
+            const current = Number(slot.strengthWidget?.value ?? 0);
+            const next = clampNumber(Number((current - step).toFixed(3)), min, max);
+            setWidgetValue(slot.strengthWidget, next);
+            this.setDirtyCanvas?.(true, true);
+            return true;
+          }
+          if (isPointInRect(pos, slot.__strengthIncRect)) {
+            const step = Number(slot.strengthWidget?.options?.step ?? 0.1);
+            const min = Number(slot.strengthWidget?.options?.min ?? -2);
+            const max = Number(slot.strengthWidget?.options?.max ?? 2);
+            const current = Number(slot.strengthWidget?.value ?? 0);
+            const next = clampNumber(Number((current + step).toFixed(3)), min, max);
+            setWidgetValue(slot.strengthWidget, next);
+            this.setDirtyCanvas?.(true, true);
+            return true;
+          }
+          if (isPointInRect(pos, slot.__trashIconRect)) {
             clearSlot(slot);
             return true;
           }
@@ -784,15 +1092,11 @@ const setupStackUi = (node) => {
 
   const updateActiveCount = () => {
     let highest = 0;
-    for (let index = 1; index <= MAX_LORA_STACK; index += 1) {
-      const slot = getSlotWidgets(index);
-      if (!slot) {
-        continue;
-      }
+    slots.forEach((slot) => {
       if (isSlotFilled(slot)) {
-        highest = index;
+        highest = Math.max(highest, slot.index);
       }
-    }
+    });
     const nextSlot = Math.min(highest + 1, MAX_LORA_STACK);
     state.activeCount = Math.max(DEFAULT_LORA_STACK, nextSlot);
   };
@@ -813,8 +1117,9 @@ const setupStackUi = (node) => {
         updateVisibility();
       });
       const visible = slot.index <= state.activeCount;
-      setWidgetHidden(slot.loraWidget, !visible);
-      setWidgetHidden(slot.strengthWidget, !visible);
+      if (slot.rowWidget) {
+        setWidgetHidden(slot.rowWidget, !visible);
+      }
       if (slot.selectionWidget) {
         slot.selectionWidget.value = normalizeSelectionValue(slot.selectionWidget.value);
       }
@@ -869,18 +1174,48 @@ const setupStackUi = (node) => {
     slots.push(slot);
   }
 
+  // ウィジェットの順序を調整（toggle → lora_name → strength → select_trigger → separator）
+  slots.forEach((slot) => {
+    setWidgetHidden(slot.selectionWidget, true);
+  });
+
+  applySavedWidgetValues(node, slots);
+
 	for (let i = slots.length - 1; i >= 0; i -= 1) {
 		const slot = slots[i];
 		const controls = ensureControls(slot);
-		insertAfterWidget(slot.strengthWidget, [controls.selectWidget, controls.separatorWidget]);
+		const anchorWidget = slot.rowWidget ?? slot.strengthWidget;
+		insertAfterWidget(anchorWidget, [controls.selectWidget, controls.separatorWidget]);
 	}
 
-	if (!topSeparator && slots.length > 0) {
-		topSeparator = createSeparatorWidget(node);
-		insertBeforeWidget(node, slots[0].loraWidget, [topSeparator]);
-	}
+  if (!headerWidget && slots.length > 0) {
+    headerWidget = createHeaderWidget(node, getAllToggleState);
+    const anchorWidget = slots[0].rowWidget ?? slots[0].loraWidget;
+    insertBeforeWidget(node, anchorWidget, [headerWidget]);
+  }
 
-  ensureTrashHandlers();
+  if (!node.__stackSerializeWrapped) {
+    const originalOnSerialize = node.onSerialize;
+    node.onSerialize = function (o) {
+      originalOnSerialize?.apply(this, arguments);
+      const values = [];
+      slots.forEach((slot) => {
+        const defaultStrength = slot.strengthWidget?.options?.default ?? 1.0;
+        const strengthValue =
+          slot.strengthWidget?.value ?? defaultStrength;
+        values.push(
+          slot.loraWidget?.value ?? 'None',
+          strengthValue,
+          normalizeToggleValue(slot.toggleWidget?.value),
+          slot.selectionWidget?.value ?? '',
+        );
+      });
+      o.widgets_values = values;
+    };
+    node.__stackSerializeWrapped = true;
+  }
+
+  ensureRowHandlers();
 	updateVisibility();
 };
 

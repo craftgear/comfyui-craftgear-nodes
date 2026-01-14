@@ -44,10 +44,12 @@ class LoadLoraWithTriggersStackInputTypesTest(unittest.TestCase):
             lora_keys = [key for key in required.keys() if key.startswith('lora_name_')]
             strength_keys = [key for key in required.keys() if key.startswith('lora_strength_')]
             selection_keys = [key for key in required.keys() if key.startswith('trigger_selection_')]
+            toggle_keys = [key for key in required.keys() if key.startswith('lora_on_')]
 
             self.assertEqual(len(lora_keys), ui_node.MAX_LORA_STACK)
             self.assertEqual(len(strength_keys), ui_node.MAX_LORA_STACK)
             self.assertEqual(len(selection_keys), ui_node.MAX_LORA_STACK)
+            self.assertEqual(len(toggle_keys), ui_node.MAX_LORA_STACK)
 
             self.assertIn('lora_name_1', required)
             self.assertIn(f'lora_name_{ui_node.MAX_LORA_STACK}', required)

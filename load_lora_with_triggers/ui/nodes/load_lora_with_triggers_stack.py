@@ -39,6 +39,7 @@ class LoadLoraWithTriggersStack:
                     "display": "slider",
                 },
             )
+            required[f"lora_on_{index}"] = ("BOOLEAN", {"default": True})
             required[f"trigger_selection_{index}"] = ("STRING", {"default": ""})
         return {"required": required}
 
@@ -59,7 +60,10 @@ class LoadLoraWithTriggersStack:
         for index in range(1, MAX_LORA_STACK + 1):
             lora_name = kwargs.get(f"lora_name_{index}", "None")
             lora_strength = kwargs.get(f"lora_strength_{index}", 1.0)
+            lora_on = kwargs.get(f"lora_on_{index}", True)
             trigger_selection = kwargs.get(f"trigger_selection_{index}", "")
+            if not lora_on:
+                continue
             if not lora_name or lora_name == "None":
                 continue
             lora_path = folder_paths.get_full_path("loras", lora_name)

@@ -12,10 +12,14 @@ const compactSlotValues = (values, startIndex = 0) => {
   const tail = values.slice(safeStart);
   const compacted = tail.filter((item) => isFilledName(item?.loraName));
   const result = head.slice();
+  const normalizeSlotData = (data) => ({
+    loraName: data?.loraName ?? 'None',
+    strength: data?.strength ?? null,
+    selection: data?.selection ?? '',
+    on: data?.on ?? true,
+  });
   for (let index = 0; index < tail.length; index += 1) {
-    result.push(
-      compacted[index] ?? { loraName: 'None', strength: null, selection: '' },
-    );
+    result.push(normalizeSlotData(compacted[index]));
   }
   return result;
 };

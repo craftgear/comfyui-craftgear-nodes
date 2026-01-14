@@ -52,15 +52,57 @@ class LoadLoraWithTriggersStackOutputTest(unittest.TestCase):
                 'clip',
                 lora_name_1='a.safetensors',
                 lora_strength_1=1.0,
+                lora_on_1=True,
                 trigger_selection_1='',
                 lora_name_2='b.safetensors',
                 lora_strength_2=0.5,
+                lora_on_2=True,
                 trigger_selection_2='',
             )
 
             self.assertEqual(model, 'model|/tmp/a.safetensors:1.0|/tmp/b.safetensors:0.5')
             self.assertEqual(clip, 'clip|/tmp/a.safetensors:1.0|/tmp/b.safetensors:0.5')
             self.assertEqual(triggers, 'alpha,beta,gamma')
+        finally:
+            ui_node.folder_paths.get_full_path = original_get_path
+            ui_node.extract_lora_triggers = original_extract
+            ui_node.filter_lora_triggers = original_filter
+            ui_node.comfy.utils.load_torch_file = original_load
+            ui_node.comfy.sd.load_lora_for_models = original_apply
+
+
+    def test_select_lora_skips_when_disabled(self) -> None:
+        node = ui_node.LoadLoraWithTriggersStack()
+        original_get_path = ui_node.folder_paths.get_full_path
+        original_extract = ui_node.extract_lora_triggers
+        original_filter = ui_node.filter_lora_triggers
+        original_load = ui_node.comfy.utils.load_torch_file
+        original_apply = ui_node.comfy.sd.load_lora_for_models
+
+        try:
+            ui_node.folder_paths.get_full_path = lambda _kind, name: f'/tmp/{name}'
+            ui_node.comfy.utils.load_torch_file = lambda path, **_kwargs: path
+            ui_node.comfy.sd.load_lora_for_models = (
+                lambda model, clip, lora, strength_model, strength_clip: (
+                    f'{model}|{lora}:{strength_model}',
+                    f'{clip}|{lora}:{strength_clip}',
+                )
+            )
+            ui_node.extract_lora_triggers = lambda _path: ['alpha']
+            ui_node.filter_lora_triggers = lambda triggers, _selection: triggers
+
+            model, clip, triggers = node.select_lora(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=1.0,
+                lora_on_1=False,
+                trigger_selection_1='',
+            )
+
+            self.assertEqual(model, 'model')
+            self.assertEqual(clip, 'clip')
+            self.assertEqual(triggers, '')
         finally:
             ui_node.folder_paths.get_full_path = original_get_path
             ui_node.extract_lora_triggers = original_extract
