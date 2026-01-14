@@ -13,6 +13,8 @@ class TestJoinTextNode(unittest.TestCase):
         inputs = join_text_node.JoinTextNode.INPUT_TYPES()
         text_1 = inputs["required"]["text_1"]
         self.assertEqual(text_1[1].get("forceInput"), True)
+        separator = inputs["required"]["separator"]
+        self.assertEqual(separator[1].get("socketless"), True)
 
     def test_join_text_skips_empty_lines(self):
         node = join_text_node.JoinTextNode()

@@ -21,12 +21,12 @@ if 'comfy' not in sys.modules:
     sys.modules['comfy.utils'] = utils
     sys.modules['comfy.sd'] = sd
 
-from hoge.ui.nodes import hoge as hoge_node
+from load_loras_with_tags.ui.nodes import load_loras_with_tags as load_loras_with_tags_node
 
 
-class HogeInputTypesTest(unittest.TestCase):
+class LoadLorasWithTagsInputTypesTest(unittest.TestCase):
     def test_input_types_include_stack_fields(self) -> None:
-        inputs = hoge_node.Hoge.INPUT_TYPES()
+        inputs = load_loras_with_tags_node.LoadLorasWithTags.INPUT_TYPES()
         required = inputs['required']
         self.assertEqual(required['model'][0], 'MODEL')
         self.assertEqual(required['clip'][0], 'CLIP')
@@ -40,7 +40,7 @@ class HogeInputTypesTest(unittest.TestCase):
         self.assertIn('trigger_selection_10', required)
 
     def test_strength_slider_metadata(self) -> None:
-        inputs = hoge_node.Hoge.INPUT_TYPES()
+        inputs = load_loras_with_tags_node.LoadLorasWithTags.INPUT_TYPES()
         strength = inputs['required']['lora_strength_1']
         meta = strength[1]
         self.assertEqual(strength[0], 'FLOAT')
@@ -51,10 +51,8 @@ class HogeInputTypesTest(unittest.TestCase):
         self.assertEqual(meta['default'], 1.0)
 
     def test_output_types(self) -> None:
-        self.assertEqual(hoge_node.Hoge.RETURN_TYPES, ('MODEL', 'CLIP', 'STRING'))
-        self.assertEqual(
-            hoge_node.Hoge.RETURN_NAMES, ('model', 'clip', 'selected triggers')
-        )
+        self.assertEqual(load_loras_with_tags_node.LoadLorasWithTags.RETURN_TYPES, ('MODEL', 'CLIP', 'STRING'))
+        self.assertEqual(load_loras_with_tags_node.LoadLorasWithTags.RETURN_NAMES, ('model', 'clip', 'tags'))
 
 
 if __name__ == '__main__':

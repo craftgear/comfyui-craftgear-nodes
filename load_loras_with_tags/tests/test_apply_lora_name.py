@@ -18,10 +18,10 @@ if 'comfy' not in sys.modules:
     sys.modules['comfy.sd'] = sd
 
 import folder_paths  # noqa: E402
-from hoge.ui.nodes import hoge as hoge_node  # noqa: E402
+from load_loras_with_tags.ui.nodes import load_loras_with_tags as load_loras_with_tags_node  # noqa: E402
 
 
-class HogeApplyLoraNameTest(unittest.TestCase):
+class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
     def test_apply_resolves_lora_name_index(self) -> None:
         calls: dict[str, str] = {}
 
@@ -34,11 +34,11 @@ class HogeApplyLoraNameTest(unittest.TestCase):
         folder_paths.get_folder_paths = lambda *_args, **_kwargs: []
         folder_paths.supported_pt_extensions = {'.safetensors'}
         folder_paths.get_full_path = get_full_path
-        hoge_node.collect_lora_names = lambda *_args, **_kwargs: ['example.safetensors']
-        hoge_node.extract_lora_triggers = lambda *_args, **_kwargs: []
-        hoge_node.filter_lora_triggers = lambda _triggers, _selection: []
+        load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: ['example.safetensors']
+        load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+        load_loras_with_tags_node.filter_lora_triggers = lambda _triggers, _selection: []
 
-        node = hoge_node.Hoge()
+        node = load_loras_with_tags_node.LoadLorasWithTags()
         result = node.apply(
             'model',
             'clip',
@@ -59,11 +59,11 @@ class HogeApplyLoraNameTest(unittest.TestCase):
             return f'/tmp/{filename}'
 
         folder_paths.get_full_path = get_full_path
-        hoge_node.collect_lora_names = lambda *_args, **_kwargs: ['example.safetensors']
-        hoge_node.extract_lora_triggers = lambda *_args, **_kwargs: []
-        hoge_node.filter_lora_triggers = lambda _triggers, _selection: []
+        load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: ['example.safetensors']
+        load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+        load_loras_with_tags_node.filter_lora_triggers = lambda _triggers, _selection: []
 
-        node = hoge_node.Hoge()
+        node = load_loras_with_tags_node.LoadLorasWithTags()
         result = node.apply(
             'model',
             'clip',

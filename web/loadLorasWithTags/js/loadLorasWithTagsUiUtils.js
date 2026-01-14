@@ -82,6 +82,17 @@ const computeButtonRect = (x, y, width, height, padding = 0) => {
   };
 };
 
+const computeResetButtonRect = (rect, size, padding = 0) => {
+  const safeSize = Math.max(0, size);
+  const safePadding = Math.max(0, padding);
+  return {
+    x: rect.x + rect.width - safeSize - safePadding,
+    y: rect.y + (rect.height - safeSize) / 2,
+    width: safeSize,
+    height: safeSize,
+  };
+};
+
 const clampNumber = (value, min, max) => {
   const low = Math.min(min, max);
   const high = Math.max(min, max);
@@ -157,6 +168,7 @@ const computeSliderRatio = (value, options) => {
 export {
   calculateSliderValue,
   computeButtonRect,
+  computeResetButtonRect,
   computeSliderRatio,
   moveIndex,
   resolveComboLabel,

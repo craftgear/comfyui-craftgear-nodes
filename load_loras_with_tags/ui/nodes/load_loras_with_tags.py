@@ -35,7 +35,7 @@ def resolve_lora_name(value: Any, choices: list[str]) -> str:
     return 'None'
 
 
-class Hoge:
+class LoadLorasWithTags:
     def __init__(self) -> None:
         self.loaded_loras: dict[str, Any] = {}
 
@@ -67,11 +67,7 @@ class Hoge:
         return {'required': required}
 
     RETURN_TYPES: ClassVar[tuple[str, str, str]] = ('MODEL', 'CLIP', 'STRING')
-    RETURN_NAMES: ClassVar[tuple[str, str, str]] = (
-        'model',
-        'clip',
-        'selected triggers',
-    )
+    RETURN_NAMES: ClassVar[tuple[str, str, str]] = ('model', 'clip', 'tags')
     FUNCTION: ClassVar[str] = 'apply'
     CATEGORY: ClassVar[str] = 'craftgear/loras'
 

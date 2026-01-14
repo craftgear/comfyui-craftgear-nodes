@@ -21,10 +21,10 @@ if 'comfy' not in sys.modules:
     sys.modules['comfy.utils'] = utils
     sys.modules['comfy.sd'] = sd
 
-from hoge.ui.nodes import hoge as hoge_node
+from load_loras_with_tags.ui.nodes import load_loras_with_tags as load_loras_with_tags_node
 
 
-class HogeApplyTest(unittest.TestCase):
+class LoadLorasWithTagsApplyTest(unittest.TestCase):
     def test_skips_when_disabled(self) -> None:
         calls = {'load': 0, 'apply': 0}
 
@@ -36,16 +36,16 @@ class HogeApplyTest(unittest.TestCase):
             calls['apply'] += 1
             return (f'{model}_lora', f'{clip}_lora')
 
-        original_load = hoge_node.comfy.utils.load_torch_file
-        original_apply = hoge_node.comfy.sd.load_lora_for_models
-        original_full_path = hoge_node.folder_paths.get_full_path
+        original_load = load_loras_with_tags_node.comfy.utils.load_torch_file
+        original_apply = load_loras_with_tags_node.comfy.sd.load_lora_for_models
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
 
         try:
-            hoge_node.comfy.utils.load_torch_file = load_torch_file
-            hoge_node.comfy.sd.load_lora_for_models = load_lora_for_models
-            hoge_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            load_loras_with_tags_node.comfy.utils.load_torch_file = load_torch_file
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = load_lora_for_models
+            load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
-            node = hoge_node.Hoge()
+            node = load_loras_with_tags_node.LoadLorasWithTags()
             model, clip = node.apply(
                 'model',
                 'clip',
@@ -58,9 +58,9 @@ class HogeApplyTest(unittest.TestCase):
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
-            hoge_node.comfy.utils.load_torch_file = original_load
-            hoge_node.comfy.sd.load_lora_for_models = original_apply
-            hoge_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.comfy.utils.load_torch_file = original_load
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
     def test_skips_when_strength_zero(self) -> None:
         calls = {'load': 0, 'apply': 0}
@@ -73,16 +73,16 @@ class HogeApplyTest(unittest.TestCase):
             calls['apply'] += 1
             return (f'{model}_lora', f'{clip}_lora')
 
-        original_load = hoge_node.comfy.utils.load_torch_file
-        original_apply = hoge_node.comfy.sd.load_lora_for_models
-        original_full_path = hoge_node.folder_paths.get_full_path
+        original_load = load_loras_with_tags_node.comfy.utils.load_torch_file
+        original_apply = load_loras_with_tags_node.comfy.sd.load_lora_for_models
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
 
         try:
-            hoge_node.comfy.utils.load_torch_file = load_torch_file
-            hoge_node.comfy.sd.load_lora_for_models = load_lora_for_models
-            hoge_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            load_loras_with_tags_node.comfy.utils.load_torch_file = load_torch_file
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = load_lora_for_models
+            load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
-            node = hoge_node.Hoge()
+            node = load_loras_with_tags_node.LoadLorasWithTags()
             model, clip = node.apply(
                 'model',
                 'clip',
@@ -95,9 +95,9 @@ class HogeApplyTest(unittest.TestCase):
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
-            hoge_node.comfy.utils.load_torch_file = original_load
-            hoge_node.comfy.sd.load_lora_for_models = original_apply
-            hoge_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.comfy.utils.load_torch_file = original_load
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
     def test_applies_when_enabled(self) -> None:
         calls = {'load': 0, 'apply': 0}
@@ -110,16 +110,16 @@ class HogeApplyTest(unittest.TestCase):
             calls['apply'] += 1
             return (f'{model}_lora', f'{clip}_lora')
 
-        original_load = hoge_node.comfy.utils.load_torch_file
-        original_apply = hoge_node.comfy.sd.load_lora_for_models
-        original_full_path = hoge_node.folder_paths.get_full_path
+        original_load = load_loras_with_tags_node.comfy.utils.load_torch_file
+        original_apply = load_loras_with_tags_node.comfy.sd.load_lora_for_models
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
 
         try:
-            hoge_node.comfy.utils.load_torch_file = load_torch_file
-            hoge_node.comfy.sd.load_lora_for_models = load_lora_for_models
-            hoge_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            load_loras_with_tags_node.comfy.utils.load_torch_file = load_torch_file
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = load_lora_for_models
+            load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
-            node = hoge_node.Hoge()
+            node = load_loras_with_tags_node.LoadLorasWithTags()
             model, clip = node.apply(
                 'model',
                 'clip',
@@ -132,9 +132,9 @@ class HogeApplyTest(unittest.TestCase):
             self.assertEqual(calls['load'], 1)
             self.assertEqual(calls['apply'], 1)
         finally:
-            hoge_node.comfy.utils.load_torch_file = original_load
-            hoge_node.comfy.sd.load_lora_for_models = original_apply
-            hoge_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.comfy.utils.load_torch_file = original_load
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
 
 if __name__ == '__main__':

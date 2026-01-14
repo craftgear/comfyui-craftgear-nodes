@@ -6,14 +6,15 @@ import { normalizeSelectionValue } from '../../load_lora_with_triggers/js/select
 import {
   calculateSliderValue,
   computeButtonRect,
+  computeResetButtonRect,
   computeSliderRatio,
   normalizeStrengthOptions,
   normalizeOptions,
   resolveComboLabel,
   resolveOption,
-} from './hogeUiUtils.js';
+} from './loadLorasWithTagsUiUtils.js';
 
-const TARGET_NODE_CLASS = 'Hoge';
+const TARGET_NODE_CLASS = 'LoadLorasWithTags';
 const MAX_LORA_STACK = 10;
 const ROW_HEIGHT = 88;
 const ROW_PADDING_Y = 8;
@@ -26,7 +27,7 @@ const CONTENT_PADDING_Y = 4;
 const CONTENT_GAP_Y = 4;
 const CONTENT_SIDE_INSET = 6;
 const SELECT_BUTTON_PADDING = 2;
-const SELECT_TRIGGER_LABEL = 'Select Trigger';
+const SELECT_TRIGGER_LABEL = 'Select Tags';
 const TOGGLE_LABEL_TEXT = 'Toggle All';
 const DIALOG_ID = 'craftgear-hoge-trigger-dialog';
 const TOP_N_STORAGE_KEY = 'craftgear-hoge-trigger-dialog-top-n';
@@ -235,10 +236,6 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
       fontFamily: 'sans-serif',
     },
   });
-  const title = $el('div', {
-    textContent: 'Trigger words',
-    style: { fontSize: '16px', marginBottom: '12px' },
-  });
   const topControls = $el('div', {
     style: {
       display: 'flex',
@@ -436,7 +433,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
 
   updateVisibility();
 
-  panel.append(title, topControls, list, actions);
+  panel.append(topControls, list, actions);
   overlay.append(panel);
   document.body.append(overlay);
   filterInput.focus();
@@ -508,7 +505,7 @@ const formatStrengthValue = (value, options) => {
   return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 };
 
-const drawStrengthSlider = (ctx, rect, widget) => {
+const drawStrengthSlider = (ctx, rect, widget, isEnabled) => {
   const options = normalizeStrengthOptions(widget?.options);
   const strengthValue = Number(widget?.value ?? options?.default ?? 0);
   const ratio = computeSliderRatio(strengthValue, options);
@@ -516,11 +513,14 @@ const drawStrengthSlider = (ctx, rect, widget) => {
   const valueTextWidth = ctx.measureText(valueText).width;
   const valuePadding = 4;
   const valueGap = 6;
+  const resetSize = Math.max(12, Math.min(16, rect.height - 2));
+  const resetGap = 6;
+  const resetRect = computeResetButtonRect(rect, resetSize, 0);
   const valueAreaWidth = Math.max(24, valueTextWidth + valuePadding * 2);
   const maxSliderWidth = rect.width * 0.9;
-  const availableWidth = rect.width - valueAreaWidth - valueGap;
+  const availableWidth = rect.width - valueAreaWidth - valueGap - resetSize - resetGap;
   const rawSliderWidth = Math.min(maxSliderWidth, availableWidth);
-  const sliderWidth = Math.max(0, Math.min(rect.width, Math.max(20, rawSliderWidth)));
+  const sliderWidth = Math.max(0, Math.min(rect.width, availableWidth, Math.max(20, rawSliderWidth)));
   const sliderRect = {
     x: rect.x,
     y: rect.y,
@@ -554,16 +554,54 @@ const drawStrengthSlider = (ctx, rect, widget) => {
   ctx.fill();
 
   ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
-  ctx.textAlign = 'right';
+  const valueRectX = sliderRect.x + sliderRect.width + valueGap;
+  const valueRectMax = resetRect.x - resetGap;
+  const valueRectWidth = Math.max(0, Math.min(valueAreaWidth, valueRectMax - valueRectX));
+  const valueCenterX = valueRectX + valueRectWidth / 2;
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(
-    valueText,
-    rect.x + rect.width - 2,
-    rect.y + rect.height / 2,
+  ctx.fillText(valueText, valueCenterX, rect.y + rect.height / 2);
+  ctx.globalAlpha *= isEnabled ? 1 : 0.4;
+  ctx.fillStyle = '#2a2a2a';
+  drawRoundedRect(
+    ctx,
+    resetRect.x,
+    resetRect.y,
+    resetRect.width,
+    resetRect.height,
+    resetRect.height / 2,
   );
+  ctx.fill();
+  ctx.strokeStyle = '#4a4a4a';
+  ctx.stroke();
+  const centerX = resetRect.x + resetRect.width / 2;
+  const centerY = resetRect.y + resetRect.height / 2;
+  const iconRadius = Math.max(3, resetRect.width / 2 - 3);
+  ctx.strokeStyle = '#d0d0d0';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, iconRadius, Math.PI * 0.2, Math.PI * 1.6);
+  ctx.stroke();
+  const arrowAngle = Math.PI * 1.6;
+  const arrowLen = 4;
+  const arrowX = centerX + Math.cos(arrowAngle) * iconRadius;
+  const arrowY = centerY + Math.sin(arrowAngle) * iconRadius;
+  ctx.fillStyle = '#d0d0d0';
+  ctx.beginPath();
+  ctx.moveTo(arrowX, arrowY);
+  ctx.lineTo(
+    arrowX - Math.cos(arrowAngle - 0.5) * arrowLen,
+    arrowY - Math.sin(arrowAngle - 0.5) * arrowLen,
+  );
+  ctx.lineTo(
+    arrowX - Math.cos(arrowAngle + 0.5) * arrowLen,
+    arrowY - Math.sin(arrowAngle + 0.5) * arrowLen,
+  );
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 
-  return sliderRect;
+  return { sliderRect, resetRect };
 };
 
 const isPointInRect = (pos, rect) => {
@@ -719,15 +757,15 @@ const setupHogeUi = (node) => {
 
         const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
         const strengthWidth = Math.max(100, labelAreaWidth - CONTENT_PADDING * 2);
-        const sliderWidth = Math.max(0, strengthWidth * 0.9);
-        const sliderX = posX + CONTENT_PADDING + (strengthWidth - sliderWidth) / 2;
         const strengthRect = {
-          x: sliderX,
+          x: posX + CONTENT_PADDING,
           y: strengthTop + CONTENT_PADDING_Y + (lineHeight - CONTENT_PADDING_Y * 2 - strengthHeight) / 2,
-          width: sliderWidth,
+          width: strengthWidth,
           height: strengthHeight,
         };
-        slot.__hitStrengthSlider = drawStrengthSlider(ctx, strengthRect, slot.strengthWidget);
+        const strengthRects = drawStrengthSlider(ctx, strengthRect, slot.strengthWidget, isOn);
+        slot.__hitStrengthSlider = strengthRects.sliderRect;
+        slot.__hitStrengthReset = strengthRects.resetRect;
 
         const buttonWidth = Math.max(10, labelAreaWidth - CONTENT_PADDING * 2);
         const buttonRect = computeButtonRect(
@@ -914,9 +952,14 @@ const setupHogeUi = (node) => {
       scale: Math.max(1, canvasRef?.ds?.scale ?? 1),
       className: 'dark',
       callback: (value) => {
+        const prevLabel = resolveComboLabel(slot.loraWidget?.value, options);
+        const nextLabel = resolveComboLabel(value, options);
         const prevToggle = !!slot.toggleWidget?.value;
         setComboWidgetValue(slot.loraWidget, value);
         setWidgetValue(slot.toggleWidget, prevToggle);
+        if (prevLabel !== nextLabel) {
+          setWidgetValue(slot.selectionWidget, '');
+        }
         applyRowVisibility();
         markDirty(node);
       },
@@ -986,6 +1029,21 @@ const setupHogeUi = (node) => {
           return true;
         }
         openLoraMenu(slot, event);
+        if (event) {
+          event.__hogeHandled = true;
+        }
+        markDirty(targetNode);
+        return true;
+      }
+      if (isPointInRect(pos, slot.__hitStrengthReset)) {
+        if (!isEnabled) {
+          if (event) {
+            event.__hogeHandled = true;
+          }
+          return true;
+        }
+        const strengthDefault = slot.strengthWidget?.options?.default ?? 1.0;
+        setWidgetValue(slot.strengthWidget, strengthDefault);
         if (event) {
           event.__hogeHandled = true;
         }
@@ -1173,7 +1231,7 @@ const setupHogeUi = (node) => {
 };
 
 app.registerExtension({
-  name: 'craftgear.hoge',
+  name: 'craftgear.loadLorasWithTags',
   nodeCreated(node) {
     if (!isTargetNode(node)) {
       return;

@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import {
   calculateSliderValue,
   computeButtonRect,
+  computeResetButtonRect,
   computeSliderRatio,
   moveIndex,
   resolveComboLabel,
   normalizeStrengthOptions,
   normalizeOptions,
   resolveOption,
-} from '../../web/hoge/js/hogeUiUtils.js';
+} from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
 const options = ['None', 'a.safetensors', 'b.safetensors'];
 
@@ -35,6 +36,12 @@ assert.deepEqual(normalizeStrengthOptions({ step: 1, min: -2 }), { step: 0.1, mi
 assert.equal(resolveComboLabel(2, options), 'b.safetensors');
 assert.equal(resolveComboLabel('missing', options), 'None');
 assert.equal(resolveComboLabel('a.safetensors', options), 'a.safetensors');
+assert.deepEqual(computeResetButtonRect({ x: 10, y: 20, width: 100, height: 40 }, 12), {
+  x: 98,
+  y: 34,
+  width: 12,
+  height: 12,
+});
 
 assert.equal(computeSliderRatio(-2, { min: -2, max: 2 }), 0);
 assert.equal(computeSliderRatio(0, { min: -2, max: 2 }), 0.5);

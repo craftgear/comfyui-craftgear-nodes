@@ -30,8 +30,11 @@ class JoinTextNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text_1": ("STRING", {"default": "", "multiline": True, "forceInput": True}),
-                "separator": ("STRING", {"default": ","}),
+                "text_1": (
+                    "STRING",
+                    {"default": "", "multiline": True, "forceInput": True},
+                ),
+                "separator": ("STRING", {"default": ",", "socketless": True}),
             }
         }
 
