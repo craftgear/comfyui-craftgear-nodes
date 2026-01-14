@@ -196,7 +196,7 @@ const parseSelection = (selectionText, triggers) => {
   }
 };
 
-const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
+const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTopN = false) => {
   const normalizedName = String(loraName ?? '');
   if (!normalizedName || normalizedName === 'None') {
     showMessage('Please select a LoRA.');
@@ -278,7 +278,11 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
   });
   filterContainer.append(filterInput, clearFilterButton);
   const savedTopN = localStorage.getItem(TOP_N_STORAGE_KEY);
-  const initialTopN = savedTopN ? Math.min(Math.max(1, Number(savedTopN)), triggers.length) : triggers.length;
+  const initialTopN = resetTopN
+    ? triggers.length
+    : savedTopN
+      ? Math.min(Math.max(1, Number(savedTopN)), triggers.length)
+      : triggers.length;
   const topNSlider = $el('input', {
     type: 'range',
     min: '1',
@@ -287,7 +291,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
     style: { width: '200px' },
   });
   const topNLabel = $el('span', {
-    textContent: `Show top ${initialTopN} tags`,
+    textContent: `Show top ${topNSlider.value} tags`,
     style: { minWidth: '130px', fontSize: '12px' },
   });
   const topNContainer = $el('div', {
@@ -374,6 +378,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
   const updateVisibility = () => {
     const query = filterInput?.value ?? '';
     const topNValue = Number(topNSlider?.value) || triggers.length;
+    topNLabel.textContent = `Show top ${topNSlider.value} tags`;
     updateVisibleByFilter(query, topNValue);
     updateTopNLabel(topNValue);
   };
@@ -426,6 +431,9 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode) => {
     localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
     updateVisibility();
   };
+  if (resetTopN) {
+    localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
+  }
 
   topControls.append(selectAllButton, selectNoneButton, filterContainer, topNContainer);
   rightActions.append(cancelButton, applyButton);
@@ -807,7 +815,7 @@ const setupHogeUi = (node) => {
     const loraWidget = getWidget(node, `lora_name_${index}`);
     const strengthWidget = getWidget(node, `lora_strength_${index}`);
     const toggleWidget = getWidget(node, `lora_on_${index}`);
-    const selectionWidget = getWidget(node, `trigger_selection_${index}`);
+    const selectionWidget = getWidget(node, `tag_selection_${index}`);
     if (!loraWidget || !strengthWidget || !toggleWidget || !selectionWidget) {
       return null;
     }
@@ -959,6 +967,7 @@ const setupHogeUi = (node) => {
         setWidgetValue(slot.toggleWidget, prevToggle);
         if (prevLabel !== nextLabel) {
           setWidgetValue(slot.selectionWidget, '');
+          slot.selectionWidget.__hogeResetTopN = true;
         }
         applyRowVisibility();
         markDirty(node);
@@ -1007,7 +1016,9 @@ const setupHogeUi = (node) => {
           return true;
         }
         const { label } = getLoraState(slot.loraWidget);
-        openTriggerDialog(label, slot.selectionWidget, targetNode);
+        const shouldResetTopN = !!slot.selectionWidget?.__hogeResetTopN;
+        slot.selectionWidget.__hogeResetTopN = false;
+        openTriggerDialog(label, slot.selectionWidget, targetNode, shouldResetTopN);
         if (event) {
           event.__hogeHandled = true;
         }

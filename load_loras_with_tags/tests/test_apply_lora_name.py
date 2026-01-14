@@ -45,7 +45,7 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
             lora_name_1=1,
             lora_strength_1=0,
             lora_on_1=True,
-            trigger_selection_1='',
+            tag_selection_1='',
         )
 
         self.assertEqual(calls.get('filename'), 'example.safetensors')
@@ -70,7 +70,7 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
             lora_name_1='1',
             lora_strength_1=0,
             lora_on_1=True,
-            trigger_selection_1='',
+            tag_selection_1='',
         )
 
         self.assertEqual(calls.get('filename'), 'example.safetensors')

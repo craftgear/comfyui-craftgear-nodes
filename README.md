@@ -2,33 +2,37 @@
 
 Custom nodes for ComfyUI.
 
+Node summary:
+- Load LoRAs With Tags: Apply multiple LoRAs and return selected tags
+- Camera Shake: Add smooth handheld motion to image batches
+- Commentable Multiline Text: Remove comment lines and join text
+- Join Texts: Join multiple text inputs into one line
+- Image Batch Loader: Load a directory of images into a batch
+
 ## Nodes
 
-### Load Lora With Triggers (craftgear/loras)
+### Load LoRAs With Tags (craftgear/loras)
 
-Selects a LoRA from the ComfyUI loras folder, applies it to model and clip, and returns selected trigger words.
+Selects LoRAs from the ComfyUI loras folder, applies them to model and clip, and returns selected tags.
 
 Inputs:
 - model: Model
 - clip: CLIP
 - lora_name: Dropdown of LoRA files
 - lora_strength: Float, default 1.0, range -2.0 to 2.0
-- trigger_selection: String, JSON list of selected triggers
+- lora_on: Boolean, default true
+- tag_selection: String, JSON list of selected tags
 
 Outputs:
 - model: Model
 - clip: CLIP
-- selected triggers: Comma-separated string
+- tags: Comma-separated string
 
 Behavior:
 - If lora_name is None, returns the input model and clip and an empty string
-- If lora_strength is 0, returns the input model and clip and the selected trigger string
-- Reads safetensors metadata to extract trigger words
-- Filters triggers by trigger_selection when provided
-
-UI helpers:
-- Trigger selection dialog
-- Fuzzy filter for the lora_name dropdown
+- If lora_strength is 0, returns the input model and clip and the selected tag string
+- Reads safetensors metadata to extract tags
+- Filters tags by tag_selection when provided
 
 ### Camera Shake (craftgear/image)
 
@@ -77,7 +81,7 @@ Behavior:
 - The remaining lines are joined by separator
 - If separator is empty after trimming, lines are joined with ","
 
-### join_text_node (craftgear/text)
+### Join Texts (craftgear/text)
 
 Joins multiple text inputs into a single line string.
 
@@ -94,7 +98,7 @@ Behavior:
 - Remaining lines are joined by separator
 - When the last connected input is disconnected, the trailing empty input is removed
 
-### image_batch_loader (craftgear/image)
+### Image Batch Loader (craftgear/image)
 
 Loads every image file in a directory and returns a batch.
 
@@ -126,10 +130,10 @@ Example path:
 ## Usage
 
 1. Start ComfyUI or restart it if it is already running.
-2. Add the node named Load Lora With Triggers, Camera Shake, or image_batch_loader.
+2. Add the node named Load LoRAs With Tags, Camera Shake, or Image Batch Loader.
 3. Connect the inputs and adjust parameters as needed.
 
-For image_batch_loader:
+For Image Batch Loader:
 
 1. Click Select Directory to choose a folder.
 2. Run the graph to get a batch of images.
@@ -145,11 +149,9 @@ Text only example.
 
 ## Project layout
 
-- load_lora_with_triggers/logic: LoRA helpers
-- load_lora_with_triggers/ui: Node and API code
-- load_lora_with_triggers/tests: Unit tests
+- load_loras_with_tags: Load LoRAs With Tags node
 - image_batch_loader: Image batch loader node
-- web/load_lora_with_triggers: Load Lora With Triggers UI extensions
+- web/loadLorasWithTags: Load LoRAs With Tags UI extensions
 - web/image_batch_loader: Image batch loader UI extensions
 - camera_shake: Camera shake node
 - camera_shake/tests: Camera shake tests
@@ -160,7 +162,7 @@ Text only example.
 
 Python tests:
 
-- python -m unittest discover -s load_lora_with_triggers/tests
+- python -m unittest discover -s load_loras_with_tags/tests
 - python -m unittest discover -s image_batch_loader/tests
 - python -m unittest discover -s camera_shake/tests
 - python -m unittest discover -s join_text_node/tests
@@ -168,4 +170,4 @@ Python tests:
 
 Node script test:
 
-- node load_lora_with_triggers/tests/loraFuzzyMatch.test.mjs
+- node load_loras_with_tags/tests/loadLorasWithTagsUiUtils.test.mjs

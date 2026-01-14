@@ -63,7 +63,7 @@ class LoadLorasWithTags:
                 },
             )
             required[f'lora_on_{index}'] = ('BOOLEAN', {'default': True})
-            required[f'trigger_selection_{index}'] = ('STRING', {'default': ''})
+            required[f'tag_selection_{index}'] = ('STRING', {'default': ''})
         return {'required': required}
 
     RETURN_TYPES: ClassVar[tuple[str, str, str]] = ('MODEL', 'CLIP', 'STRING')
@@ -86,7 +86,7 @@ class LoadLorasWithTags:
             lora_name = resolve_lora_name(raw_lora_name, lora_choices)
             lora_strength = kwargs.get(f'lora_strength_{index}', 1.0)
             lora_on = kwargs.get(f'lora_on_{index}', True)
-            trigger_selection = kwargs.get(f'trigger_selection_{index}', '')
+            tag_selection = kwargs.get(f'tag_selection_{index}', '')
             if not lora_on:
                 continue
             if not lora_name or lora_name == 'None':
@@ -95,7 +95,7 @@ class LoadLorasWithTags:
             if not lora_path:
                 continue
             triggers = extract_lora_triggers(lora_path)
-            selected_triggers = filter_lora_triggers(triggers, trigger_selection)
+            selected_triggers = filter_lora_triggers(triggers, tag_selection)
             all_triggers.extend(selected_triggers)
             if lora_strength == 0:
                 continue

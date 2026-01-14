@@ -2,33 +2,37 @@
 
 ComfyUI 用のカスタムノード集です。
 
+ノード一覧:
+- Load LoRAs With Tags: 複数の LoRA を適用し選択タグを返します
+- Camera Shake: 画像バッチに手持ち風の揺れを追加します
+- Commentable Multiline Text: コメント行を除去して結合します
+- Join Texts: 複数のテキスト入力を 1 行に結合します
+- Image Batch Loader: ディレクトリ内の画像をバッチで読み込みます
+
 ## ノード
 
-### Load Lora With Triggers (craftgear/loras)
+### Load LoRAs With Tags (craftgear/loras)
 
-ComfyUI の loras フォルダから LoRA を選択し、model と clip に適用して選択トリガーを返します。
+ComfyUI の loras フォルダから LoRA を選択し、model と clip に適用して選択タグを返します。
 
 入力:
 - model: Model
 - clip: CLIP
 - lora_name: LoRA ファイルのドロップダウン
 - lora_strength: Float, 既定 1.0, 範囲 -2.0 から 2.0
-- trigger_selection: 文字列。選択したトリガーの JSON 配列
+- lora_on: Boolean, 既定 true
+- tag_selection: 文字列。選択したタグの JSON 配列
 
 出力:
 - model: Model
 - clip: CLIP
-- selected triggers: カンマ区切り文字列
+- tags: カンマ区切り文字列
 
 動作:
 - lora_name が None の場合は入力の model と clip と空文字列を返します
-- lora_strength が 0 の場合は入力の model と clip と選択トリガー文字列を返します
-- safetensors のメタデータからトリガーワードを抽出します
-- trigger_selection がある場合は選択したものだけに絞り込みます
-
-UI 補助:
-- トリガー選択ダイアログ
-- lora_name ドロップダウンのファジー検索
+- lora_strength が 0 の場合は入力の model と clip と選択タグ文字列を返します
+- safetensors のメタデータからタグを抽出します
+- tag_selection がある場合は選択したものだけに絞り込みます
 
 ### Camera Shake (craftgear/image)
 
@@ -77,7 +81,7 @@ UI 補助:
 - 残った行を separator で連結します
 - separator をトリムして空なら "," で連結します
 
-### join_text_node (craftgear/text)
+### Join Texts (craftgear/text)
 
 複数のテキスト入力を 1 行の文字列に連結します。
 
@@ -94,7 +98,7 @@ UI 補助:
 - 残った行を separator で連結します
 - 最後の接続が外れると末尾の空入力を削除します
 
-### image_batch_loader (craftgear/image)
+### Image Batch Loader (craftgear/image)
 
 ディレクトリ内の画像をすべて読み込み、バッチを返します。
 
@@ -125,10 +129,10 @@ ComfyUI の custom nodes 配下に配置して下さい。
 ## 使い方
 
 1. ComfyUI を起動または再起動します。
-2. Load Lora With Triggers または Camera Shake、image_batch_loader を追加します。
+2. Load LoRAs With Tags または Camera Shake、Image Batch Loader を追加します。
 3. 入力を接続して必要に応じて調整します。
 
-image_batch_loader の場合:
+Image Batch Loader の場合:
 
 1. Select Directory を押してフォルダを選択します。
 2. 実行すると画像のバッチが返ります。
@@ -144,22 +148,20 @@ image_batch_loader の場合:
 
 ## 構成
 
-- load_lora_with_triggers/logic: LoRA の補助関数
-- load_lora_with_triggers/ui: ノードと API
-- load_lora_with_triggers/tests: テスト
+- load_loras_with_tags: Load LoRAs With Tags ノード
 - image_batch_loader: 画像バッチローダー
-- web/load_lora_with_triggers: Load Lora With Triggers の UI 拡張
-- web/image_batch_loader: image_batch_loader の UI 拡張
+- web/loadLorasWithTags: Load LoRAs With Tags の UI 拡張
+- web/image_batch_loader: Image Batch Loader の UI 拡張
 - camera_shake: Camera Shake ノード
 - camera_shake/tests: Camera Shake のテスト
-- join_text_node: join_text_node
-- join_text_node/tests: join_text_node のテスト
+- join_text_node: Join Texts
+- join_text_node/tests: Join Texts のテスト
 
 ## テスト
 
 Python テスト:
 
-- python -m unittest discover -s load_lora_with_triggers/tests
+- python -m unittest discover -s load_loras_with_tags/tests
 - python -m unittest discover -s image_batch_loader/tests
 - python -m unittest discover -s camera_shake/tests
 - python -m unittest discover -s join_text_node/tests
@@ -167,4 +169,4 @@ Python テスト:
 
 Node スクリプトテスト:
 
-- node load_lora_with_triggers/tests/loraFuzzyMatch.test.mjs
+- node load_loras_with_tags/tests/loadLorasWithTagsUiUtils.test.mjs

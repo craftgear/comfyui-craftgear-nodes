@@ -7,20 +7,12 @@ from .commentable_multiline_text.commentable_multiline_text_node import (
 from .load_loras_with_tags.ui.nodes.load_loras_with_tags import LoadLorasWithTags
 from .join_text_node.join_text_node import JoinTextNode
 from .load_lora_with_triggers.ui import trigger_api
-from .load_lora_with_triggers.ui.nodes.load_lora_with_triggers import (
-    LoadLoraWithTriggers,
-)
-from .load_lora_with_triggers.ui.nodes.load_lora_with_triggers_stack import (
-    LoadLoraWithTriggersStack,
-)
 from .image_batch_loader.ui import select_directory_api
 from .image_batch_loader.ui.node import ImageBatchLoader
 
 WEB_DIRECTORY: str = "web"
 
 NODE_CLASS_MAPPINGS: dict[str, Any] = {
-    "LoadLoraWithTriggers": LoadLoraWithTriggers,
-    "LoadLoraWithTriggersStack": LoadLoraWithTriggersStack,
     "CameraShakeNode": CameraShakeNode,
     "CommentableMultilineTextNode": CommentableMultilineTextNode,
     "LoadLorasWithTags": LoadLorasWithTags,
@@ -29,8 +21,6 @@ NODE_CLASS_MAPPINGS: dict[str, Any] = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
-    "LoadLoraWithTriggers": "Load Lora With Triggers",
-    "LoadLoraWithTriggersStack": "Load Lora With Triggers Stack",
     "CameraShakeNode": "Camera Shake",
     "CommentableMultilineTextNode": "Commentable Multiline Text",
     "LoadLorasWithTags": "Load LoRAs With Tags",
