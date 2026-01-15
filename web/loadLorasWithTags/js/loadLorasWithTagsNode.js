@@ -20,10 +20,8 @@ import {
   loraDialogItemBorder,
   loraDialogItemHoverBackground,
   loraDialogItemSelectedBackground,
-  loraDialogMatchDecoration,
-  loraDialogMatchDecorationColor,
-  loraDialogMatchDecorationThickness,
-  loraDialogMatchDecorationOffset,
+  loraDialogMatchTextColor,
+  loraDialogMatchFontWeight,
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
@@ -1111,10 +1109,8 @@ const setupHogeUi = (node) => {
         const span = document.createElement('span');
         span.textContent = segment.text;
         if (segment.isMatch) {
-          span.style.textDecoration = loraDialogMatchDecoration;
-          span.style.textDecorationColor = loraDialogMatchDecorationColor;
-          span.style.textDecorationThickness = loraDialogMatchDecorationThickness;
-          span.style.textUnderlineOffset = loraDialogMatchDecorationOffset;
+          span.style.color = loraDialogMatchTextColor;
+          span.style.fontWeight = loraDialogMatchFontWeight;
         }
         button.append(span);
       });

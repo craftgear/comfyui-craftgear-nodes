@@ -19,10 +19,8 @@ import {
   loraDialogItemBorder,
   loraDialogItemHoverBackground,
   loraDialogItemSelectedBackground,
-  loraDialogMatchDecoration,
-  loraDialogMatchDecorationColor,
-  loraDialogMatchDecorationThickness,
-  loraDialogMatchDecorationOffset,
+  loraDialogMatchTextColor,
+  loraDialogMatchFontWeight,
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
@@ -109,10 +107,8 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(loraDialogItemBorder, 'none');
     assert.equal(loraDialogItemHoverBackground, '#2a2a2a');
     assert.equal(loraDialogItemSelectedBackground, '#424242');
-    assert.equal(loraDialogMatchDecoration, 'underline');
-    assert.equal(loraDialogMatchDecorationColor, '#f2d28b');
-    assert.equal(loraDialogMatchDecorationThickness, '2px');
-    assert.equal(loraDialogMatchDecorationOffset, '2px');
+    assert.equal(loraDialogMatchTextColor, '#f2d28b');
+    assert.equal(loraDialogMatchFontWeight, '600');
     assert.equal(loraDialogItemGap, 0);
     assert.equal(loraDialogItemPaddingY, 4);
     assert.equal(loraDialogItemPaddingX, 8);

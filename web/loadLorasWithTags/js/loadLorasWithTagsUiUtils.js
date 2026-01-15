@@ -248,10 +248,8 @@ const loraDialogItemBackground = 'transparent';
 const loraDialogItemBorder = 'none';
 const loraDialogItemHoverBackground = '#2a2a2a';
 const loraDialogItemSelectedBackground = '#424242';
-const loraDialogMatchDecoration = 'underline';
-const loraDialogMatchDecorationColor = '#f2d28b';
-const loraDialogMatchDecorationThickness = '2px';
-const loraDialogMatchDecorationOffset = '2px';
+const loraDialogMatchTextColor = '#f2d28b';
+const loraDialogMatchFontWeight = '600';
 const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
@@ -299,10 +297,8 @@ export {
   loraDialogItemBorder,
   loraDialogItemHoverBackground,
   loraDialogItemSelectedBackground,
-  loraDialogMatchDecoration,
-  loraDialogMatchDecorationColor,
-  loraDialogMatchDecorationThickness,
-  loraDialogMatchDecorationOffset,
+  loraDialogMatchTextColor,
+  loraDialogMatchFontWeight,
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,

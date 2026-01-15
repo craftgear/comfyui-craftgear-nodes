@@ -1,0 +1,19 @@
+{
+  "name": "comfyui-craftgear-nodes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest run",
+    "lint": "oxlint .",
+    "format": "prettier -w ."
+  },
+  "devDependencies": {
+    "vite": "latest",
+    "vitest": "latest",
+    "oxlint": "latest",
+    "prettier": "latest"
+  },
+  "packageManager": "pnpm@10.24.0+sha512.01ff8ae71b4419903b65c60fb2dc9d34cf8bb6e06d03bde112ef38f7a34d6904c424ba66bea5cdcf12890230bf39f9580473140ed9c946fef328b6e5238a345a"
+}
