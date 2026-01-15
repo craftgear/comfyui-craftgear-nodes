@@ -6,7 +6,7 @@ from .commentable_multiline_text.commentable_multiline_text_node import (
 )
 from .load_loras_with_tags.ui.nodes.load_loras_with_tags import LoadLorasWithTags
 from .join_text_node.join_text_node import JoinTextNode
-from .load_lora_with_triggers.ui import trigger_api
+from .load_loras_with_tags.ui import trigger_api
 from .image_batch_loader.ui import select_directory_api
 from .image_batch_loader.ui.node import ImageBatchLoader
 

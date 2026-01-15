@@ -1,15 +1,37 @@
 import { app } from '../../../../scripts/app.js';
 import { api } from '../../../../scripts/api.js';
 import { $el } from '../../../../scripts/ui.js';
-import { getTagVisibility, getTopNVisibility } from '../../load_lora_with_triggers/js/tagFilterUtils.js';
-import { normalizeSelectionValue } from '../../load_lora_with_triggers/js/selectionValueUtils.js';
+import { getTagVisibility, getTopNVisibility } from './tagFilterUtils.js';
+import { normalizeSelectionValue } from './selectionValueUtils.js';
 import {
   calculateSliderValue,
   computeButtonRect,
   computeResetButtonRect,
   computeSliderRatio,
+  moveIndex,
   normalizeStrengthOptions,
   normalizeOptions,
+  resetIconPath,
+  filterLoraOptionIndices,
+  filterLoraOptions,
+  loraLabelButtonHeightPadding,
+  loraLabelTextPadding,
+  loraDialogItemBackground,
+  loraDialogItemBorder,
+  loraDialogItemHoverBackground,
+  loraDialogItemSelectedBackground,
+  loraDialogMatchDecoration,
+  loraDialogMatchDecorationColor,
+  loraDialogMatchDecorationThickness,
+  loraDialogMatchDecorationOffset,
+  loraDialogItemGap,
+  loraDialogItemPaddingY,
+  loraDialogItemPaddingX,
+  resolveLoraDialogItemBackground,
+  getHighlightSegments,
+  splitLoraLabel,
+  focusInputLater,
+  resolveVisibleSelection,
   resolveComboLabel,
   resolveOption,
 } from './loadLorasWithTagsUiUtils.js';
@@ -425,7 +447,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
   clearFilterButton.onclick = () => {
     filterInput.value = '';
     updateVisibility();
-    filterInput.focus();
+    focusInputLater(filterInput);
   };
   topNSlider.oninput = () => {
     localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
@@ -444,7 +466,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
   panel.append(topControls, list, actions);
   overlay.append(panel);
   document.body.append(overlay);
-  filterInput.focus();
+  focusInputLater(filterInput);
 };
 
 const fitText = (ctx, text, maxWidth) => {
@@ -582,31 +604,18 @@ const drawStrengthSlider = (ctx, rect, widget, isEnabled) => {
   ctx.fill();
   ctx.strokeStyle = '#4a4a4a';
   ctx.stroke();
-  const centerX = resetRect.x + resetRect.width / 2;
-  const centerY = resetRect.y + resetRect.height / 2;
-  const iconRadius = Math.max(3, resetRect.width / 2 - 3);
-  ctx.strokeStyle = '#d0d0d0';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, iconRadius, Math.PI * 0.2, Math.PI * 1.6);
-  ctx.stroke();
-  const arrowAngle = Math.PI * 1.6;
-  const arrowLen = 4;
-  const arrowX = centerX + Math.cos(arrowAngle) * iconRadius;
-  const arrowY = centerY + Math.sin(arrowAngle) * iconRadius;
-  ctx.fillStyle = '#d0d0d0';
-  ctx.beginPath();
-  ctx.moveTo(arrowX, arrowY);
-  ctx.lineTo(
-    arrowX - Math.cos(arrowAngle - 0.5) * arrowLen,
-    arrowY - Math.sin(arrowAngle - 0.5) * arrowLen,
-  );
-  ctx.lineTo(
-    arrowX - Math.cos(arrowAngle + 0.5) * arrowLen,
-    arrowY - Math.sin(arrowAngle + 0.5) * arrowLen,
-  );
-  ctx.closePath();
-  ctx.fill();
+  const iconSize = Math.max(0, Math.min(resetRect.width, resetRect.height) - 4);
+  if (iconSize > 0 && typeof Path2D !== 'undefined') {
+    const scale = iconSize / 32;
+    const iconX = resetRect.x + (resetRect.width - iconSize) / 2;
+    const iconY = resetRect.y + (resetRect.height - iconSize) / 2;
+    ctx.save();
+    ctx.translate(iconX, iconY);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#d0d0d0';
+    ctx.fill(new Path2D(resetIconPath));
+    ctx.restore();
+  }
   ctx.restore();
 
   return { sliderRect, resetRect };
@@ -756,12 +765,52 @@ const setupHogeUi = (node) => {
         ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        const labelAreaHeight = Math.max(10, lineHeight - CONTENT_PADDING_Y * 2);
-        const labelMidY = contentTop + CONTENT_PADDING_Y + labelAreaHeight / 2;
-        const labelX = posX + CONTENT_PADDING;
-        const labelWidth = Math.max(10, labelAreaWidth - CONTENT_PADDING * 2);
-        ctx.fillText(fitText(ctx, label || 'None', labelWidth), labelX, labelMidY);
-        slot.__hitLabel = { x: posX, y: contentTop, width: labelAreaWidth, height: lineHeight };
+        const labelButtonBaseRect = computeButtonRect(
+          posX,
+          contentTop,
+          labelAreaWidth,
+          lineHeight,
+          CONTENT_PADDING_Y,
+        );
+        const labelButtonHeightPadding = Math.max(0, loraLabelButtonHeightPadding);
+        const labelButtonHeight = Math.min(
+          labelButtonBaseRect.height + labelButtonHeightPadding,
+          lineHeight,
+        );
+        const labelButtonRect = {
+          x: labelButtonBaseRect.x,
+          y: contentTop + (lineHeight - labelButtonHeight) / 2,
+          width: labelButtonBaseRect.width,
+          height: labelButtonHeight,
+        };
+        slot.__hitLabel = labelButtonRect;
+        ctx.fillStyle = '#242424';
+        drawRoundedRect(
+          ctx,
+          labelButtonRect.x,
+          labelButtonRect.y,
+          labelButtonRect.width,
+          labelButtonRect.height,
+          6,
+        );
+        ctx.fill();
+        ctx.strokeStyle = '#3a3a3a';
+        ctx.stroke();
+        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
+        const labelTextRect = computeButtonRect(
+          labelButtonRect.x,
+          labelButtonRect.y,
+          labelButtonRect.width,
+          labelButtonRect.height,
+          loraLabelTextPadding,
+        );
+        const labelTextX = labelTextRect.x;
+        const labelTextWidth = Math.max(0, labelTextRect.width);
+        ctx.fillText(
+          fitText(ctx, label || 'None', labelTextWidth),
+          labelTextX,
+          labelTextRect.y + labelTextRect.height / 2,
+        );
 
         const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
         const strengthWidth = Math.max(100, labelAreaWidth - CONTENT_PADDING * 2);
@@ -946,34 +995,255 @@ const setupHogeUi = (node) => {
     });
   };
 
-  const openLoraMenu = (slot, event) => {
+  const openLoraDialog = (slot, targetNode) => {
     const options = getComboOptions(slot.loraWidget);
     if (!Array.isArray(options) || options.length === 0) {
+      showMessage('No LoRAs available.');
       return;
     }
-    if (typeof LiteGraph === 'undefined' || typeof LiteGraph.ContextMenu !== 'function') {
-      return;
-    }
-    const canvasRef = app?.canvas;
-    const menuOptions = {
-      event,
-      scale: Math.max(1, canvasRef?.ds?.scale ?? 1),
-      className: 'dark',
-      callback: (value) => {
-        const prevLabel = resolveComboLabel(slot.loraWidget?.value, options);
-        const nextLabel = resolveComboLabel(value, options);
-        const prevToggle = !!slot.toggleWidget?.value;
-        setComboWidgetValue(slot.loraWidget, value);
-        setWidgetValue(slot.toggleWidget, prevToggle);
-        if (prevLabel !== nextLabel) {
-          setWidgetValue(slot.selectionWidget, '');
-          slot.selectionWidget.__hogeResetTopN = true;
-        }
-        applyRowVisibility();
-        markDirty(node);
+    let selectedOptionIndex = -1;
+    let selectedVisibleIndex = -1;
+    let filteredIndices = [];
+    let visibleOptions = [];
+
+    closeDialog();
+    const overlay = $el('div', {
+      id: DIALOG_ID,
+      style: {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0, 0, 0, 0.6)',
+        zIndex: 10000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       },
+    });
+    const panel = $el('div', {
+      style: {
+        background: '#1e1e1e',
+        color: '#e0e0e0',
+        padding: '16px',
+        borderRadius: '8px',
+        width: '50vw',
+        height: '70vh',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'sans-serif',
+      },
+    });
+    const title = null;
+    const filterInput = $el('input', {
+      type: 'text',
+      placeholder: 'Filter LoRAs',
+      style: { flex: '1 1 auto', paddingRight: '28px' },
+    });
+    const clearFilterButton = $el('button', {
+      textContent: '\u00d7',
+      style: {
+        position: 'absolute',
+        right: '4px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        padding: '0',
+        width: '20px',
+        height: '20px',
+        fontSize: '16px',
+        lineHeight: '1',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        opacity: '0.7',
+      },
+    });
+    const filterContainer = $el('div', {
+      style: {
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '12px',
+      },
+    });
+    filterContainer.append(filterInput, clearFilterButton);
+    const list = $el('div', {
+      style: {
+        overflow: 'auto',
+        padding: '8px',
+        background: '#2a2a2a',
+        borderRadius: '6px',
+        flex: '1 1 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: `${loraDialogItemGap}px`,
+      },
+    });
+    const actions = $el('div', {
+      style: {
+        display: 'flex',
+        justifyContent: 'flex-end',
+        marginTop: '12px',
+      },
+    });
+    const cancelButton = $el('button', { textContent: 'Cancel' });
+    actions.append(cancelButton);
+
+    const applySelection = (nextLabel) => {
+      const prevLabel = resolveComboLabel(slot.loraWidget?.value, options);
+      const prevToggle = !!slot.toggleWidget?.value;
+      setComboWidgetValue(slot.loraWidget, nextLabel);
+      setWidgetValue(slot.toggleWidget, prevToggle);
+      if (prevLabel !== nextLabel) {
+        setWidgetValue(slot.selectionWidget, '');
+        slot.selectionWidget.__hogeResetTopN = true;
+      }
+      applyRowVisibility();
+      markDirty(targetNode);
     };
-    new LiteGraph.ContextMenu(options, menuOptions);
+
+    const renderLabel = (button, label, query) => {
+      const parts = splitLoraLabel(label);
+      const segments = getHighlightSegments(parts.base, query);
+      button.textContent = '';
+      segments.forEach((segment) => {
+        if (!segment.text) {
+          return;
+        }
+        const span = document.createElement('span');
+        span.textContent = segment.text;
+        if (segment.isMatch) {
+          span.style.textDecoration = loraDialogMatchDecoration;
+          span.style.textDecorationColor = loraDialogMatchDecorationColor;
+          span.style.textDecorationThickness = loraDialogMatchDecorationThickness;
+          span.style.textUnderlineOffset = loraDialogMatchDecorationOffset;
+        }
+        button.append(span);
+      });
+      if (parts.extension) {
+        button.append(document.createTextNode(parts.extension));
+      }
+    };
+
+    const applySelectedLabel = () => {
+      if (visibleOptions.length === 0) {
+        return;
+      }
+      const nextIndex =
+        selectedVisibleIndex >= 0 && selectedVisibleIndex < visibleOptions.length
+          ? visibleOptions[selectedVisibleIndex].index
+          : visibleOptions[0].index;
+      const nextLabel = options[nextIndex];
+      if (!nextLabel) {
+        return;
+      }
+      applySelection(nextLabel);
+      closeDialog();
+    };
+
+    const renderList = () => {
+      list.textContent = '';
+      filteredIndices = filterLoraOptionIndices(filterInput.value, options);
+      visibleOptions = filteredIndices
+        .map((optionIndex) => ({ index: optionIndex, label: options[optionIndex] }))
+        .filter((entry) => entry.label !== undefined && entry.label !== null);
+      if (visibleOptions.length === 0) {
+        selectedVisibleIndex = -1;
+        list.append(
+          $el('div', {
+            textContent: 'No matches.',
+            style: { opacity: 0.7, padding: '8px' },
+          }),
+        );
+        return;
+      }
+      const resolvedSelection = resolveVisibleSelection(visibleOptions, selectedOptionIndex);
+      selectedVisibleIndex = resolvedSelection.selectedVisibleIndex;
+      selectedOptionIndex = resolvedSelection.selectedOptionIndex;
+      visibleOptions.forEach((entry, index) => {
+        const label = entry.label;
+        const button = $el('button', {
+          style: {
+            textAlign: 'left',
+            padding: `${loraDialogItemPaddingY}px ${loraDialogItemPaddingX}px`,
+            borderRadius: '6px',
+            border: loraDialogItemBorder,
+            background: loraDialogItemBackground,
+            cursor: 'pointer',
+          },
+        });
+        const isSelected = index === selectedVisibleIndex;
+        const applyBackground = (isHovered) => {
+          button.style.background = resolveLoraDialogItemBackground(isSelected, isHovered);
+        };
+        button.style.color = '#e0e0e0';
+        button.style.fontWeight = '400';
+        applyBackground(false);
+        renderLabel(button, label, filterInput.value);
+        button.onmouseenter = () => applyBackground(true);
+        button.onmouseleave = () => applyBackground(false);
+        button.onclick = () => {
+          applySelection(label);
+          closeDialog();
+        };
+        list.append(button);
+      });
+    };
+
+    cancelButton.onclick = closeDialog;
+    filterInput.oninput = () => renderList();
+    clearFilterButton.onclick = () => {
+      filterInput.value = '';
+      renderList();
+      focusInputLater(filterInput);
+    };
+    const moveSelection = (direction) => {
+      if (visibleOptions.length === 0) {
+        return;
+      }
+      const baseIndex = selectedVisibleIndex;
+      const nextIndex = moveIndex(baseIndex, direction, visibleOptions.length);
+      const nextOptionIndex = visibleOptions[nextIndex]?.index;
+      if (nextOptionIndex === undefined) {
+        return;
+      }
+      selectedVisibleIndex = nextIndex;
+      selectedOptionIndex = nextOptionIndex;
+      renderList();
+    };
+
+    const handleDialogKeyDown = (event) => {
+      if (event?.__hogeLoraDialogHandled) {
+        return;
+      }
+      event.__hogeLoraDialogHandled = true;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveSelection(1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveSelection(-1);
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applySelectedLabel();
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelButton.click();
+      }
+    };
+    dialogKeydownHandler = handleDialogKeyDown;
+    document.addEventListener('keydown', dialogKeydownHandler, true);
+    filterInput.addEventListener('keydown', handleDialogKeyDown);
+
+    renderList();
+    panel.append(filterContainer, list, actions);
+    overlay.append(panel);
+    document.body.append(overlay);
+    focusInputLater(filterInput);
   };
 
   const handleMouseDown = (event, pos, targetNode) => {
@@ -1039,7 +1309,7 @@ const setupHogeUi = (node) => {
           }
           return true;
         }
-        openLoraMenu(slot, event);
+        openLoraDialog(slot, targetNode);
         if (event) {
           event.__hogeHandled = true;
         }

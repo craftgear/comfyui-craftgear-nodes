@@ -5,7 +5,7 @@ import comfy.utils
 import folder_paths
 
 from ...logic.lora_catalog import collect_lora_names
-from ....load_lora_with_triggers.logic.trigger_words import (
+from ...logic.trigger_words import (
     extract_lora_triggers,
     filter_lora_triggers,
 )

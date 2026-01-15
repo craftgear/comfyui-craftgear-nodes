@@ -1,3 +1,6 @@
+import { stripLoraExtension } from './loraNameUtils.js';
+import { matchFuzzyPositions, rankFuzzyIndices } from './loraFuzzyMatch.js';
+
 const normalizeOptions = (options) => {
   if (Array.isArray(options)) {
     return options;
@@ -6,6 +9,66 @@ const normalizeOptions = (options) => {
     return Object.values(options);
   }
   return [];
+};
+
+const filterLoraOptionIndices = (query, options) => {
+  const list = normalizeOptions(options);
+  const normalized = String(query ?? '').trim();
+  if (!normalized) {
+    return list.map((_item, index) => index);
+  }
+  const bases = list.map((label) => stripLoraExtension(label));
+  return rankFuzzyIndices(normalized, bases);
+};
+
+const filterLoraOptions = (query, options) => {
+  const list = normalizeOptions(options);
+  const indices = filterLoraOptionIndices(query, list);
+  return indices.map((index) => list[index]).filter((label) => label !== undefined);
+};
+
+const splitLoraLabel = (label) => {
+  const text = String(label ?? '');
+  const base = stripLoraExtension(text);
+  return { base, extension: text.slice(base.length) };
+};
+
+const getHighlightSegments = (text, query) => {
+  const source = String(text ?? '');
+  const rawQuery = String(query ?? '').trim();
+  if (!rawQuery) {
+    return [{ text: source, isMatch: false }];
+  }
+  const positions = matchFuzzyPositions(rawQuery, source);
+  if (!positions || positions.length === 0) {
+    return [{ text: source, isMatch: false }];
+  }
+  const positionSet = new Set(positions);
+  const segments = [];
+  let buffer = '';
+  let currentMatch = null;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const isMatch = positionSet.has(i);
+    if (currentMatch === null) {
+      currentMatch = isMatch;
+      buffer = source[i];
+      continue;
+    }
+    if (isMatch === currentMatch) {
+      buffer += source[i];
+      continue;
+    }
+    if (buffer) {
+      segments.push({ text: buffer, isMatch: currentMatch });
+    }
+    buffer = source[i];
+    currentMatch = isMatch;
+  }
+  if (buffer) {
+    segments.push({ text: buffer, isMatch: !!currentMatch });
+  }
+  return segments.length > 0 ? segments : [{ text: source, isMatch: false }];
 };
 
 const resolveOption = (rawValue, options) => {
@@ -68,6 +131,20 @@ const moveIndex = (currentIndex, direction, length) => {
     next = 0;
   }
   return next;
+};
+
+const resolveVisibleSelection = (visibleOptions, selectedOptionIndex) => {
+  if (!Array.isArray(visibleOptions) || visibleOptions.length === 0) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  if (!Number.isFinite(selectedOptionIndex) || selectedOptionIndex < 0) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  const indexInVisible = visibleOptions.findIndex((entry) => entry.index === selectedOptionIndex);
+  if (indexInVisible < 0) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  return { selectedVisibleIndex: indexInVisible, selectedOptionIndex };
 };
 
 const computeButtonRect = (x, y, width, height, padding = 0) => {
@@ -165,14 +242,74 @@ const computeSliderRatio = (value, options) => {
   return clampNumber(ratio, 0, 1);
 };
 
+const loraLabelTextPadding = 8;
+const loraLabelButtonHeightPadding = loraLabelTextPadding;
+const loraDialogItemBackground = 'transparent';
+const loraDialogItemBorder = 'none';
+const loraDialogItemHoverBackground = '#2a2a2a';
+const loraDialogItemSelectedBackground = '#424242';
+const loraDialogMatchDecoration = 'underline';
+const loraDialogMatchDecorationColor = '#f2d28b';
+const loraDialogMatchDecorationThickness = '2px';
+const loraDialogMatchDecorationOffset = '2px';
+const loraDialogItemGap = 0;
+const loraDialogItemPaddingY = 4;
+const loraDialogItemPaddingX = 8;
+
+const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
+  if (isSelected) {
+    return loraDialogItemSelectedBackground;
+  }
+  if (isHovered) {
+    return loraDialogItemHoverBackground;
+  }
+  return loraDialogItemBackground;
+};
+
+const resetIconPath =
+  'M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z';
+
+const focusInputLater = (input, schedule) => {
+  if (!input || typeof input.focus !== 'function') {
+    return;
+  }
+  const runner =
+    schedule ??
+    (typeof requestAnimationFrame === 'function'
+      ? (callback) => requestAnimationFrame(callback)
+      : (callback) => setTimeout(callback, 0));
+  runner(() => input.focus());
+};
+
 export {
   calculateSliderValue,
   computeButtonRect,
   computeResetButtonRect,
   computeSliderRatio,
   moveIndex,
+  resolveVisibleSelection,
   resolveComboLabel,
   normalizeStrengthOptions,
   normalizeOptions,
+  filterLoraOptionIndices,
+  filterLoraOptions,
+  loraLabelButtonHeightPadding,
+  loraLabelTextPadding,
+  loraDialogItemBackground,
+  loraDialogItemBorder,
+  loraDialogItemHoverBackground,
+  loraDialogItemSelectedBackground,
+  loraDialogMatchDecoration,
+  loraDialogMatchDecorationColor,
+  loraDialogMatchDecorationThickness,
+  loraDialogMatchDecorationOffset,
+  loraDialogItemGap,
+  loraDialogItemPaddingY,
+  loraDialogItemPaddingX,
+  resolveLoraDialogItemBackground,
+  splitLoraLabel,
+  getHighlightSegments,
+  focusInputLater,
   resolveOption,
+  resetIconPath,
 };
