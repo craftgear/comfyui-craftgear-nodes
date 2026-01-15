@@ -9,6 +9,9 @@ USE_SS_TAG_STRINGS = False
 
 
 def extract_lora_triggers(lora_path: str) -> list[str]:
+    sidecar_trained = _read_sidecar_trained_words(lora_path)
+    if sidecar_trained:
+        return sidecar_trained
     metadata = _read_safetensors_metadata(lora_path)
     if not metadata:
         return []
@@ -16,6 +19,9 @@ def extract_lora_triggers(lora_path: str) -> list[str]:
 
 
 def extract_lora_trigger_frequencies(lora_path: str) -> list[tuple[str, float]]:
+    sidecar_trained = _read_sidecar_trained_words(lora_path)
+    if sidecar_trained:
+        return [(tag, float("inf")) for tag in sidecar_trained]
     metadata = _read_safetensors_metadata(lora_path)
     if not metadata:
         return []
@@ -56,6 +62,57 @@ def _read_safetensors_metadata(lora_path: str) -> dict[str, Any]:
     if isinstance(metadata, dict):
         return metadata
     return {}
+
+
+def _read_sidecar_trained_words(lora_path: str) -> list[str]:
+    if os.path.splitext(lora_path)[1].lower() != ".safetensors":
+        return []
+    base_dir = os.path.dirname(lora_path)
+    if not base_dir:
+        return []
+    candidates = [
+        os.path.join(base_dir, "model_info.json"),
+        f"{lora_path}.rgthree-info.json",
+    ]
+    for path in candidates:
+        trained_words = _read_trained_words_from_json(path)
+        if trained_words:
+            return trained_words
+    return []
+
+
+def _read_trained_words_from_json(path: str) -> list[str]:
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return []
+    return _extract_trained_words(data)
+
+
+def _extract_trained_words(data: Any) -> list[str]:
+    if not isinstance(data, dict):
+        return []
+    trained_words = data.get("trainedWords")
+    if trained_words is None:
+        trained_words = data.get("trained_words")
+    return _normalize_trigger_list(_parse_trained_word_values(trained_words))
+
+
+def _parse_trained_word_values(value: Any) -> list[Any]:
+    if isinstance(value, (list, tuple)):
+        output: list[Any] = []
+        for item in value:
+            if isinstance(item, dict) and "word" in item:
+                output.append(item["word"])
+            else:
+                output.append(item)
+        return output
+    if isinstance(value, dict) and "word" in value:
+        return [value["word"]]
+    if isinstance(value, str):
+        return [value]
+    return []
 
 
 def _extract_triggers_from_metadata(metadata: dict[str, Any]) -> list[str]:

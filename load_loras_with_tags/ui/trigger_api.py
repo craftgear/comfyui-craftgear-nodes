@@ -1,3 +1,4 @@
+import math
 import server
 from typing import Any
 
@@ -27,6 +28,9 @@ async def load_lora_triggers(request: web.Request) -> web.Response:
     return web.json_response(
         {
             "triggers": triggers,
-            "frequencies": {tag: count for tag, count in frequencies},
+            "frequencies": {
+                tag: ("Infinity" if isinstance(count, (int, float)) and not math.isfinite(count) else count)
+                for tag, count in frequencies
+            },
         }
     )

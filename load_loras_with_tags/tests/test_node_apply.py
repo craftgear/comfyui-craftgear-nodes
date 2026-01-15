@@ -46,7 +46,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
             node = load_loras_with_tags_node.LoadLorasWithTags()
-            model, clip = node.apply(
+            model, clip, tags = node.apply(
                 'model',
                 'clip',
                 lora_name_1='a.safetensors',
@@ -55,6 +55,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             )
 
             self.assertEqual((model, clip), ('model', 'clip'))
+            self.assertEqual(tags, '')
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
@@ -83,7 +84,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
             node = load_loras_with_tags_node.LoadLorasWithTags()
-            model, clip = node.apply(
+            model, clip, tags = node.apply(
                 'model',
                 'clip',
                 lora_name_1='a.safetensors',
@@ -92,6 +93,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             )
 
             self.assertEqual((model, clip), ('model', 'clip'))
+            self.assertEqual(tags, '')
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
@@ -120,7 +122,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.folder_paths.get_full_path = lambda *_args, **_kwargs: '/tmp/test.safetensors'
 
             node = load_loras_with_tags_node.LoadLorasWithTags()
-            model, clip = node.apply(
+            model, clip, tags = node.apply(
                 'model',
                 'clip',
                 lora_name_1='a.safetensors',
@@ -129,6 +131,7 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             )
 
             self.assertEqual((model, clip), ('model_lora', 'clip_lora'))
+            self.assertEqual(tags, '')
             self.assertEqual(calls['load'], 1)
             self.assertEqual(calls['apply'], 1)
         finally:

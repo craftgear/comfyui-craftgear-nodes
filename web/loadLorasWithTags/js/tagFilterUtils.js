@@ -43,7 +43,14 @@ const getTopNVisibility = (tags, frequencies, topN) => {
   const indexed = tags.map((tag, index) => ({
     tag,
     index,
-    freq: frequencies[tag] ?? 0,
+    freq: (() => {
+      const raw = frequencies[tag];
+      if (raw === null || raw === undefined) {
+        return 0;
+      }
+      const value = Number(raw);
+      return Number.isNaN(value) ? 0 : value;
+    })(),
   }));
   indexed.sort((a, b) => {
     if (b.freq !== a.freq) {

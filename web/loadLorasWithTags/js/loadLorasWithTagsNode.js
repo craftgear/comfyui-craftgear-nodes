@@ -333,15 +333,51 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
     },
   });
 
-  const formatFrequency = (value) => {
-    if (value === null || value === undefined) {
-      return '';
+  const createInfinityIcon = () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 12');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '8');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.style.display = 'block';
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute(
+      'd',
+      'M5 3c-2 0-3.5 1.5-3.5 3s1.5 3 3.5 3c1.7 0 3.2-1 4.5-2.5C10.8 8 12.3 9 14 9c2 0 3.5-1.5 3.5-3S16 3 14 3c-1.7 0-3.2 1-4.5 2.5C8.2 4 6.7 3 5 3z'
+    );
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '1.4');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    svg.append(path);
+    return svg;
+  };
+
+  const createFrequencyLabel = (value) => {
+    const label = $el('span', {
+      style: {
+        minWidth: '40px',
+        textAlign: 'right',
+        opacity: 0.7,
+        display: 'inline-flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+      },
+    });
+    if (value === null || value === undefined || value === '') {
+      return label;
     }
     const numberValue = Number(value);
-    if (!Number.isFinite(numberValue)) {
-      return String(value);
+    if (Number.isNaN(numberValue)) {
+      return label;
     }
-    return Number.isInteger(numberValue) ? String(numberValue) : String(numberValue);
+    if (!Number.isFinite(numberValue)) {
+      label.append(createInfinityIcon());
+      return label;
+    }
+    label.textContent = Number.isInteger(numberValue) ? String(numberValue) : String(numberValue);
+    return label;
   };
 
   const renderTriggerLabel = (label, trigger, query) => {
@@ -364,11 +400,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
   const items = triggers.map((trigger) => {
     const checkbox = $el('input', { type: 'checkbox' });
     checkbox.checked = selected.has(trigger);
-    const countText = formatFrequency(frequencies?.[trigger]);
-    const countLabel = $el('span', {
-      textContent: countText,
-      style: { minWidth: '40px', textAlign: 'right', opacity: 0.7 },
-    });
+    const countLabel = createFrequencyLabel(frequencies?.[trigger]);
     const triggerLabel = $el('span');
     renderTriggerLabel(triggerLabel, trigger, filterInput.value);
     const label = $el('label', {

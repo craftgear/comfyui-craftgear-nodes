@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import tempfile
 import unittest
@@ -14,6 +15,32 @@ def write_safetensors_with_metadata(path: str, metadata: dict[str, object]) -> N
 
 
 class LoraTriggerExtractionTest(unittest.TestCase):
+    def test_extracts_triggers_from_model_info_trained_words(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lora_path = os.path.join(temp_dir, "test.safetensors")
+            write_safetensors_with_metadata(lora_path, {"trigger_words": ["meta"]})
+            model_info_path = os.path.join(temp_dir, "model_info.json")
+            with open(model_info_path, "w", encoding="utf-8") as file:
+                json.dump({"trainedWords": ["alpha", "beta"]}, file)
+            triggers = logic_triggers.extract_lora_triggers(lora_path)
+            self.assertEqual(triggers, ["alpha", "beta"])
+            frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
+            self.assertEqual([tag for tag, _count in frequencies], ["alpha", "beta"])
+            self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))
+
+    def test_extracts_triggers_from_rgthree_trained_words(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lora_path = os.path.join(temp_dir, "test.safetensors")
+            write_safetensors_with_metadata(lora_path, {"trigger_words": ["meta"]})
+            sidecar_path = f"{lora_path}.rgthree-info.json"
+            with open(sidecar_path, "w", encoding="utf-8") as file:
+                json.dump({"trainedWords": [{"word": "gamma"}, {"word": "delta"}]}, file)
+            triggers = logic_triggers.extract_lora_triggers(lora_path)
+            self.assertEqual(triggers, ["gamma", "delta"])
+            frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
+            self.assertEqual([tag for tag, _count in frequencies], ["gamma", "delta"])
+            self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))
+
     def test_extracts_triggers_from_trained_words_list(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             lora_path = os.path.join(temp_dir, "test.safetensors")
