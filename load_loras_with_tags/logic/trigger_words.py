@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from typing import Any
 
@@ -10,22 +11,20 @@ USE_SS_TAG_STRINGS = False
 
 def extract_lora_triggers(lora_path: str) -> list[str]:
     sidecar_triggers, _frequencies = _extract_sidecar_triggers_and_frequencies(lora_path)
-    if sidecar_triggers:
-        return sidecar_triggers
     metadata = _read_safetensors_metadata(lora_path)
-    if not metadata:
-        return []
-    return _extract_triggers_from_metadata(metadata)
+    metadata_triggers = _extract_triggers_from_metadata(metadata) if metadata else []
+    return _merge_trigger_lists(sidecar_triggers, metadata_triggers)
 
 
 def extract_lora_trigger_frequencies(lora_path: str) -> list[tuple[str, float]]:
     sidecar_triggers, sidecar_frequencies = _extract_sidecar_triggers_and_frequencies(lora_path)
-    if sidecar_triggers:
-        return sidecar_frequencies
     metadata = _read_safetensors_metadata(lora_path)
-    if not metadata:
-        return []
-    return _extract_trigger_frequencies_from_metadata(metadata)
+    metadata_frequencies = _extract_trigger_frequencies_from_metadata(metadata) if metadata else []
+    if not sidecar_triggers:
+        return metadata_frequencies
+    if not metadata_frequencies:
+        return sidecar_frequencies
+    return _merge_frequency_lists(sidecar_frequencies, metadata_frequencies)
 
 
 def filter_lora_triggers(triggers: list[str], selection_text: str) -> list[str]:
@@ -96,6 +95,44 @@ def _parse_trained_word_values(value: Any) -> list[Any]:
     if isinstance(value, str):
         return [value]
     return []
+
+
+def _merge_trigger_lists(primary: list[str], secondary: list[str]) -> list[str]:
+    output: list[str] = []
+    seen = set()
+    for value in primary + secondary:
+        text = str(value).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        output.append(text)
+    return output
+
+
+def _merge_frequency_lists(
+    primary: list[tuple[str, float]],
+    secondary: list[tuple[str, float]],
+) -> list[tuple[str, float]]:
+    counts: dict[str, float] = {}
+    order: list[str] = []
+
+    def add(tag: str, count: float) -> None:
+        if tag not in counts:
+            order.append(tag)
+            counts[tag] = count
+            return
+        current = counts[tag]
+        if math.isinf(current) or math.isinf(count):
+            counts[tag] = float("inf")
+            return
+        counts[tag] = current + count
+
+    for tag, count in primary:
+        add(tag, count)
+    for tag, count in secondary:
+        add(tag, count)
+
+    return [(tag, counts[tag]) for tag in order]
 
 
 def _extract_sidecar_triggers_and_frequencies(

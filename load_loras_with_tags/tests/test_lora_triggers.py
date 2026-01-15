@@ -39,7 +39,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta"])
+            self.assertEqual(triggers, ["alpha", "beta", "meta"])
 
     def test_falls_back_to_rgthree_when_model_info_has_no_tags(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -52,7 +52,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             with open(rgthree_path, "w", encoding="utf-8") as file:
                 json.dump({"images": [{"positive": "alpha, beta"}]}, file)
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta"])
+            self.assertEqual(triggers, ["alpha", "beta", "meta"])
 
     def test_extracts_triggers_from_model_info_positive_prompts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -70,7 +70,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta", "gamma", "delta", "epsilon"])
+            self.assertEqual(triggers, ["alpha", "beta", "gamma", "delta", "epsilon", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             self.assertEqual(
                 frequencies,
@@ -97,7 +97,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["beta", "alpha"])
+            self.assertEqual(triggers, ["beta", "alpha", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             freq_map = {tag: count for tag, count in frequencies}
             self.assertTrue(math.isinf(freq_map["beta"]))
@@ -111,7 +111,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             with open(model_info_path, "w", encoding="utf-8") as file:
                 json.dump({"trainedWords": ["alpha", "beta"]}, file)
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta"])
+            self.assertEqual(triggers, ["alpha", "beta", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             self.assertEqual([tag for tag, _count in frequencies], ["alpha", "beta"])
             self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))
@@ -124,7 +124,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             with open(sidecar_path, "w", encoding="utf-8") as file:
                 json.dump({"trainedWords": [{"word": "gamma"}, {"word": "delta"}]}, file)
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["gamma", "delta"])
+            self.assertEqual(triggers, ["gamma", "delta", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             self.assertEqual([tag for tag, _count in frequencies], ["gamma", "delta"])
             self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))

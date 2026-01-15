@@ -147,6 +147,20 @@ const resolveVisibleSelection = (visibleOptions, selectedOptionIndex) => {
   return { selectedVisibleIndex: indexInVisible, selectedOptionIndex };
 };
 
+const resolveFilteredSelection = (visibleOptions, selectedOptionIndex, forceTop = false) => {
+  if (!Array.isArray(visibleOptions) || visibleOptions.length === 0) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  if (forceTop) {
+    const firstIndex = visibleOptions[0]?.index;
+    return {
+      selectedVisibleIndex: 0,
+      selectedOptionIndex: Number.isFinite(firstIndex) ? firstIndex : -1,
+    };
+  }
+  return resolveVisibleSelection(visibleOptions, selectedOptionIndex);
+};
+
 const computeButtonRect = (x, y, width, height, padding = 0) => {
   const safePadding = Math.max(0, padding);
   const rectWidth = Math.max(0, width - safePadding * 2);
@@ -301,6 +315,7 @@ export {
   computeResetButtonRect,
   computeSliderRatio,
   moveIndex,
+  resolveFilteredSelection,
   resolveVisibleSelection,
   resolveComboLabel,
   normalizeStrengthOptions,

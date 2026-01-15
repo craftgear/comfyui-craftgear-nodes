@@ -30,6 +30,7 @@ import {
   getHighlightSegments,
   splitLoraLabel,
   focusInputLater,
+  resolveFilteredSelection,
   resolveVisibleSelection,
   resolveComboLabel,
   resolveOption,
@@ -1194,7 +1195,7 @@ const setupHogeUi = (node) => {
       closeDialog();
     };
 
-    const renderList = () => {
+    const renderList = (forceTopSelection = false) => {
       list.textContent = '';
       filteredIndices = filterLoraOptionIndices(filterInput.value, options);
       visibleOptions = filteredIndices
@@ -1210,7 +1211,11 @@ const setupHogeUi = (node) => {
         );
         return;
       }
-      const resolvedSelection = resolveVisibleSelection(visibleOptions, selectedOptionIndex);
+      const resolvedSelection = resolveFilteredSelection(
+        visibleOptions,
+        selectedOptionIndex,
+        forceTopSelection,
+      );
       selectedVisibleIndex = resolvedSelection.selectedVisibleIndex;
       selectedOptionIndex = resolvedSelection.selectedOptionIndex;
       visibleOptions.forEach((entry, index) => {
@@ -1244,10 +1249,10 @@ const setupHogeUi = (node) => {
     };
 
     cancelButton.onclick = closeDialog;
-    filterInput.oninput = () => renderList();
+    filterInput.oninput = () => renderList(true);
     clearFilterButton.onclick = () => {
       filterInput.value = '';
-      renderList();
+      renderList(true);
       focusInputLater(filterInput);
     };
     const moveSelection = (direction) => {

@@ -29,6 +29,7 @@ import {
   getHighlightSegments,
   splitLoraLabel,
   resolveVisibleSelection,
+  resolveFilteredSelection,
   resolveOption,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
@@ -101,6 +102,25 @@ describe('loadLorasWithTagsUiUtils', () => {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
     });
+    assert.deepEqual(
+      resolveFilteredSelection(
+        [
+          { index: 1, label: 'alpha' },
+          { index: 3, label: 'beta' },
+        ],
+        3,
+        true,
+      ),
+      { selectedVisibleIndex: 0, selectedOptionIndex: 1 },
+    );
+    assert.deepEqual(resolveFilteredSelection([], 0, true), {
+      selectedVisibleIndex: -1,
+      selectedOptionIndex: -1,
+    });
+    assert.deepEqual(
+      resolveFilteredSelection([{ index: 2, label: 'gamma' }], 2, false),
+      { selectedVisibleIndex: 0, selectedOptionIndex: 2 },
+    );
 
     assert.deepEqual(normalizeStrengthOptions(null), { step: 0.1 });
     assert.deepEqual(normalizeStrengthOptions({ step: 1, min: -2 }), { step: 0.1, min: -2 });
