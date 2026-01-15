@@ -71,6 +71,11 @@ describe('loadLorasWithTagsUiUtils', () => {
       { text: 'bcd', isMatch: false },
       { text: 'e', isMatch: true },
     ]);
+    assert.deepEqual(getHighlightSegments('cat', 'ct'), [
+      { text: 'c', isMatch: true },
+      { text: 'a', isMatch: false },
+      { text: 't', isMatch: true },
+    ]);
     assert.deepEqual(getHighlightSegments('alpha', ''), [{ text: 'alpha', isMatch: false }]);
     assert.deepEqual(getHighlightSegments('alpha', 'zz'), [{ text: 'alpha', isMatch: false }]);
     assert.deepEqual(

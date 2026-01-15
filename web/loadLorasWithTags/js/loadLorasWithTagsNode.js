@@ -344,6 +344,23 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
     return Number.isInteger(numberValue) ? String(numberValue) : String(numberValue);
   };
 
+  const renderTriggerLabel = (label, trigger, query) => {
+    const segments = getHighlightSegments(trigger, query);
+    label.textContent = '';
+    segments.forEach((segment) => {
+      if (!segment.text) {
+        return;
+      }
+      const span = document.createElement('span');
+      span.textContent = segment.text;
+      if (segment.isMatch) {
+        span.style.color = loraDialogMatchTextColor;
+        span.style.fontWeight = loraDialogMatchFontWeight;
+      }
+      label.append(span);
+    });
+  };
+
   const items = triggers.map((trigger) => {
     const checkbox = $el('input', { type: 'checkbox' });
     checkbox.checked = selected.has(trigger);
@@ -352,12 +369,14 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
       textContent: countText,
       style: { minWidth: '40px', textAlign: 'right', opacity: 0.7 },
     });
+    const triggerLabel = $el('span');
+    renderTriggerLabel(triggerLabel, trigger, filterInput.value);
     const label = $el('label', {
       style: { display: 'flex', gap: '8px', alignItems: 'center', padding: '4px 0' },
     });
-    label.append(checkbox, countLabel, $el('span', { textContent: trigger }));
+    label.append(checkbox, countLabel, triggerLabel);
     list.append(label);
-    return { trigger, checkbox, row: label };
+    return { trigger, checkbox, row: label, label: triggerLabel };
   });
 
   const actions = $el('div', {
@@ -382,6 +401,7 @@ const openTriggerDialog = async (loraName, selectionWidget, targetNode, resetTop
     const topNValue = Number(topN) || 0;
     const topNVisibility = getTopNVisibility(tagList, frequencies, topNValue);
     items.forEach((item, index) => {
+      renderTriggerLabel(item.label, item.trigger, query);
       const isVisible = (textVisibility[index] ?? true) && (topNVisibility[index] ?? true);
       item.row.style.display = isVisible ? 'flex' : 'none';
       if (!(topNVisibility[index] ?? true)) {

@@ -1,3 +1,5 @@
+import { rankFuzzy } from './loraFuzzyMatch.js';
+
 const normalizeQuery = (query) => String(query ?? '').trim().toLowerCase();
 
 const isTagMatch = (tag, query) => {
@@ -16,7 +18,14 @@ const getTagVisibility = (tags, query) => {
   if (!Array.isArray(tags)) {
     return [];
   }
-  return tags.map((tag) => isTagMatch(tag, query));
+  const normalizedQuery = String(query ?? '').trim();
+  if (!normalizedQuery) {
+    return tags.map(() => true);
+  }
+  const tagList = tags.map((tag) => String(tag ?? ''));
+  const matched = rankFuzzy(normalizedQuery, tagList);
+  const matchedSet = new Set(matched);
+  return tagList.map((tag) => matchedSet.has(tag));
 };
 
 // 頻度の上位N件のタグのみを表示するフィルタ

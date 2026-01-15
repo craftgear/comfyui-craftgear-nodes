@@ -14,6 +14,7 @@ describe('tagFilterUtils', () => {
 
   it('filters visibility by query', () => {
     assert.deepEqual(getTagVisibility(['cat', 'dog'], 'ca'), [true, false]);
+    assert.deepEqual(getTagVisibility(['cat', 'dog'], 'ct'), [true, false]);
     assert.deepEqual(getTagVisibility(['cat', 'dog'], ''), [true, true]);
   });
 
