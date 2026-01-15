@@ -46,10 +46,11 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
             lora_strength_1=0,
             lora_on_1=True,
             tag_selection_1='',
+            tags='alpha',
         )
 
         self.assertEqual(calls.get('filename'), 'example.safetensors')
-        self.assertEqual(result, ('model', 'clip', ''))
+        self.assertEqual(result, ('model', 'clip', 'alpha'))
 
     def test_apply_resolves_lora_name_string_index(self) -> None:
         calls: dict[str, str] = {}
@@ -71,10 +72,11 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
             lora_strength_1=0,
             lora_on_1=True,
             tag_selection_1='',
+            tags='alpha',
         )
 
         self.assertEqual(calls.get('filename'), 'example.safetensors')
-        self.assertEqual(result, ('model', 'clip', ''))
+        self.assertEqual(result, ('model', 'clip', 'alpha'))
 
 
 if __name__ == '__main__':

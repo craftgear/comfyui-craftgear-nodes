@@ -4,6 +4,7 @@ import { describe, it } from 'vitest';
 import {
   calculateSliderValue,
   computeButtonRect,
+  computeSplitWidths,
   computeResetButtonRect,
   computeSliderRatio,
   moveIndex,
@@ -171,5 +172,8 @@ describe('loadLorasWithTagsUiUtils', () => {
       width: 92,
       height: 22,
     });
+
+    assert.deepEqual(computeSplitWidths(120, 2, 1, 6), { first: 76, second: 38 });
+    assert.deepEqual(computeSplitWidths(10, 0, 0, 4), { first: 0, second: 0 });
   });
 });

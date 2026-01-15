@@ -18,6 +18,7 @@ Selects LoRAs from the ComfyUI loras folder, applies them to model and clip, and
 Inputs:
 - model: Model
 - clip: CLIP
+- tags: String, comma-separated
 - lora_name: Dropdown of LoRA files
 - lora_strength: Float, default 1.0, range -2.0 to 2.0
 - lora_on: Boolean, default true
@@ -33,6 +34,7 @@ Behavior:
 - If lora_strength is 0, returns the input model and clip and the selected tag string
 - Reads safetensors metadata to extract tags
 - Filters tags by tag_selection when provided
+- Joins input tags with selected tags for the output
 
 ### Camera Shake (craftgear/image)
 

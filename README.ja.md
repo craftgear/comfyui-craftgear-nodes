@@ -18,6 +18,7 @@ ComfyUI の loras フォルダから LoRA を選択し、model と clip に適�
 入力:
 - model: Model
 - clip: CLIP
+- tags: 文字列, カンマ区切り
 - lora_name: LoRA ファイルのドロップダウン
 - lora_strength: Float, 既定 1.0, 範囲 -2.0 から 2.0
 - lora_on: Boolean, 既定 true
@@ -33,6 +34,7 @@ ComfyUI の loras フォルダから LoRA を選択し、model と clip に適�
 - lora_strength が 0 の場合は入力の model と clip と選択タグ文字列を返します
 - safetensors のメタデータからタグを抽出します
 - tag_selection がある場合は選択したものだけに絞り込みます
+- 入力 tags と選択タグを連結して出力します
 
 ### Camera Shake (craftgear/image)
 

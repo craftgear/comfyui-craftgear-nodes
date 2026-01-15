@@ -35,6 +35,15 @@ def resolve_lora_name(value: Any, choices: list[str]) -> str:
     return 'None'
 
 
+def split_tags(value: Any) -> list[str]:
+    if value is None:
+        return []
+    text = value if isinstance(value, str) else str(value)
+    if not text:
+        return []
+    return [part.strip() for part in text.split(',') if part.strip()]
+
+
 class LoadLorasWithTags:
     def __init__(self) -> None:
         self.loaded_loras: dict[str, Any] = {}
@@ -49,6 +58,7 @@ class LoadLorasWithTags:
         required: dict[str, Any] = {
             'model': ('MODEL',),
             'clip': ('CLIP',),
+            'tags': ('STRING', {'default': '', 'forceInput': True}),
         }
         for index in range(1, MAX_LORA_STACK + 1):
             required[f'lora_name_{index}'] = (lora_choices,)
@@ -75,6 +85,7 @@ class LoadLorasWithTags:
         current_model = model
         current_clip = clip
         all_triggers: list[str] = []
+        input_tags = split_tags(kwargs.get('tags', ''))
         lora_choices = collect_lora_names(
             folder_paths.get_folder_paths('loras'),
             folder_paths.supported_pt_extensions,
@@ -104,11 +115,11 @@ class LoadLorasWithTags:
                 lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
                 self.loaded_loras[lora_path] = lora
             current_model, current_clip = comfy.sd.load_lora_for_models(
-                current_model,
-                current_clip,
-                lora,
-                lora_strength,
-                lora_strength,
-            )
+            current_model,
+            current_clip,
+            lora,
+            lora_strength,
+            lora_strength,
+        )
 
-        return (current_model, current_clip, ','.join(all_triggers))
+        return (current_model, current_clip, ','.join(input_tags + all_triggers))

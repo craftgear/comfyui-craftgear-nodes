@@ -159,6 +159,21 @@ const computeButtonRect = (x, y, width, height, padding = 0) => {
   };
 };
 
+const computeSplitWidths = (totalWidth, firstRatio, secondRatio, gap = 0) => {
+  const safeWidth = Math.max(0, Number(totalWidth) || 0);
+  const safeGap = Math.max(0, Number(gap) || 0);
+  const available = Math.max(0, safeWidth - safeGap);
+  const firstWeight = Math.max(0, Number(firstRatio) || 0);
+  const secondWeight = Math.max(0, Number(secondRatio) || 0);
+  const totalWeight = firstWeight + secondWeight;
+  if (totalWeight <= 0 || available <= 0) {
+    return { first: 0, second: 0 };
+  }
+  const first = Math.floor((available * firstWeight) / totalWeight);
+  const second = Math.max(0, available - first);
+  return { first, second };
+};
+
 const computeResetButtonRect = (rect, size, padding = 0) => {
   const safeSize = Math.max(0, size);
   const safePadding = Math.max(0, padding);
@@ -282,6 +297,7 @@ const focusInputLater = (input, schedule) => {
 export {
   calculateSliderValue,
   computeButtonRect,
+  computeSplitWidths,
   computeResetButtonRect,
   computeSliderRatio,
   moveIndex,

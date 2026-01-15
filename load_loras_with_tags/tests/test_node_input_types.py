@@ -38,6 +38,10 @@ class LoadLorasWithTagsInputTypesTest(unittest.TestCase):
         self.assertIn('lora_on_10', required)
         self.assertIn('tag_selection_1', required)
         self.assertIn('tag_selection_10', required)
+        self.assertIn('tags', required)
+        tags = required['tags']
+        self.assertEqual(tags[0], 'STRING')
+        self.assertTrue(tags[1].get('forceInput'))
 
     def test_strength_slider_metadata(self) -> None:
         inputs = load_loras_with_tags_node.LoadLorasWithTags.INPUT_TYPES()

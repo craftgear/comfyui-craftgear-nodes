@@ -52,10 +52,11 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
                 lora_name_1='a.safetensors',
                 lora_strength_1=1.0,
                 lora_on_1=False,
+                tags='alpha',
             )
 
             self.assertEqual((model, clip), ('model', 'clip'))
-            self.assertEqual(tags, '')
+            self.assertEqual(tags, 'alpha')
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
@@ -90,10 +91,11 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
                 lora_name_1='a.safetensors',
                 lora_strength_1=0,
                 lora_on_1=True,
+                tags='alpha',
             )
 
             self.assertEqual((model, clip), ('model', 'clip'))
-            self.assertEqual(tags, '')
+            self.assertEqual(tags, 'alpha')
             self.assertEqual(calls['load'], 0)
             self.assertEqual(calls['apply'], 0)
         finally:
@@ -128,10 +130,11 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
                 lora_name_1='a.safetensors',
                 lora_strength_1=1.0,
                 lora_on_1=True,
+                tags='alpha',
             )
 
             self.assertEqual((model, clip), ('model_lora', 'clip_lora'))
-            self.assertEqual(tags, '')
+            self.assertEqual(tags, 'alpha')
             self.assertEqual(calls['load'], 1)
             self.assertEqual(calls['apply'], 1)
         finally:

@@ -7,6 +7,7 @@ import {
   calculateSliderValue,
   computeButtonRect,
   computeResetButtonRect,
+  computeSplitWidths,
   computeSliderRatio,
   moveIndex,
   normalizeStrengthOptions,
@@ -36,7 +37,7 @@ import {
 
 const TARGET_NODE_CLASS = 'LoadLorasWithTags';
 const MAX_LORA_STACK = 10;
-const ROW_HEIGHT = 88;
+const ROW_HEIGHT = 58;
 const ROW_PADDING_Y = 8;
 const SELECT_BUTTON_HEIGHT = 26;
 const HEADER_HEIGHT = 24;
@@ -784,10 +785,9 @@ const setupHogeUi = (node) => {
         const availableHeight = rowHeight - ROW_PADDING_Y * 2;
         const lineHeight = Math.max(
           16,
-          (availableHeight - SELECT_BUTTON_HEIGHT - CONTENT_GAP_Y * 2) / 2,
+          (availableHeight - CONTENT_GAP_Y) / 2,
         );
-        const strengthTop = contentTop + lineHeight + CONTENT_GAP_Y;
-        const buttonTop = strengthTop + lineHeight + CONTENT_GAP_Y;
+        const controlTop = contentTop + lineHeight + CONTENT_GAP_Y;
 
         ctx.save();
         ctx.fillStyle = '#2a2a2a';
@@ -863,23 +863,30 @@ const setupHogeUi = (node) => {
         );
 
         const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
-        const strengthWidth = Math.max(100, labelAreaWidth - CONTENT_PADDING * 2);
+        const controlWidth = Math.max(100, labelAreaWidth - CONTENT_PADDING * 2);
+        const controlLeft = posX + CONTENT_PADDING;
+        const { first: strengthWidth, second: buttonWidth } = computeSplitWidths(
+          controlWidth,
+          2,
+          1,
+          INNER_MARGIN,
+        );
         const strengthRect = {
-          x: posX + CONTENT_PADDING,
-          y: strengthTop + CONTENT_PADDING_Y + (lineHeight - CONTENT_PADDING_Y * 2 - strengthHeight) / 2,
-          width: strengthWidth,
+          x: controlLeft,
+          y: controlTop + CONTENT_PADDING_Y + (lineHeight - CONTENT_PADDING_Y * 2 - strengthHeight) / 2,
+          width: Math.max(0, strengthWidth),
           height: strengthHeight,
         };
         const strengthRects = drawStrengthSlider(ctx, strengthRect, slot.strengthWidget, isOn);
         slot.__hitStrengthSlider = strengthRects.sliderRect;
         slot.__hitStrengthReset = strengthRects.resetRect;
 
-        const buttonWidth = Math.max(10, labelAreaWidth - CONTENT_PADDING * 2);
+        const buttonHeight = Math.min(SELECT_BUTTON_HEIGHT, lineHeight);
         const buttonRect = computeButtonRect(
-          posX,
-          buttonTop,
-          buttonWidth,
-          SELECT_BUTTON_HEIGHT,
+          controlLeft + strengthWidth + INNER_MARGIN,
+          controlTop + (lineHeight - buttonHeight) / 2,
+          Math.max(0, buttonWidth),
+          buttonHeight,
           SELECT_BUTTON_PADDING,
         );
         slot.__hitSelectTrigger = buttonRect;
