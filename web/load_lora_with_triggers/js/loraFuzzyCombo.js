@@ -2,6 +2,7 @@ import { app } from '../../../../scripts/app.js';
 
 import { filterFuzzyIndices, matchFuzzyPositions } from './loraFuzzyMatch.js';
 import { buildFuzzyReindexMap } from './loraFuzzyOrderUtils.js';
+import { stripLoraExtension } from './loraNameUtils.js';
 
 const TARGET_NODE_NAMES = [
 	'LoadLoraWithTriggers',
@@ -121,7 +122,8 @@ const applyFuzzyFilter = (menu, items, query) => {
 	}
 
 	const labels = items.map((item) => getOriginalLabel(item));
-	const { visible, hidden } = filterFuzzyIndices(trimmed, labels);
+	const matchLabels = labels.map((label) => stripLoraExtension(label));
+	const { visible, hidden } = filterFuzzyIndices(trimmed, matchLabels);
 	const reindexMap = buildFuzzyReindexMap(visible);
 	const parent = menu;
 	if (!parent) {
@@ -148,7 +150,8 @@ const applyFuzzyFilter = (menu, items, query) => {
 			continue;
 		}
 		const label = labels[index];
-		const positions = matchFuzzyPositions(trimmed, label);
+		const matchLabel = matchLabels[index] ?? label;
+		const positions = matchFuzzyPositions(trimmed, matchLabel);
 		item.innerHTML = buildHighlightHtml(label, positions ?? []);
 		item.dataset.loraFuzzyIndex = String(reindexMap[index] ?? 0);
 		item.style.display = '';
