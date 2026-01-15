@@ -25,6 +25,22 @@ def extract_text_inputs(text_1: str, **kwargs) -> list[str]:
     return ordered
 
 
+def join_parts_without_duplicate_separator(parts: list[str], separator: str) -> str:
+    if not parts:
+        return ""
+    if separator == "":
+        return "".join(parts)
+    result = parts[0]
+    for part in parts[1:]:
+        if result.endswith(separator) and part.startswith(separator):
+            result += part[len(separator) :]
+        elif result.endswith(separator) or part.startswith(separator):
+            result += part
+        else:
+            result += separator + part
+    return result
+
+
 class JoinTextNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -45,4 +61,5 @@ class JoinTextNode:
 
     def apply(self, text_1: str, separator: str, **kwargs):
         parts = extract_text_inputs(text_1, **kwargs)
-        return (str(separator).join(parts),)
+        separator_text = str(separator)
+        return (join_parts_without_duplicate_separator(parts, separator_text),)

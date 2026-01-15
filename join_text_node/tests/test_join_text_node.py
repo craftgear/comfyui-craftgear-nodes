@@ -31,6 +31,16 @@ class TestJoinTextNode(unittest.TestCase):
         (output,) = node.apply(text_1="", text_2="", text_3="x", separator=",")
         self.assertEqual(output, "x")
 
+    def test_join_text_avoids_duplicate_separator(self):
+        node = join_text_node.JoinTextNode()
+        (output,) = node.apply(text_1="a,", text_2=",b", separator=",")
+        self.assertEqual(output, "a,b")
+
+    def test_join_text_keeps_single_separator_when_suffix_exists(self):
+        node = join_text_node.JoinTextNode()
+        (output,) = node.apply(text_1="a,", text_2="b", separator=",")
+        self.assertEqual(output, "a,b")
+
 
 if __name__ == "__main__":
     unittest.main()
