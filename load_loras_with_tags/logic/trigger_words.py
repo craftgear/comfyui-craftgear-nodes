@@ -82,29 +82,45 @@ def _extract_trained_words(data: Any) -> list[str]:
 
 
 def _parse_trained_word_values(value: Any) -> list[Any]:
+    def split_text(text: str) -> list[str]:
+        if not text:
+            return []
+        return [part.strip() for part in text.split(",") if part.strip()]
+
     if isinstance(value, (list, tuple)):
         output: list[Any] = []
         for item in value:
             if isinstance(item, dict) and "word" in item:
-                output.append(item["word"])
+                word = item["word"]
+                if isinstance(word, str):
+                    output.extend(split_text(word))
+                else:
+                    output.append(word)
             else:
-                output.append(item)
+                if isinstance(item, str):
+                    output.extend(split_text(item))
+                else:
+                    output.append(item)
         return output
     if isinstance(value, dict) and "word" in value:
-        return [value["word"]]
+        word = value["word"]
+        if isinstance(word, str):
+            return split_text(word)
+        return [word]
     if isinstance(value, str):
-        return [value]
+        return split_text(value)
     return []
 
 
 def _merge_trigger_lists(primary: list[str], secondary: list[str]) -> list[str]:
     output: list[str] = []
-    seen = set()
+    seen: set[str] = set()
     for value in primary + secondary:
         text = str(value).strip()
-        if not text or text in seen:
+        key = text.casefold()
+        if not text or key in seen:
             continue
-        seen.add(text)
+        seen.add(key)
         output.append(text)
     return output
 
@@ -143,6 +159,7 @@ def _extract_sidecar_triggers_and_frequencies(
     base_dir = os.path.dirname(lora_path)
     if not base_dir:
         return ([], [])
+    payloads = _load_json_payloads_in_directory(lora_path, base_dir)
     model_info_path = os.path.join(base_dir, "model_info.json")
     rgthree_path = f"{lora_path}.rgthree-info.json"
     model_info_data = _read_json_if_dict(model_info_path)
@@ -152,9 +169,9 @@ def _extract_sidecar_triggers_and_frequencies(
     rgthree_counts, rgthree_order = _extract_positive_tag_counts(rgthree_data)
     counts = model_counts if model_counts else rgthree_counts
     order = model_order if model_counts else rgthree_order
-    trained_words = _extract_trained_words(model_info_payload)
-    if not trained_words:
-        trained_words = _extract_trained_words(rgthree_data)
+    trained_words: list[str] = []
+    for payload in payloads:
+        trained_words = _merge_trigger_lists(trained_words, _extract_trained_words(payload))
     for tag in trained_words:
         if tag not in order:
             order[tag] = len(order)
@@ -164,6 +181,26 @@ def _extract_sidecar_triggers_and_frequencies(
     ordered = sorted(counts.items(), key=lambda item: (-item[1], order[item[0]]))
     triggers = [tag for tag, _count in ordered]
     return (triggers, ordered)
+
+
+def _load_json_payloads_in_directory(lora_path: str, base_dir: str) -> list[dict[str, Any]]:
+    try:
+        entries = sorted(os.scandir(base_dir), key=lambda entry: entry.name)
+    except OSError:
+        return []
+    payloads: list[dict[str, Any]] = []
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        if not entry.name.lower().endswith(".json"):
+            continue
+        data = _read_json_if_dict(entry.path)
+        if not data:
+            continue
+        payload = _select_model_info_payload(lora_path, data)
+        if payload:
+            payloads.append(payload)
+    return payloads
 
 
 def _select_model_info_payload(lora_path: str, data: dict[str, Any]) -> dict[str, Any]:
@@ -346,11 +383,12 @@ def _parse_trigger_values(value: Any) -> list[str]:
 
 def _normalize_trigger_list(values: list[Any]) -> list[str]:
     output = []
-    seen = set()
+    seen: set[str] = set()
     for value in values:
         text = str(value).strip()
-        if not text or text in seen:
+        key = text.casefold()
+        if not text or key in seen:
             continue
-        seen.add(text)
+        seen.add(key)
         output.append(text)
     return output

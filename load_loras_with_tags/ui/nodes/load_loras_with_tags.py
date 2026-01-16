@@ -44,6 +44,19 @@ def split_tags(value: Any) -> list[str]:
     return [part.strip() for part in text.split(',') if part.strip()]
 
 
+def dedupe_tags(values: list[str]) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = value if isinstance(value, str) else str(value)
+        key = text.casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        output.append(text)
+    return output
+
+
 class LoadLorasWithTags:
     def __init__(self) -> None:
         self.loaded_loras: dict[str, Any] = {}
@@ -122,4 +135,5 @@ class LoadLorasWithTags:
             lora_strength,
         )
 
-        return (current_model, current_clip, ','.join(input_tags + all_triggers))
+        unique_triggers = dedupe_tags(all_triggers)
+        return (current_model, current_clip, ','.join(input_tags + unique_triggers))

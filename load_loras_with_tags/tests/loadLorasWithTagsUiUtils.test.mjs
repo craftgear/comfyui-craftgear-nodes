@@ -25,7 +25,11 @@ import {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  tagDialogItemBackground,
+  tagDialogItemActiveBackground,
+  tagDialogItemHoverBackground,
   resolveLoraDialogItemBackground,
+  resolveTagDialogItemBackground,
   selectTriggerButtonHeight,
   getFrequencyLabelStyle,
   getHighlightSegments,
@@ -34,6 +38,7 @@ import {
   resolveFilteredSelection,
   resolveSelectionByVisibleIndex,
   resolveOption,
+  resolveActiveIndex,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
@@ -134,6 +139,10 @@ describe('loadLorasWithTagsUiUtils', () => {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
     });
+    assert.equal(resolveActiveIndex([], -1), -1);
+    assert.equal(resolveActiveIndex([2, 5], 5), 5);
+    assert.equal(resolveActiveIndex([2, 5], 1), 2);
+    assert.equal(resolveActiveIndex([2, 5], -1), 2);
     assert.deepEqual(resolveFilteredSelection([], 0, true), {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
@@ -168,6 +177,9 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(loraDialogItemGap, 0);
     assert.equal(loraDialogItemPaddingY, 4);
     assert.equal(loraDialogItemPaddingX, 8);
+    assert.equal(tagDialogItemBackground, 'transparent');
+    assert.equal(tagDialogItemActiveBackground, '#3a3a3a');
+    assert.equal(tagDialogItemHoverBackground, '#333333');
     assert.equal(
       resolveLoraDialogItemBackground(false, false),
       loraDialogItemBackground,
@@ -183,6 +195,18 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(
       resolveLoraDialogItemBackground(true, true),
       loraDialogItemSelectedBackground,
+    );
+    assert.equal(
+      resolveTagDialogItemBackground(false, false),
+      tagDialogItemBackground,
+    );
+    assert.equal(
+      resolveTagDialogItemBackground(false, true),
+      tagDialogItemHoverBackground,
+    );
+    assert.equal(
+      resolveTagDialogItemBackground(true, false),
+      tagDialogItemActiveBackground,
     );
     {
       let focused = false;

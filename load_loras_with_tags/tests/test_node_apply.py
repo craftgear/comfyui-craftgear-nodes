@@ -142,6 +142,63 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
             load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
+    def test_dedupes_extracted_triggers(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['alpha', 'beta']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                lora_name_2='b.safetensors',
+                lora_strength_2=0,
+                lora_on_2=True,
+                tags='',
+            )
+
+            self.assertEqual(tags, 'alpha,beta')
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
+    def test_dedupes_triggers_case_insensitive(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['Alpha', 'alpha']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='',
+            )
+
+            self.assertEqual(tags, 'Alpha')
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
 
 if __name__ == '__main__':
     unittest.main()

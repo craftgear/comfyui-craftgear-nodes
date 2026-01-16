@@ -187,6 +187,16 @@ const resolveFilteredSelection = (
   return resolveVisibleSelection(visibleOptions, selectedOptionIndex);
 };
 
+const resolveActiveIndex = (visibleIndices, activeIndex) => {
+  if (!Array.isArray(visibleIndices) || visibleIndices.length === 0) {
+    return -1;
+  }
+  if (visibleIndices.includes(activeIndex)) {
+    return activeIndex;
+  }
+  return visibleIndices[0];
+};
+
 const computeButtonRect = (x, y, width, height, padding = 0) => {
   const safePadding = Math.max(0, padding);
   const rectWidth = Math.max(0, width - safePadding * 2);
@@ -308,6 +318,9 @@ const loraDialogMatchFontWeight = "600";
 const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
+const tagDialogItemBackground = "transparent";
+const tagDialogItemActiveBackground = "#3a3a3a";
+const tagDialogItemHoverBackground = "#333333";
 const selectTriggerButtonHeight = 22;
 
 const getFrequencyLabelStyle = () => ({
@@ -327,6 +340,16 @@ const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
     return loraDialogItemHoverBackground;
   }
   return loraDialogItemBackground;
+};
+
+const resolveTagDialogItemBackground = (isActive, isHovered) => {
+  if (isActive) {
+    return tagDialogItemActiveBackground;
+  }
+  if (isHovered) {
+    return tagDialogItemHoverBackground;
+  }
+  return tagDialogItemBackground;
 };
 
 const resetIconPath =
@@ -370,12 +393,17 @@ export {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  tagDialogItemBackground,
+  tagDialogItemActiveBackground,
+  tagDialogItemHoverBackground,
   selectTriggerButtonHeight,
   getFrequencyLabelStyle,
   resolveLoraDialogItemBackground,
+  resolveTagDialogItemBackground,
   splitLoraLabel,
   getHighlightSegments,
   focusInputLater,
+  resolveActiveIndex,
   resolveOption,
   resetIconPath,
 };

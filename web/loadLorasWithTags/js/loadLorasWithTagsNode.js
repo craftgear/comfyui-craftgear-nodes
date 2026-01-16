@@ -26,7 +26,9 @@ import {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  tagDialogItemBackground,
   resolveLoraDialogItemBackground,
+  resolveTagDialogItemBackground,
   getHighlightSegments,
   splitLoraLabel,
   getFrequencyLabelStyle,
@@ -35,6 +37,7 @@ import {
   resolveFilteredSelection,
   resolveVisibleSelection,
   resolveSelectionByVisibleIndex,
+  resolveActiveIndex,
   resolveComboLabel,
   resolveOption,
 } from "./loadLorasWithTagsUiUtils.js";
@@ -408,7 +411,9 @@ const openTriggerDialog = async (
     });
   };
 
-  const items = triggers.map((trigger) => {
+  let activeIndex = -1;
+
+  const items = triggers.map((trigger, index) => {
     const checkbox = $el("input", { type: "checkbox" });
     checkbox.checked = selected.has(trigger);
     const countLabel = createFrequencyLabel(frequencies?.[trigger]);
@@ -420,12 +425,90 @@ const openTriggerDialog = async (
         gap: "8px",
         alignItems: "center",
         padding: "4px 0",
+        background: tagDialogItemBackground,
+        borderRadius: "4px",
       },
     });
     label.append(checkbox, countLabel, triggerLabel);
     list.append(label);
-    return { trigger, checkbox, row: label, label: triggerLabel };
+    const entry = { trigger, checkbox, row: label, label: triggerLabel };
+    label.addEventListener("mouseenter", () => {
+      entry.__tagDialogHovered = true;
+      activeIndex = index;
+      updateRowStates();
+    });
+    label.addEventListener("mouseleave", () => {
+      entry.__tagDialogHovered = false;
+      updateRowStates();
+    });
+    return entry;
   });
+
+  const updateRowStates = () => {
+    items.forEach((item, index) => {
+      const isActive = index === activeIndex;
+      const isHovered = !!item.__tagDialogHovered;
+      item.row.style.background = resolveTagDialogItemBackground(
+        isActive,
+        isHovered,
+      );
+    });
+  };
+
+  const getVisibleIndices = () =>
+    items.reduce((acc, item, index) => {
+      if (item.row.style.display !== "none") {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+
+  const ensureActiveIndex = () => {
+    const visibleIndices = getVisibleIndices();
+    activeIndex = resolveActiveIndex(visibleIndices, activeIndex);
+  };
+
+  const scrollActiveIntoView = () => {
+    if (activeIndex < 0) {
+      return;
+    }
+    items[activeIndex]?.row?.scrollIntoView?.({ block: "nearest" });
+  };
+
+  const moveActive = (direction) => {
+    const visibleIndices = getVisibleIndices();
+    if (visibleIndices.length === 0) {
+      return;
+    }
+    activeIndex = resolveActiveIndex(visibleIndices, activeIndex);
+    const currentVisibleIndex = Math.max(0, visibleIndices.indexOf(activeIndex));
+    const nextVisibleIndex = moveIndex(
+      currentVisibleIndex,
+      direction,
+      visibleIndices.length,
+    );
+    activeIndex = visibleIndices[nextVisibleIndex];
+    updateRowStates();
+    scrollActiveIntoView();
+  };
+
+  const toggleActiveSelection = () => {
+    const visibleIndices = getVisibleIndices();
+    if (visibleIndices.length === 0) {
+      return;
+    }
+    activeIndex = resolveActiveIndex(visibleIndices, activeIndex);
+    if (activeIndex < 0) {
+      return;
+    }
+    const item = items[activeIndex];
+    if (!item || item.row.style.display === "none") {
+      return;
+    }
+    item.checkbox.checked = !item.checkbox.checked;
+    updateRowStates();
+    scrollActiveIntoView();
+  };
 
   const actions = $el("div", {
     style: {
@@ -456,7 +539,12 @@ const openTriggerDialog = async (
       if (!(topNVisibility[index] ?? true)) {
         item.checkbox.checked = false;
       }
+      if (!isVisible) {
+        item.__tagDialogHovered = false;
+      }
     });
+    ensureActiveIndex();
+    updateRowStates();
   };
 
   const updateTopNLabel = (value) => {
@@ -498,6 +586,28 @@ const openTriggerDialog = async (
     closeDialog();
   };
   dialogKeydownHandler = (event) => {
+    if (event?.target?.type === "range") {
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveActive(1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveActive(-1);
+      return;
+    }
+    const isTextInput = event?.target?.tagName === "INPUT" && event?.target?.type === "text";
+    if (
+      (event.key === " " || event.code === "Space" || event.key === "Spacebar") &&
+      !isTextInput
+    ) {
+      event.preventDefault();
+      toggleActiveSelection();
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       applyButton.click();
