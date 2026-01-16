@@ -1500,6 +1500,13 @@ const setupHogeUi = (node) => {
       renderList(true);
       focusInputLater(filterInput);
     };
+    const scrollSelectedIntoView = () => {
+      const entry = renderedButtons[selectedVisibleIndex];
+      if (!entry) {
+        return;
+      }
+      entry.button?.scrollIntoView?.({ block: "nearest" });
+    };
     const moveSelection = (direction) => {
       if (visibleOptions.length === 0) {
         return;
@@ -1512,7 +1519,8 @@ const setupHogeUi = (node) => {
       }
       selectedVisibleIndex = nextIndex;
       selectedOptionIndex = nextOptionIndex;
-      renderList();
+      refreshButtonStates();
+      scrollSelectedIntoView();
     };
 
     const handleDialogKeyDown = (event) => {
@@ -1522,21 +1530,25 @@ const setupHogeUi = (node) => {
       event.__hogeLoraDialogHandled = true;
       if (event.key === "ArrowDown") {
         event.preventDefault();
+        event.stopPropagation();
         moveSelection(1);
         return;
       }
       if (event.key === "ArrowUp") {
         event.preventDefault();
+        event.stopPropagation();
         moveSelection(-1);
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
+        event.stopPropagation();
         applySelectedLabel();
         return;
       }
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         cancelButton.click();
       }
     };

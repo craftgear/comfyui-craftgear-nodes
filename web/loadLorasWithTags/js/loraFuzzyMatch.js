@@ -6,7 +6,6 @@ const SCORE_GAP_TRAILING = -0.005;
 const SCORE_GAP_INNER = -0.01;
 
 const SCORE_MATCH_CONSECUTIVE = 1.0;
-const SCORE_MATCH_SLASH = 0.9;
 const SCORE_MATCH_WORD = 0.8;
 const SCORE_MATCH_CAPITAL = 0.7;
 const SCORE_MATCH_DOT = 0.6;
@@ -23,9 +22,6 @@ const computeBonus = (lastChar, currentChar) => {
 		return 0;
 	}
 
-	if (lastChar === '/') {
-		return SCORE_MATCH_SLASH;
-	}
 	if (lastChar === '-' || lastChar === '_' || lastChar === ' ') {
 		return SCORE_MATCH_WORD;
 	}
