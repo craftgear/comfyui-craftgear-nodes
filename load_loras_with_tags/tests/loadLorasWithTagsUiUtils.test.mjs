@@ -26,10 +26,13 @@ import {
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
   resolveLoraDialogItemBackground,
+  selectTriggerButtonHeight,
+  getFrequencyLabelStyle,
   getHighlightSegments,
   splitLoraLabel,
   resolveVisibleSelection,
   resolveFilteredSelection,
+  resolveSelectionByVisibleIndex,
   resolveOption,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
@@ -113,10 +116,37 @@ describe('loadLorasWithTagsUiUtils', () => {
       ),
       { selectedVisibleIndex: 0, selectedOptionIndex: 1 },
     );
+    assert.deepEqual(
+      resolveSelectionByVisibleIndex(
+        [
+          { index: 0, label: 'None' },
+          { index: 2, label: 'b.safetensors' },
+        ],
+        1,
+      ),
+      { selectedVisibleIndex: 1, selectedOptionIndex: 2 },
+    );
+    assert.deepEqual(resolveSelectionByVisibleIndex([{ index: 0, label: 'None' }], 2), {
+      selectedVisibleIndex: -1,
+      selectedOptionIndex: -1,
+    });
+    assert.deepEqual(resolveSelectionByVisibleIndex([], 0), {
+      selectedVisibleIndex: -1,
+      selectedOptionIndex: -1,
+    });
     assert.deepEqual(resolveFilteredSelection([], 0, true), {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
     });
+    assert.deepEqual(getFrequencyLabelStyle(), {
+      minWidth: '40px',
+      textAlign: 'center',
+      opacity: 0.7,
+      display: 'inline-flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+    });
+    assert.equal(selectTriggerButtonHeight, 22);
     assert.deepEqual(
       resolveFilteredSelection([{ index: 2, label: 'gamma' }], 2, false),
       { selectedVisibleIndex: 0, selectedOptionIndex: 2 },

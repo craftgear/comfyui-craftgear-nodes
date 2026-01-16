@@ -1,11 +1,11 @@
-import { stripLoraExtension } from './loraNameUtils.js';
-import { matchFuzzyPositions, rankFuzzyIndices } from './loraFuzzyMatch.js';
+import { stripLoraExtension } from "./loraNameUtils.js";
+import { matchFuzzyPositions, rankFuzzyIndices } from "./loraFuzzyMatch.js";
 
 const normalizeOptions = (options) => {
   if (Array.isArray(options)) {
     return options;
   }
-  if (options && typeof options === 'object') {
+  if (options && typeof options === "object") {
     return Object.values(options);
   }
   return [];
@@ -13,7 +13,7 @@ const normalizeOptions = (options) => {
 
 const filterLoraOptionIndices = (query, options) => {
   const list = normalizeOptions(options);
-  const normalized = String(query ?? '').trim();
+  const normalized = String(query ?? "").trim();
   if (!normalized) {
     return list.map((_item, index) => index);
   }
@@ -24,18 +24,20 @@ const filterLoraOptionIndices = (query, options) => {
 const filterLoraOptions = (query, options) => {
   const list = normalizeOptions(options);
   const indices = filterLoraOptionIndices(query, list);
-  return indices.map((index) => list[index]).filter((label) => label !== undefined);
+  return indices
+    .map((index) => list[index])
+    .filter((label) => label !== undefined);
 };
 
 const splitLoraLabel = (label) => {
-  const text = String(label ?? '');
+  const text = String(label ?? "");
   const base = stripLoraExtension(text);
   return { base, extension: text.slice(base.length) };
 };
 
 const getHighlightSegments = (text, query) => {
-  const source = String(text ?? '');
-  const rawQuery = String(query ?? '').trim();
+  const source = String(text ?? "");
+  const rawQuery = String(query ?? "").trim();
   if (!rawQuery) {
     return [{ text: source, isMatch: false }];
   }
@@ -45,7 +47,7 @@ const getHighlightSegments = (text, query) => {
   }
   const positionSet = new Set(positions);
   const segments = [];
-  let buffer = '';
+  let buffer = "";
   let currentMatch = null;
 
   for (let i = 0; i < source.length; i += 1) {
@@ -74,19 +76,19 @@ const getHighlightSegments = (text, query) => {
 const resolveOption = (rawValue, options) => {
   const list = normalizeOptions(options);
   let value = rawValue;
-  if (value && typeof value === 'object') {
-    if ('value' in value) {
+  if (value && typeof value === "object") {
+    if ("value" in value) {
       value = value.value;
-    } else if ('name' in value) {
+    } else if ("name" in value) {
       value = value.name;
     }
   }
 
-  let label = '';
+  let label = "";
   let index = -1;
-  if (typeof value === 'number' && Number.isFinite(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     index = Math.trunc(value);
-    label = String(list[index] ?? '');
+    label = String(list[index] ?? "");
   } else if (value !== undefined && value !== null) {
     label = String(value);
     index = list.indexOf(label);
@@ -96,13 +98,13 @@ const resolveOption = (rawValue, options) => {
     index = 0;
   }
   if (!label && index >= 0) {
-    label = String(list[index] ?? '');
+    label = String(list[index] ?? "");
   }
 
   return { index, label };
 };
 
-const resolveComboLabel = (rawValue, options, fallback = 'None') => {
+const resolveComboLabel = (rawValue, options, fallback = "None") => {
   const list = normalizeOptions(options);
   if (list.length === 0) {
     return fallback;
@@ -140,14 +142,38 @@ const resolveVisibleSelection = (visibleOptions, selectedOptionIndex) => {
   if (!Number.isFinite(selectedOptionIndex) || selectedOptionIndex < 0) {
     return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
   }
-  const indexInVisible = visibleOptions.findIndex((entry) => entry.index === selectedOptionIndex);
+  const indexInVisible = visibleOptions.findIndex(
+    (entry) => entry.index === selectedOptionIndex,
+  );
   if (indexInVisible < 0) {
     return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
   }
   return { selectedVisibleIndex: indexInVisible, selectedOptionIndex };
 };
 
-const resolveFilteredSelection = (visibleOptions, selectedOptionIndex, forceTop = false) => {
+const resolveSelectionByVisibleIndex = (visibleOptions, visibleIndex) => {
+  if (!Array.isArray(visibleOptions) || visibleOptions.length === 0) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  if (!Number.isFinite(visibleIndex)) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  const safeIndex = Math.trunc(visibleIndex);
+  if (safeIndex < 0 || safeIndex >= visibleOptions.length) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  const optionIndex = visibleOptions[safeIndex]?.index;
+  if (!Number.isFinite(optionIndex)) {
+    return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
+  }
+  return { selectedVisibleIndex: safeIndex, selectedOptionIndex: optionIndex };
+};
+
+const resolveFilteredSelection = (
+  visibleOptions,
+  selectedOptionIndex,
+  forceTop = false,
+) => {
   if (!Array.isArray(visibleOptions) || visibleOptions.length === 0) {
     return { selectedVisibleIndex: -1, selectedOptionIndex: -1 };
   }
@@ -219,7 +245,7 @@ const getStepDecimals = (step) => {
     return 0;
   }
   const text = String(step);
-  const parts = text.split('.');
+  const parts = text.split(".");
   if (parts.length < 2) {
     return 0;
   }
@@ -254,7 +280,7 @@ const calculateSliderValue = (posX, rect, options) => {
 };
 
 const normalizeStrengthOptions = (options) => {
-  const base = options && typeof options === 'object' ? options : {};
+  const base = options && typeof options === "object" ? options : {};
   return { ...base, step: 0.1 };
 };
 
@@ -273,15 +299,25 @@ const computeSliderRatio = (value, options) => {
 
 const loraLabelTextPadding = 8;
 const loraLabelButtonHeightPadding = loraLabelTextPadding;
-const loraDialogItemBackground = 'transparent';
-const loraDialogItemBorder = 'none';
-const loraDialogItemHoverBackground = '#2a2a2a';
-const loraDialogItemSelectedBackground = '#424242';
-const loraDialogMatchTextColor = '#f2d28b';
-const loraDialogMatchFontWeight = '600';
+const loraDialogItemBackground = "transparent";
+const loraDialogItemBorder = "none";
+const loraDialogItemHoverBackground = "#2a2a2a";
+const loraDialogItemSelectedBackground = "#424242";
+const loraDialogMatchTextColor = "#f2d28b";
+const loraDialogMatchFontWeight = "600";
 const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
+const selectTriggerButtonHeight = 22;
+
+const getFrequencyLabelStyle = () => ({
+  minWidth: "40px",
+  textAlign: "center",
+  opacity: 0.7,
+  display: "inline-flex",
+  justifyContent: "center",
+  alignItems: "center",
+});
 
 const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
   if (isSelected) {
@@ -294,15 +330,15 @@ const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
 };
 
 const resetIconPath =
-  'M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z';
+  "M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z";
 
 const focusInputLater = (input, schedule) => {
-  if (!input || typeof input.focus !== 'function') {
+  if (!input || typeof input.focus !== "function") {
     return;
   }
   const runner =
     schedule ??
-    (typeof requestAnimationFrame === 'function'
+    (typeof requestAnimationFrame === "function"
       ? (callback) => requestAnimationFrame(callback)
       : (callback) => setTimeout(callback, 0));
   runner(() => input.focus());
@@ -317,6 +353,7 @@ export {
   moveIndex,
   resolveFilteredSelection,
   resolveVisibleSelection,
+  resolveSelectionByVisibleIndex,
   resolveComboLabel,
   normalizeStrengthOptions,
   normalizeOptions,
@@ -333,6 +370,8 @@ export {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  selectTriggerButtonHeight,
+  getFrequencyLabelStyle,
   resolveLoraDialogItemBackground,
   splitLoraLabel,
   getHighlightSegments,
