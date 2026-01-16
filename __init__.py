@@ -28,5 +28,5 @@ NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "LoadLorasWithTags": "Load LoRAs With Tags",
     "ImageBatchLoader": "Image Batch Loader",
     "JoinTextNode": "Join Texts",
-    "TagToggleTextNode": "Tag Toggle Text",
+    "TagToggleTextNode": "Toggle Tags",
 }

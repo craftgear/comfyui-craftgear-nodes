@@ -64,7 +64,78 @@ const shouldHandleClick = (event) => {
   return false;
 };
 
+const buildTagDisplaySegments = ({ tags, excluded }) => {
+  if (!Array.isArray(tags) || tags.length === 0) {
+    return [{ type: 'empty', text: '(no tags)' }];
+  }
+  const excludedSet = new Set(
+    Array.isArray(excluded) ? excluded.map((tag) => normalizeTag(tag)).filter(Boolean) : [],
+  );
+  const segments = [];
+  tags.forEach((tag, index) => {
+    const normalized = normalizeTag(tag);
+    if (!normalized) {
+      return;
+    }
+    segments.push({
+      type: 'tag',
+      text: normalized,
+      excluded: excludedSet.has(normalized),
+    });
+    if (index < tags.length - 1) {
+      segments.push({ type: 'separator', text: ', ' });
+    }
+  });
+  if (segments.length === 0) {
+    return [{ type: 'empty', text: '(no tags)' }];
+  }
+  return segments;
+};
+
+const computeDisplayHeight = ({
+  nodeHeight,
+  titleHeight,
+  fallbackHeight,
+  extraPadding = 0,
+}) => {
+  const fallback = Number.isFinite(fallbackHeight) ? fallbackHeight : 0;
+  if (!Number.isFinite(nodeHeight)) {
+    return fallback;
+  }
+  const header = Number.isFinite(titleHeight) ? titleHeight : 0;
+  const padding = Number.isFinite(extraPadding) ? extraPadding : 0;
+  const height = nodeHeight - header - padding;
+  return height > 0 ? height : fallback;
+};
+
+const findInputIndex = (inputs, name) => {
+  if (!Array.isArray(inputs) || !name) {
+    return -1;
+  }
+  return inputs.findIndex((input) => input?.name === name);
+};
+
+const persistInputText = (target, inputText) => {
+  if (!target || typeof inputText !== 'string') {
+    return;
+  }
+  if (!target.properties || typeof target.properties !== 'object') {
+    target.properties = {};
+  }
+  target.properties.tagToggleInputText = inputText;
+};
+
+const readPersistedInputText = (info) => {
+  const value = info?.properties?.tagToggleInputText;
+  return typeof value === 'string' ? value : null;
+};
+
 export {
+  buildTagDisplaySegments,
+  computeDisplayHeight,
+  findInputIndex,
+  persistInputText,
+  readPersistedInputText,
   parseExcludedTags,
   serializeExcludedTags,
   splitTags,

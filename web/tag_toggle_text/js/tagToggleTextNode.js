@@ -1,24 +1,41 @@
 import { app } from '../../../../scripts/app.js';
 import {
+  buildTagDisplaySegments,
+  computeDisplayHeight,
+  findInputIndex,
+  persistInputText,
+  readPersistedInputText,
   parseExcludedTags,
   serializeExcludedTags,
   splitTags,
-  shouldHandleClick,
   toggleTag,
 } from './tagToggleTextUtils.js';
 
 const TARGET_NODE_CLASS = 'TagToggleTextNode';
 const TEXT_INPUT_NAME = 'text';
 const EXCLUDED_WIDGET_NAME = 'excluded_tags';
+const DISPLAY_WIDGET_NAME = 'tag_toggle_display';
 
-const MARGIN = 10;
-const TITLE_HEIGHT = 14;
-const TITLE_GAP = 4;
+const DISPLAY_HEIGHT = 120;
+const DISPLAY_PADDING_X = 8;
+const DISPLAY_PADDING_Y = 6;
 const TAG_LINE_HEIGHT = 18;
+const DISPLAY_PADDING_TOTAL = DISPLAY_PADDING_Y * 2 + 4;
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || '';
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
 const getWidget = (node, name) => node.widgets?.find((widget) => widget.name === name);
+
+const hideExcludedTagsInput = (node) => {
+  if (!node) {
+    return;
+  }
+  const inputs = node.inputs || [];
+  const index = findInputIndex(inputs, EXCLUDED_WIDGET_NAME);
+  if (index >= 0 && typeof node.removeInput === 'function') {
+    node.removeInput(index);
+  }
+};
 
 const markDirty = (node) => {
   if (typeof node?.setDirtyCanvas === 'function') {
@@ -143,155 +160,167 @@ const setExcludedTags = (node, tags) => {
   setWidgetValue(widget, serializeExcludedTags(tags));
 };
 
+const getPersistedInputText = (node) => {
+  if (typeof node?.__tagToggleInputText === 'string') {
+    return node.__tagToggleInputText;
+  }
+  const widget = getWidget(node, TEXT_INPUT_NAME);
+  if (widget?.value != null) {
+    return String(widget.value);
+  }
+  return null;
+};
+
 const toggleExcludedTag = (node, tag) => {
   const current = getExcludedTags(node);
   const next = toggleTag(current, tag);
   setExcludedTags(node, next);
+  renderTagDisplay(node);
   markDirty(node);
 };
 
-const isPointInRect = (pos, rect) =>
-  pos[0] >= rect.x &&
-  pos[0] <= rect.x + rect.width &&
-  pos[1] >= rect.y &&
-  pos[1] <= rect.y + rect.height;
-
-const createDisplayWidget = (node) => {
-  const widget = {
-    type: 'custom',
-    name: 'tag_toggle_display',
-    value: '',
-    serialize: false,
-    computeSize(width) {
-      const height = widget.__tagToggleHeight ?? 120;
-      return [width ?? 0, height];
-    },
-    draw(ctx, _node, width, y) {
-      const bodyWidth = Math.max(0, width - MARGIN * 2);
-      const startX = MARGIN;
-      let cursorY = y + MARGIN;
-
-      ctx.save();
-      ctx.textBaseline = 'top';
-
-      const inputText = getInputText(node);
-      ctx.font = '12px sans-serif';
-      ctx.fillStyle = '#b0b0b0';
-      ctx.fillText('Tags', startX, cursorY);
-      cursorY += TITLE_HEIGHT + TITLE_GAP;
-
-      ctx.font = '14px sans-serif';
-      ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
-      const tags = splitTags(inputText);
-      const excluded = new Set(getExcludedTags(node));
-
-      widget.__tagRects = [];
-      let tagX = startX;
-      let tagY = cursorY;
-
-      if (tags.length === 0) {
-        ctx.fillStyle = '#8a8a8a';
-        ctx.fillText('(no tags)', startX, tagY);
-        tagY += TAG_LINE_HEIGHT;
-      } else {
-        tags.forEach((tag, index) => {
-          const separator = index < tags.length - 1 ? ', ' : '';
-          const tagWidth = ctx.measureText(tag).width;
-          const separatorWidth = ctx.measureText(separator).width;
-          const totalWidth = tagWidth + separatorWidth;
-
-          if (tagX > startX && tagX + totalWidth > startX + bodyWidth) {
-            tagX = startX;
-            tagY += TAG_LINE_HEIGHT;
-          }
-
-          const isExcluded = excluded.has(tag);
-          ctx.save();
-          if (isExcluded) {
-            ctx.globalAlpha *= 0.55;
-          }
-          ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
-          ctx.fillText(tag, tagX, tagY);
-          ctx.restore();
-
-          widget.__tagRects.push({
-            tag,
-            x: tagX,
-            y: tagY,
-            width: tagWidth,
-            height: TAG_LINE_HEIGHT,
-          });
-
-          if (isExcluded) {
-            const strikeY = tagY + TAG_LINE_HEIGHT / 2;
-            ctx.save();
-            ctx.strokeStyle = '#c0c0c0';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(tagX, strikeY);
-            ctx.lineTo(tagX + tagWidth, strikeY);
-            ctx.stroke();
-            ctx.restore();
-          }
-
-          tagX += tagWidth;
-          if (separator) {
-            if (tagX > startX && tagX + separatorWidth > startX + bodyWidth) {
-              tagX = startX;
-              tagY += TAG_LINE_HEIGHT;
-            }
-            ctx.fillText(separator, tagX, tagY);
-            tagX += separatorWidth;
-          }
-        });
-        tagY += TAG_LINE_HEIGHT;
-      }
-
-      ctx.restore();
-
-      const nextHeight = tagY + MARGIN - y;
-      if (widget.__tagToggleHeight !== nextHeight) {
-        widget.__tagToggleHeight = nextHeight;
-        resizeNodeToContent(node, true);
-      }
-    },
-    mouse(event, pos) {
-      if (!shouldHandleClick(event)) {
-        return false;
-      }
-      if (!Array.isArray(pos)) {
-        return false;
-      }
-      const rects = widget.__tagRects || [];
-      const hit = rects.find((rect) => isPointInRect(pos, rect));
-      if (!hit) {
-        return false;
-      }
-      toggleExcludedTag(node, hit.tag);
-      if (event) {
-        event.__tagToggleHandled = true;
-      }
-      return true;
-    },
-    onMouseDown(event, pos) {
-      return widget.mouse?.(event, pos);
-    },
-  };
-  return widget;
-};
-
-const insertBeforeWidget = (node, targetWidget, widgets) => {
+const moveWidgetBefore = (node, widget, targetWidget) => {
+  if (!widget) {
+    return;
+  }
   const list = node.widgets || [];
+  const currentIndex = list.indexOf(widget);
+  if (currentIndex >= 0) {
+    list.splice(currentIndex, 1);
+  }
   if (!targetWidget) {
-    list.push(...widgets);
+    list.push(widget);
     return;
   }
   const targetIndex = list.indexOf(targetWidget);
   if (targetIndex < 0) {
-    list.push(...widgets);
+    list.push(widget);
     return;
   }
-  list.splice(targetIndex, 0, ...widgets);
+  list.splice(targetIndex, 0, widget);
+};
+
+const getDisplayHeight = (node) =>
+  computeDisplayHeight({
+    nodeHeight: node?.size?.[1],
+    titleHeight: LiteGraph?.NODE_TITLE_HEIGHT,
+    fallbackHeight: DISPLAY_HEIGHT,
+    extraPadding: DISPLAY_PADDING_TOTAL,
+  });
+
+const syncDisplayHeight = (node) => {
+  const display = node.__tagToggleDisplay;
+  if (!display) {
+    return;
+  }
+  const height = getDisplayHeight(node);
+  display.container.style.height = `${height}px`;
+  display.container.style.minHeight = `${height}px`;
+  display.container.style.maxHeight = `${height}px`;
+};
+
+const createDisplayDom = (node) => {
+  const container = document.createElement('div');
+  const content = document.createElement('div');
+
+  container.style.height = '100%';
+  container.style.width = '100%';
+  container.style.overflowY = 'auto';
+  container.style.overflowX = 'hidden';
+  container.style.boxSizing = 'border-box';
+  container.style.padding = `${DISPLAY_PADDING_Y}px ${DISPLAY_PADDING_X}px`;
+  container.style.fontSize = '14px';
+  container.style.lineHeight = `${TAG_LINE_HEIGHT}px`;
+  container.style.fontFamily = 'sans-serif';
+  container.style.whiteSpace = 'normal';
+  container.style.wordBreak = 'break-word';
+  container.style.cursor = 'default';
+
+  content.style.display = 'block';
+  container.appendChild(content);
+
+  container.addEventListener('click', (event) => {
+    const target = event?.target;
+    const element =
+      target && target.nodeType === 3 ? target.parentElement : target;
+    const tagElement = element?.closest?.('[data-tag]');
+    const tag = tagElement?.dataset?.tag;
+    if (!tag) {
+      return;
+    }
+    toggleExcludedTag(node, tag);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+
+  return { container, content };
+};
+
+const renderTagDisplay = (node) => {
+  const display = node.__tagToggleDisplay;
+  if (!display) {
+    return;
+  }
+  const { content, container } = display;
+  const inputText = getInputText(node);
+  const tags = splitTags(inputText);
+  const excluded = getExcludedTags(node);
+  const segments = buildTagDisplaySegments({ tags, excluded });
+  const textColor = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
+
+  container.style.color = textColor;
+  content.textContent = '';
+
+  segments.forEach((segment) => {
+    if (segment.type === 'separator') {
+      content.appendChild(document.createTextNode(segment.text));
+      return;
+    }
+    if (segment.type === 'empty') {
+      const span = document.createElement('span');
+      span.textContent = segment.text;
+      span.style.color = '#8a8a8a';
+      content.appendChild(span);
+      return;
+    }
+    if (segment.type === 'tag') {
+      const span = document.createElement('span');
+      span.textContent = segment.text;
+      span.dataset.tag = segment.text;
+      span.style.cursor = 'pointer';
+      if (segment.excluded) {
+        span.style.opacity = '0.55';
+        span.style.textDecoration = 'line-through';
+      }
+      content.appendChild(span);
+    }
+  });
+};
+
+const ensureDisplayWidget = (node) => {
+  if (node.__tagToggleDisplay) {
+    return node.__tagToggleDisplay;
+  }
+  if (typeof node?.addDOMWidget !== 'function') {
+    return null;
+  }
+  const dom = createDisplayDom(node);
+  const widget = node.addDOMWidget(
+    DISPLAY_WIDGET_NAME,
+    'tag_toggle_display',
+    dom.container,
+    {
+      getHeight: () => getDisplayHeight(node),
+      getMinHeight: () => getDisplayHeight(node),
+      getMaxHeight: () => getDisplayHeight(node),
+      hideOnZoom: true,
+    },
+  );
+  widget.serialize = false;
+  widget.computeSize = (width) => [width ?? 0, getDisplayHeight(node)];
+  node.__tagToggleDisplay = { ...dom, widget };
+  syncDisplayHeight(node);
+  return node.__tagToggleDisplay;
 };
 
 const setupTagToggleUi = (node) => {
@@ -299,6 +328,7 @@ const setupTagToggleUi = (node) => {
     return;
   }
   node.__tagToggleUiReady = true;
+  hideExcludedTagsInput(node);
 
   const originalOnExecuted = node.onExecuted;
   node.onExecuted = function (output) {
@@ -306,6 +336,7 @@ const setupTagToggleUi = (node) => {
     const resolved = resolveExecutedText(output?.input_text);
     if (resolved !== null) {
       node.__tagToggleInputText = resolved;
+      renderTagDisplay(node);
       markDirty(node);
     }
   };
@@ -322,9 +353,64 @@ const setupTagToggleUi = (node) => {
     setWidgetHidden(textWidget, true);
   }
 
-  const displayWidget = createDisplayWidget(node);
-  insertBeforeWidget(node, excludedWidget ?? textWidget, [displayWidget]);
+  const display = ensureDisplayWidget(node);
+  if (display?.widget) {
+    moveWidgetBefore(node, display.widget, excludedWidget ?? textWidget);
+  }
+  syncDisplayHeight(node);
+  renderTagDisplay(node);
   resizeNodeToContent(node, true);
+
+  if (!node.__tagToggleResizeReady) {
+    node.__tagToggleResizeReady = true;
+    const originalOnResize = node.onResize;
+    node.onResize = function () {
+      originalOnResize?.apply(this, arguments);
+      syncDisplayHeight(node);
+      renderTagDisplay(node);
+    };
+  }
+
+  if (!node.__tagToggleExcludeHandleReady) {
+    node.__tagToggleExcludeHandleReady = true;
+    const originalOnConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function () {
+      const result = originalOnConnectionsChange?.apply(this, arguments);
+      hideExcludedTagsInput(node);
+      return result;
+    };
+    hideExcludedTagsInput(node);
+  }
+
+  if (!node.__tagToggleSerializeReady) {
+    node.__tagToggleSerializeReady = true;
+    const originalSerialize = node.onSerialize;
+    node.onSerialize = function (o) {
+      originalSerialize?.apply(this, arguments);
+      const inputText = getPersistedInputText(node);
+      if (typeof inputText === 'string') {
+        persistInputText(o, inputText);
+      }
+    };
+  }
+
+  if (!node.__tagToggleConfigureReady) {
+    node.__tagToggleConfigureReady = true;
+    const originalConfigure = node.onConfigure;
+    node.onConfigure = function (info) {
+      const result = originalConfigure?.apply(this, arguments);
+      const persisted = readPersistedInputText(info);
+      if (typeof persisted === 'string') {
+        node.__tagToggleInputText = persisted;
+      }
+      const excludedWidget = getWidget(node, EXCLUDED_WIDGET_NAME);
+      if (excludedWidget) {
+        node.__tagToggleExcluded = parseExcludedTags(excludedWidget.value);
+      }
+      renderTagDisplay(node);
+      return result;
+    };
+  }
 };
 
 app.registerExtension({
