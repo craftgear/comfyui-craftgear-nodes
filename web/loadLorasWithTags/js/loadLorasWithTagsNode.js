@@ -76,10 +76,10 @@ const CONTENT_SIDE_INSET = 6;
 const SELECT_BUTTON_PADDING = 2;
 const SELECT_TRIGGER_LABEL = "Select Tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
-const DIALOG_ID = "craftgear-hoge-trigger-dialog";
-const STRENGTH_POPUP_ID = "craftgear-hoge-strength-popup";
-const STRENGTH_POPUP_STYLE_ID = "craftgear-hoge-strength-popup-style";
-const TOP_N_STORAGE_KEY = "craftgear-hoge-trigger-dialog-top-n";
+const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
+const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
+const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
+const TOP_N_STORAGE_KEY = "craftgear-load-loras-with-tags-trigger-dialog-top-n";
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
 
@@ -99,31 +99,31 @@ const markDirty = (node) => {
 };
 
 const ensureHiddenBehavior = (widget) => {
-  if (!widget || widget.__hogeHiddenWrapped) {
+  if (!widget || widget.__loadLorasHiddenWrapped) {
     return;
   }
-  widget.__hogeOriginalComputeSize = widget.computeSize;
+  widget.__loadLorasOriginalComputeSize = widget.computeSize;
   widget.computeSize = (width) => {
-    if (widget.__hogeHidden) {
+    if (widget.__loadLorasHidden) {
       return [0, -4];
     }
     if (
-      widget.__hogeOriginalComputeSize &&
-      widget.__hogeOriginalComputeSize !== widget.computeSize
+      widget.__loadLorasOriginalComputeSize &&
+      widget.__loadLorasOriginalComputeSize !== widget.computeSize
     ) {
-      return widget.__hogeOriginalComputeSize(width);
+      return widget.__loadLorasOriginalComputeSize(width);
     }
     return [width ?? 0, 24];
   };
-  widget.__hogeHiddenWrapped = true;
+  widget.__loadLorasHiddenWrapped = true;
 };
 
 const setWidgetHidden = (widget, hidden) => {
   if (!widget) {
     return;
   }
-  if (widget.__hogeCustomSize) {
-    widget.__hogeHidden = hidden;
+  if (widget.__loadLorasCustomSize) {
+    widget.__loadLorasHidden = hidden;
     if (widget.inputEl) {
       widget.inputEl.style.display = hidden ? "none" : "";
     }
@@ -131,12 +131,12 @@ const setWidgetHidden = (widget, hidden) => {
     return;
   }
   ensureHiddenBehavior(widget);
-  widget.__hogeHidden = hidden;
+  widget.__loadLorasHidden = hidden;
   if (widget.inputEl) {
     widget.inputEl.style.display = hidden ? "none" : "";
   }
   widget.hidden = hidden;
-  if (widget.__hogeKeepSerialization) {
+  if (widget.__loadLorasKeepSerialization) {
     widget.serialize = true;
   }
 };
@@ -200,7 +200,7 @@ const closeStrengthPopup = () => {
     strengthPopupState.cleanup();
   }
   if (strengthPopupState?.targetNode) {
-    strengthPopupState.targetNode.__hogeStrengthPopupSlot = null;
+    strengthPopupState.targetNode.__loadLorasStrengthPopupSlot = null;
   }
   strengthPopupState = null;
 };
@@ -332,7 +332,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
   if (!slot?.strengthWidget || !targetNode) {
     return;
   }
-  if (targetNode.__hogeStrengthPopupSlot === slot) {
+  if (targetNode.__loadLorasStrengthPopupSlot === slot) {
     closeStrengthPopup();
     return;
   }
@@ -482,7 +482,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
       document.removeEventListener("keydown", handleKeydown, true);
     },
   };
-  targetNode.__hogeStrengthPopupSlot = slot;
+  targetNode.__loadLorasStrengthPopupSlot = slot;
 };
 
 const parseSelection = (selectionText, triggers) => {
@@ -1104,19 +1104,19 @@ const resizeNodeToContent = (node, keepWidth = false) => {
   node.size = nextSize;
 };
 
-const setupHogeUi = (node) => {
-  if (node.__hogeUiReady) {
+const setupLoadLorasUi = (node) => {
+  if (node.__loadLorasUiReady) {
     return;
   }
-  node.__hogeUiReady = true;
+  node.__loadLorasUiReady = true;
 
   const slots = [];
   let headerWidget = null;
 
   const createHeaderWidget = (getAllToggleState) => {
     const widget = {
-      type: "hoge-header",
-      name: "hoge_header",
+      type: "load-loras-with-tags-header",
+      name: "load_loras_with_tags_header",
       value: "",
       serialize: false,
       computeSize: (width) => [width ?? 0, HEADER_HEIGHT],
@@ -1167,11 +1167,11 @@ const setupHogeUi = (node) => {
 
   const createRowWidget = (slot) => {
     const widget = {
-      type: "hoge-row",
-      name: `hoge_row_${slot.index}`,
+      type: "load-loras-with-tags-row",
+      name: `load_loras_with_tags_row_${slot.index}`,
       value: "",
       serialize: false,
-      __hogeCustomSize: true,
+      __loadLorasCustomSize: true,
       draw(ctx, _node, width, y, _height) {
         const rowHeight = ROW_HEIGHT;
         const rowMargin = MARGIN;
@@ -1338,7 +1338,7 @@ const setupHogeUi = (node) => {
       },
     };
     widget.computeSize = (width) => {
-      if (widget.__hogeHidden) {
+      if (widget.__loadLorasHidden) {
         return [0, -4];
       }
       return [width ?? 0, ROW_HEIGHT];
@@ -1610,7 +1610,7 @@ const setupHogeUi = (node) => {
       setWidgetValue(slot.toggleWidget, prevToggle);
       if (prevLabel !== nextLabel) {
         setWidgetValue(slot.selectionWidget, "");
-        slot.selectionWidget.__hogeResetTopN = true;
+        slot.selectionWidget.__loadLorasResetTopN = true;
       }
       applyRowVisibility();
       markDirty(targetNode);
@@ -1810,10 +1810,10 @@ const setupHogeUi = (node) => {
     };
 
     const handleDialogKeyDown = (event) => {
-      if (event?.__hogeLoraDialogHandled) {
+      if (event?.__loadLorasDialogHandled) {
         return;
       }
-      event.__hogeLoraDialogHandled = true;
+      event.__loadLorasDialogHandled = true;
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();
@@ -1857,7 +1857,7 @@ const setupHogeUi = (node) => {
     ) {
       return false;
     }
-    if (event?.__hogeHandled) {
+    if (event?.__loadLorasHandled) {
       return true;
     }
     if (!Array.isArray(pos)) {
@@ -1871,7 +1871,7 @@ const setupHogeUi = (node) => {
       const state = getAllToggleState();
       setAllToggleState(state === true ? false : true);
       if (event) {
-        event.__hogeHandled = true;
+        event.__loadLorasHandled = true;
       }
       markDirty(targetNode);
       return true;
@@ -1884,7 +1884,7 @@ const setupHogeUi = (node) => {
       if (isPointInRect(pos, slot.__hitToggle)) {
         setWidgetValue(slot.toggleWidget, !slot.toggleWidget?.value);
         if (event) {
-          event.__hogeHandled = true;
+          event.__loadLorasHandled = true;
         }
         markDirty(targetNode);
         return true;
@@ -1892,13 +1892,13 @@ const setupHogeUi = (node) => {
       if (isPointInRect(pos, slot.__hitSelectTrigger)) {
         if (!isEnabled) {
           if (event) {
-            event.__hogeHandled = true;
+            event.__loadLorasHandled = true;
           }
           return true;
         }
         const { label } = getLoraState(slot.loraWidget);
-        const shouldResetTopN = !!slot.selectionWidget?.__hogeResetTopN;
-        slot.selectionWidget.__hogeResetTopN = false;
+        const shouldResetTopN = !!slot.selectionWidget?.__loadLorasResetTopN;
+        slot.selectionWidget.__loadLorasResetTopN = false;
         openTriggerDialog(
           label,
           slot.selectionWidget,
@@ -1906,7 +1906,7 @@ const setupHogeUi = (node) => {
           shouldResetTopN,
         );
         if (event) {
-          event.__hogeHandled = true;
+          event.__loadLorasHandled = true;
         }
         markDirty(targetNode);
         return true;
@@ -1914,20 +1914,20 @@ const setupHogeUi = (node) => {
       if (isPointInRect(pos, slot.__hitLabel)) {
         if (!isEnabled) {
           if (event) {
-            event.__hogeHandled = true;
+            event.__loadLorasHandled = true;
           }
           return true;
         }
         const isRightClick = event?.button === 2 || event?.which === 3;
         if (isRightClick) {
           if (event) {
-            event.__hogeHandled = true;
+            event.__loadLorasHandled = true;
           }
           return true;
         }
         openLoraDialog(slot, targetNode);
         if (event) {
-          event.__hogeHandled = true;
+          event.__loadLorasHandled = true;
         }
         markDirty(targetNode);
         return true;
@@ -1935,13 +1935,13 @@ const setupHogeUi = (node) => {
       if (isPointInRect(pos, slot.__hitStrengthValue)) {
         if (!isEnabled) {
           if (event) {
-            event.__hogeHandled = true;
+            event.__loadLorasHandled = true;
           }
           return true;
         }
         openStrengthPopup(slot, event, targetNode);
         if (event) {
-          event.__hogeHandled = true;
+          event.__loadLorasHandled = true;
         }
         markDirty(targetNode);
         return true;
@@ -1961,10 +1961,10 @@ const setupHogeUi = (node) => {
     slot.rowWidget.onMouseDown = (event, pos) =>
       handleMouseDown(event, pos, node);
     slots.push(slot);
-    slot.loraWidget.__hogeKeepSerialization = true;
-    slot.strengthWidget.__hogeKeepSerialization = true;
-    slot.toggleWidget.__hogeKeepSerialization = true;
-    slot.selectionWidget.__hogeKeepSerialization = true;
+    slot.loraWidget.__loadLorasKeepSerialization = true;
+    slot.strengthWidget.__loadLorasKeepSerialization = true;
+    slot.toggleWidget.__loadLorasKeepSerialization = true;
+    slot.selectionWidget.__loadLorasKeepSerialization = true;
     setWidgetHidden(slot.loraWidget, true);
     setWidgetHidden(slot.strengthWidget, true);
     setWidgetHidden(slot.toggleWidget, true);
@@ -1983,11 +1983,11 @@ const setupHogeUi = (node) => {
   const rowWidgets = [headerWidget, ...slots.map((slot) => slot.rowWidget)];
   insertBeforeWidget(node, anchorWidget, rowWidgets);
 
-  if (!node.__hogeMouseHandlers || !node.onMouseDown?.__hogeHandler) {
-    node.__hogeMouseHandlers = true;
+  if (!node.__loadLorasMouseHandlers || !node.onMouseDown?.__loadLorasHandler) {
+    node.__loadLorasMouseHandlers = true;
     const originalMouseDown = node.onMouseDown;
     const wrappedMouseDown = function (event, pos) {
-      if (event?.__hogeHandled) {
+      if (event?.__loadLorasHandled) {
         return true;
       }
       if (handleMouseDown(event, pos, this)) {
@@ -1995,12 +1995,12 @@ const setupHogeUi = (node) => {
       }
       return originalMouseDown?.apply(this, arguments);
     };
-    wrappedMouseDown.__hogeHandler = true;
+    wrappedMouseDown.__loadLorasHandler = true;
     node.onMouseDown = wrappedMouseDown;
   }
 
-  if (!node.__hogeSerializeWrapped) {
-    node.__hogeSerializeWrapped = true;
+  if (!node.__loadLorasSerializeWrapped) {
+    node.__loadLorasSerializeWrapped = true;
     const originalSerialize = node.onSerialize;
     node.onSerialize = function (o) {
       originalSerialize?.apply(this, arguments);
@@ -2024,11 +2024,11 @@ const setupHogeUi = (node) => {
     };
   }
 
-  if (!node.__hogeConfigureHooked) {
-    node.__hogeConfigureHooked = true;
+  if (!node.__loadLorasConfigureHooked) {
+    node.__loadLorasConfigureHooked = true;
     const originalConfigure = node.onConfigure;
     node.onConfigure = function (info) {
-      node.__hogeConfigured = true;
+      node.__loadLorasConfigured = true;
       if (Array.isArray(info?.widgets_values)) {
         applySavedValues(info.widgets_values);
       }
@@ -2051,12 +2051,12 @@ app.registerExtension({
     if (!isTargetNode(node)) {
       return;
     }
-    setupHogeUi(node);
+    setupLoadLorasUi(node);
   },
   loadedGraphNode(node) {
     if (!isTargetNode(node)) {
       return;
     }
-    setupHogeUi(node);
+    setupLoadLorasUi(node);
   },
 });

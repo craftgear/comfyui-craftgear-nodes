@@ -404,7 +404,7 @@ const resolveFixedLabelWidth = (charWidth, charCount = 4, padding = 4) => {
   return safeCharWidth * safeCount + safePadding * 2;
 };
 
-const strengthRangeInputClass = "craftgear-hoge-strength-range";
+const strengthRangeInputClass = "craftgear-load-loras-with-tags-strength-range";
 const strengthRangeThumbSize = { width: 27, height: 18 };
 const strengthRangeTrackHeight = 6;
 const strengthRangeFillColor = "#4aa3ff";

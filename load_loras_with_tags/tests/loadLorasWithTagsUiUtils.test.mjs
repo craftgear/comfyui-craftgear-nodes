@@ -123,7 +123,7 @@ describe('loadLorasWithTagsUiUtils', () => {
       shouldCloseStrengthPopupOnInnerClick('other', range, resetButton),
       true,
     );
-    assert.equal(strengthRangeInputClass, 'craftgear-hoge-strength-range');
+    assert.equal(strengthRangeInputClass, 'craftgear-load-loras-with-tags-strength-range');
     assert.deepEqual(strengthRangeThumbSize, { width: 27, height: 18 });
     assert.equal(strengthRangeTrackHeight, 6);
     assert.equal(
@@ -137,28 +137,28 @@ describe('loadLorasWithTagsUiUtils', () => {
         strengthRangeTrackHeight,
       ),
       [
-        '.craftgear-hoge-strength-range {',
+        '.craftgear-load-loras-with-tags-strength-range {',
         '  -webkit-appearance: none;',
         '  appearance: none;',
         '  background: #3a3a3a;',
         '  border-radius: 999px;',
         '}',
-        '.craftgear-hoge-strength-range::-webkit-slider-runnable-track {',
+        '.craftgear-load-loras-with-tags-strength-range::-webkit-slider-runnable-track {',
         '  height: 6px;',
         '  background: transparent;',
         '  border-radius: 999px;',
         '}',
-        '.craftgear-hoge-strength-range::-moz-range-track {',
+        '.craftgear-load-loras-with-tags-strength-range::-moz-range-track {',
         '  height: 6px;',
         '  background: #3a3a3a;',
         '  border-radius: 999px;',
         '}',
-        '.craftgear-hoge-strength-range::-moz-range-progress {',
+        '.craftgear-load-loras-with-tags-strength-range::-moz-range-progress {',
         '  height: 6px;',
         '  background: #4aa3ff;',
         '  border-radius: 999px;',
         '}',
-        '.craftgear-hoge-strength-range::-webkit-slider-thumb {',
+        '.craftgear-load-loras-with-tags-strength-range::-webkit-slider-thumb {',
         '  -webkit-appearance: none;',
         '  width: 27px;',
         '  height: 18px;',
@@ -168,7 +168,7 @@ describe('loadLorasWithTagsUiUtils', () => {
         '  box-sizing: border-box;',
         '  margin-top: -6px;',
         '}',
-        '.craftgear-hoge-strength-range::-moz-range-thumb {',
+        '.craftgear-load-loras-with-tags-strength-range::-moz-range-thumb {',
         '  width: 27px;',
         '  height: 18px;',
         '  background: #d0d0d0;',
