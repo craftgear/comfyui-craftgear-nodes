@@ -96,6 +96,69 @@ class LoadLorasWithTags:
     FUNCTION: ClassVar[str] = 'apply'
     CATEGORY: ClassVar[str] = 'craftgear/loras'
 
+    @classmethod
+    def VALIDATE_INPUTS(
+        cls,
+        lora_name_1: Any = None,
+        lora_on_1: bool = True,
+        lora_name_2: Any = None,
+        lora_on_2: bool = True,
+        lora_name_3: Any = None,
+        lora_on_3: bool = True,
+        lora_name_4: Any = None,
+        lora_on_4: bool = True,
+        lora_name_5: Any = None,
+        lora_on_5: bool = True,
+        lora_name_6: Any = None,
+        lora_on_6: bool = True,
+        lora_name_7: Any = None,
+        lora_on_7: bool = True,
+        lora_name_8: Any = None,
+        lora_on_8: bool = True,
+        lora_name_9: Any = None,
+        lora_on_9: bool = True,
+        lora_name_10: Any = None,
+        lora_on_10: bool = True,
+    ) -> bool | str:
+        lora_choices = collect_lora_names(
+            folder_paths.get_folder_paths('loras'),
+            folder_paths.supported_pt_extensions,
+        )
+        lora_choices = ['None'] + lora_choices
+        raw_names = [
+            lora_name_1,
+            lora_name_2,
+            lora_name_3,
+            lora_name_4,
+            lora_name_5,
+            lora_name_6,
+            lora_name_7,
+            lora_name_8,
+            lora_name_9,
+            lora_name_10,
+        ]
+        toggles = [
+            lora_on_1,
+            lora_on_2,
+            lora_on_3,
+            lora_on_4,
+            lora_on_5,
+            lora_on_6,
+            lora_on_7,
+            lora_on_8,
+            lora_on_9,
+            lora_on_10,
+        ]
+        for raw_name, is_on in zip(raw_names, toggles):
+            if not is_on:
+                continue
+            resolved = resolve_lora_name(raw_name, lora_choices)
+            if not resolved or resolved == 'None':
+                continue
+            if resolved not in lora_choices:
+                return f'LoRA not found: {resolved}'
+        return True
+
     def apply(self, model: Any, clip: Any, **kwargs: Any) -> tuple[Any, Any, str]:
         current_model = model
         current_clip = clip

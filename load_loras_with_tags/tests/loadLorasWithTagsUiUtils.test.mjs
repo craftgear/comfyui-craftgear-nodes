@@ -64,6 +64,7 @@ import {
   resolveHoverSelection,
   resolveOption,
   resolveActiveIndex,
+  resolveMissingLoraFilterValue,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
@@ -424,6 +425,12 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(resolveComboDisplayLabel('missing', options), 'missing');
     assert.equal(resolveComboDisplayLabel('a.safetensors', options), 'a.safetensors');
     assert.equal(resolveComboDisplayLabel('None', options), 'None');
+    assert.equal(resolveMissingLoraFilterValue('missing.safetensors', options), 'missing');
+    assert.equal(resolveMissingLoraFilterValue('dir/missing.safetensors', options), 'missing');
+    assert.equal(resolveMissingLoraFilterValue('dir\\missing.safetensors', options), 'missing');
+    assert.equal(resolveMissingLoraFilterValue('missing', options), 'missing');
+    assert.equal(resolveMissingLoraFilterValue('a.safetensors', options), '');
+    assert.equal(resolveMissingLoraFilterValue('None', options), '');
     assert.equal(shouldPreserveUnknownOption('missing', options), true);
     assert.equal(shouldPreserveUnknownOption('a.safetensors', options), false);
     assert.equal(shouldPreserveUnknownOption('None', options), false);

@@ -1,4 +1,4 @@
-import { stripLoraExtension } from "./loraNameUtils.js";
+import { stripLoraBasename, stripLoraExtension } from "./loraNameUtils.js";
 import { matchFuzzyPositions, rankFuzzyIndices } from "./loraFuzzyMatch.js";
 
 const normalizeOptions = (options) => {
@@ -158,6 +158,17 @@ const resolveComboDisplayLabel = (rawValue, options, fallback = 'None') => {
     return text || fallback;
   }
   return resolveComboLabel(rawValue, options, fallback);
+};
+
+const resolveMissingLoraFilterValue = (rawValue, options, fallback = 'None') => {
+  if (!shouldPreserveUnknownOption(rawValue, options, fallback)) {
+    return '';
+  }
+  const label = resolveComboDisplayLabel(rawValue, options, fallback);
+  if (!label || label === fallback) {
+    return '';
+  }
+  return stripLoraBasename(label);
 };
 
 const moveIndex = (currentIndex, direction, length) => {
@@ -699,6 +710,7 @@ export {
   resolveHoverSelection,
   resolveComboLabel,
   resolveComboDisplayLabel,
+  resolveMissingLoraFilterValue,
   shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,

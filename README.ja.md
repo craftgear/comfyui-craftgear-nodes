@@ -20,6 +20,9 @@ ComfyUI 用の少し便利なカスタムノード集です。
 
 Comfy Managerの Custome Nodes Manager で `craftgear` を検索してインストールして下さい
 
+バージョン選択画面で `nightly` を選ぶとセキュリティ制限でインストールできません。
+数字のバージョンを選んでインストールして下さい。
+
 ### git clone を使う方法
 
 ComfyUI の custom nodes ディレクトリで次のコマンドを実行して下さい。

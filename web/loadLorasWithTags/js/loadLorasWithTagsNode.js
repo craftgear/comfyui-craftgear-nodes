@@ -39,6 +39,7 @@ import {
   resolveActiveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
+  resolveMissingLoraFilterValue,
   shouldPreserveUnknownOption,
   resolveOption,
   resolveBelowCenteredPopupPosition,
@@ -1554,6 +1555,13 @@ const setupLoadLorasUi = (node) => {
       placeholder: "Filter LoRAs",
       style: { flex: "1 1 auto", paddingRight: "28px" },
     });
+    const missingFilterValue = resolveMissingLoraFilterValue(
+      slot.loraWidget?.value,
+      options,
+    );
+    if (missingFilterValue) {
+      filterInput.value = missingFilterValue;
+    }
     const clearFilterButton = $el("button", {
       textContent: "\u00d7",
       style: {
