@@ -17,6 +17,8 @@ import {
   shouldCloseDialogOnOverlayClick,
   resolveStrengthDefault,
   shouldCloseStrengthPopupOnRelease,
+  shouldCloseStrengthPopupOnInnerClick,
+  shouldCloseStrengthPopupOnPress,
   resolveInlineControlLayout,
   resolveCenteredY,
   resolveFixedLabelWidth,
@@ -84,6 +86,24 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'pointerup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'touchend' }));
     assert.ok(!shouldCloseStrengthPopupOnRelease({ type: 'mousedown' }));
+    assert.ok(shouldCloseStrengthPopupOnPress({ type: 'mousedown' }));
+    assert.ok(shouldCloseStrengthPopupOnPress({ type: 'pointerdown' }));
+    assert.ok(shouldCloseStrengthPopupOnPress({ type: 'touchstart' }));
+    assert.ok(!shouldCloseStrengthPopupOnPress({ type: 'mouseup' }));
+    const range = { contains: (target) => target === 'range' };
+    const resetButton = { contains: (target) => target === 'reset' };
+    assert.equal(
+      shouldCloseStrengthPopupOnInnerClick('range', range, resetButton),
+      false,
+    );
+    assert.equal(
+      shouldCloseStrengthPopupOnInnerClick('reset', range, resetButton),
+      false,
+    );
+    assert.equal(
+      shouldCloseStrengthPopupOnInnerClick('other', range, resetButton),
+      true,
+    );
     assert.ok(shouldCloseDialogOnOverlayClick(options, options));
     assert.ok(!shouldCloseDialogOnOverlayClick(options, ['None']));
     assert.deepEqual(

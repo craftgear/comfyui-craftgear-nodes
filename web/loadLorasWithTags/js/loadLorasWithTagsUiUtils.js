@@ -403,6 +403,23 @@ const shouldCloseStrengthPopupOnRelease = (event) => {
   return type === "mouseup" || type === "pointerup" || type === "touchend";
 };
 
+const shouldCloseStrengthPopupOnPress = (event) => {
+  const type = event?.type;
+  return type === "mousedown" || type === "pointerdown" || type === "touchstart";
+};
+
+const shouldCloseStrengthPopupOnInnerClick = (target, range, resetButton) => {
+  const canContain = (node, child) =>
+    node && typeof node.contains === "function" && node.contains(child);
+  if (canContain(range, target)) {
+    return false;
+  }
+  if (canContain(resetButton, target)) {
+    return false;
+  }
+  return true;
+};
+
 const getStepDecimals = (step) => {
   if (!Number.isFinite(step)) {
     return 0;
@@ -572,4 +589,6 @@ export {
   shouldCloseDialogOnOverlayClick,
   resolveStrengthDefault,
   shouldCloseStrengthPopupOnRelease,
+  shouldCloseStrengthPopupOnPress,
+  shouldCloseStrengthPopupOnInnerClick,
 };

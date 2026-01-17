@@ -47,6 +47,8 @@ import {
   resolveStrengthDefault,
   resetIconPath,
   shouldCloseStrengthPopupOnRelease,
+  shouldCloseStrengthPopupOnPress,
+  shouldCloseStrengthPopupOnInnerClick,
 } from "./loadLorasWithTagsUiUtils.js";
 
 const TARGET_NODE_CLASS = "LoadLorasWithTags";
@@ -396,7 +398,16 @@ const openStrengthPopup = (slot, event, targetNode) => {
   popup.style.left = `${position.left}px`;
   popup.style.top = `${position.top}px`;
   const handleOutside = (nextEvent) => {
-    if (popup.contains(nextEvent.target)) {
+    if (!shouldCloseStrengthPopupOnPress(nextEvent)) {
+      return;
+    }
+    if (
+      !shouldCloseStrengthPopupOnInnerClick(
+        nextEvent.target,
+        range,
+        resetButton,
+      )
+    ) {
       return;
     }
     closeStrengthPopup();
@@ -407,6 +418,8 @@ const openStrengthPopup = (slot, event, targetNode) => {
     }
   };
   document.addEventListener("mousedown", handleOutside, true);
+  document.addEventListener("pointerdown", handleOutside, true);
+  document.addEventListener("touchstart", handleOutside, true);
   document.addEventListener("keydown", handleKeydown, true);
   strengthPopupState = {
     slot,
@@ -417,6 +430,8 @@ const openStrengthPopup = (slot, event, targetNode) => {
       range.removeEventListener("pointerup", handleRelease);
       range.removeEventListener("touchend", handleRelease);
       document.removeEventListener("mousedown", handleOutside, true);
+      document.removeEventListener("pointerdown", handleOutside, true);
+      document.removeEventListener("touchstart", handleOutside, true);
       document.removeEventListener("keydown", handleKeydown, true);
     },
   };
