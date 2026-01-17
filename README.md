@@ -20,6 +20,8 @@ See the linked documentation for each node for details.
 
 Search for `craftgear` in Comfy Manager's Custom Nodes Manager and install.
 
+Note: Selecting `nightly` in the version selection screen will fail due to security restrictions. Please select a numbered version to install.
+
 ### Using git clone
 
 Run the following command in the ComfyUI custom nodes directory:
