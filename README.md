@@ -16,10 +16,17 @@ See the linked documentation for each node for details.
 
 ## Installation
 
-Place in the custom nodes directory of ComfyUI.
+### Using Comfy Manager
 
-Example:
-- /path/to/ComfyUI/custom_nodes/comfyui-craftgear-nodes
+Search for `craftgear` in Comfy Manager's Custom Nodes Manager and install.
+
+### Using git clone
+
+Run the following command in the ComfyUI custom nodes directory:
+
+```bash
+git clone https://github.com/craftgear/comfyui-craftgear-nodes
+```
 
 
 ## LICENSE

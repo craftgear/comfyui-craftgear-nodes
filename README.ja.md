@@ -16,10 +16,17 @@ ComfyUI 用の少し便利なカスタムノード集です。
 
 ## インストール
 
-ComfyUI の custom nodes 配下に配置して下さい。
+### Comfy Manager を使う方法
 
-例:
-- /path/to/ComfyUI/custom_nodes/comfyui-craftgear-nodes
+Comfy Managerの Custome Nodes Manager で `craftgear` を検索してインストールして下さい
+
+### git clone を使う方法
+
+ComfyUI の custom nodes ディレクトリで次のコマンドを実行して下さい。
+
+```bash
+git clone https://github.com/craftgear/comfyui-craftgear-nodes
+```
 
 
 ## LICENCE
