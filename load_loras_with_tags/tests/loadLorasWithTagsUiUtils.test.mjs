@@ -38,6 +38,7 @@ import {
   filterLoraOptions,
   loraLabelButtonHeightPadding,
   loraLabelTextPadding,
+  missingLoraLabelColor,
   focusInputLater,
   loraDialogItemBackground,
   loraDialogItemBorder,
@@ -435,6 +436,7 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(loraDialogItemSelectedBackground, '#424242');
     assert.equal(loraDialogMatchTextColor, '#f2d28b');
     assert.equal(loraDialogMatchFontWeight, '600');
+    assert.equal(missingLoraLabelColor, '#ff4d4d');
     assert.equal(loraDialogItemGap, 0);
     assert.equal(loraDialogItemPaddingY, 4);
     assert.equal(loraDialogItemPaddingX, 8);

@@ -19,6 +19,7 @@ import {
   loraDialogItemSelectedBackground,
   loraDialogMatchTextColor,
   loraDialogMatchFontWeight,
+  missingLoraLabelColor,
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
@@ -1064,7 +1065,8 @@ const getLoraState = (widget) => {
   const raw = widget?.value;
   const { index } = resolveOption(raw, options);
   const label = resolveComboDisplayLabel(raw, options);
-  return { index, label, options, raw };
+  const isMissing = shouldPreserveUnknownOption(raw, options);
+  return { index, label, options, raw, isMissing };
 };
 
 const insertBeforeWidget = (node, targetWidget, widgets) => {
@@ -1197,7 +1199,7 @@ const setupHogeUi = (node) => {
         posX += toggleRect.width + INNER_MARGIN;
 
         const labelAreaWidth = Math.max(10, rowMargin + contentWidth - posX);
-        const { label } = getLoraState(slot.loraWidget);
+        const { label, isMissing } = getLoraState(slot.loraWidget);
         const isOn = !!slot.toggleWidget?.value;
         if (!isOn) {
           ctx.globalAlpha *= 0.4;
@@ -1266,7 +1268,9 @@ const setupHogeUi = (node) => {
         ctx.fill();
         ctx.strokeStyle = "#3a3a3a";
         ctx.stroke();
-        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+        ctx.fillStyle = isMissing
+          ? missingLoraLabelColor
+          : LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
         const labelTextRect = computeButtonRect(
           labelButtonRect.x,
           labelButtonRect.y,

@@ -632,6 +632,7 @@ const loraDialogItemHoverBackground = "#2a2a2a";
 const loraDialogItemSelectedBackground = "#424242";
 const loraDialogMatchTextColor = "#f2d28b";
 const loraDialogMatchFontWeight = "600";
+const missingLoraLabelColor = "#ff4d4d";
 const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
@@ -711,6 +712,7 @@ export {
   loraDialogItemSelectedBackground,
   loraDialogMatchTextColor,
   loraDialogMatchFontWeight,
+  missingLoraLabelColor,
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
