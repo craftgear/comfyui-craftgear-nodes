@@ -37,6 +37,7 @@ import {
   resolveFilteredSelection,
   resolveVisibleSelection,
   resolveSelectionByVisibleIndex,
+  resolveHoverSelection,
   resolveActiveIndex,
   resolveComboLabel,
   resolveOption,
@@ -1271,6 +1272,7 @@ const setupHogeUi = (node) => {
     let visibleOptions = [];
     let hoveredVisibleIndex = -1;
     let renderedButtons = [];
+    let suppressHoverSelection = false;
 
     closeDialog();
     const overlay = $el("div", {
@@ -1428,7 +1430,43 @@ const setupHogeUi = (node) => {
       return true;
     };
 
+    const applyHoverSelection = (nextVisibleIndex) => {
+      hoveredVisibleIndex = nextVisibleIndex;
+      const resolved = resolveHoverSelection(
+        visibleOptions,
+        nextVisibleIndex,
+        selectedOptionIndex,
+        suppressHoverSelection,
+      );
+      if (resolved.shouldUpdateSelection) {
+        selectedVisibleIndex = resolved.selectedVisibleIndex;
+        selectedOptionIndex = resolved.selectedOptionIndex;
+      }
+    };
+
+    const resumeHoverSelection = () => {
+      if (!suppressHoverSelection) {
+        return;
+      }
+      suppressHoverSelection = false;
+      if (hoveredVisibleIndex < 0) {
+        return;
+      }
+      const resolved = resolveHoverSelection(
+        visibleOptions,
+        hoveredVisibleIndex,
+        selectedOptionIndex,
+        false,
+      );
+      if (resolved.shouldUpdateSelection) {
+        selectedVisibleIndex = resolved.selectedVisibleIndex;
+        selectedOptionIndex = resolved.selectedOptionIndex;
+      }
+      refreshButtonStates();
+    };
+
     const renderList = (forceTopSelection = false) => {
+      suppressHoverSelection = forceTopSelection;
       list.textContent = "";
       renderedButtons = [];
       hoveredVisibleIndex = -1;
@@ -1473,8 +1511,7 @@ const setupHogeUi = (node) => {
         renderLabel(button, label, filterInput.value);
         renderedButtons.push({ button, index });
         button.onmouseenter = () => {
-          hoveredVisibleIndex = index;
-          updateSelectionByVisibleIndex(index);
+          applyHoverSelection(index);
           refreshButtonStates();
         };
         button.onmouseleave = () => {
@@ -1500,6 +1537,7 @@ const setupHogeUi = (node) => {
       renderList(true);
       focusInputLater(filterInput);
     };
+    list.addEventListener('mousemove', resumeHoverSelection);
     const scrollSelectedIntoView = () => {
       const entry = renderedButtons[selectedVisibleIndex];
       if (!entry) {

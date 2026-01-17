@@ -112,6 +112,59 @@ def _parse_trained_word_values(value: Any) -> list[Any]:
     return []
 
 
+def _extract_trained_words_from_json_text(path: str) -> list[str]:
+    try:
+        with open(path, "rb") as file:
+            raw = file.read()
+    except OSError:
+        return []
+    if not raw:
+        return []
+    text = ""
+    used_utf16 = False
+    if raw.startswith(b"\xff\xfe") or raw.startswith(b"\xfe\xff"):
+        try:
+            text = raw.decode("utf-16")
+            used_utf16 = True
+        except UnicodeDecodeError:
+            text = ""
+    if not text:
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = raw.decode("utf-8", errors="ignore")
+    if not used_utf16 and "\x00" in text:
+        try:
+            text = raw.decode("utf-16")
+        except UnicodeDecodeError:
+            pass
+    if not text:
+        return []
+    decoder = json.JSONDecoder()
+    results: list[Any] = []
+    for key in ('"trainedWords"', '"trained_words"'):
+        start = 0
+        while True:
+            index = text.find(key, start)
+            if index < 0:
+                break
+            colon_index = text.find(":", index + len(key))
+            if colon_index < 0:
+                start = index + len(key)
+                continue
+            value_start = colon_index + 1
+            while value_start < len(text) and text[value_start].isspace():
+                value_start += 1
+            try:
+                value, end = decoder.raw_decode(text, value_start)
+            except json.JSONDecodeError:
+                start = value_start + 1
+                continue
+            results.extend(_parse_trained_word_values(value))
+            start = end
+    return _normalize_trigger_list(results)
+
+
 def _merge_trigger_lists(primary: list[str], secondary: list[str]) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
@@ -194,12 +247,13 @@ def _load_json_payloads_in_directory(lora_path: str, base_dir: str) -> list[dict
             continue
         if not entry.name.lower().endswith(".json"):
             continue
+        text_trained_words = _extract_trained_words_from_json_text(entry.path)
         data = _read_json_if_dict(entry.path)
-        if not data:
-            continue
-        payload = _select_model_info_payload(lora_path, data)
+        payload = _select_model_info_payload(lora_path, data) if data else {}
         if payload:
             payloads.append(payload)
+        if text_trained_words and not _extract_trained_words(payload):
+            payloads.append({"trainedWords": text_trained_words})
     return payloads
 
 

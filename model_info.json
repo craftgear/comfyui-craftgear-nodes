@@ -1,0 +1,384 @@
+{
+	"id": 1307155,
+	"name": "(wan 2.2 experimental) WAN General NSFW model",
+	"description": "<h1 id=\"mission-critical:-please-read\"><span style=\"color:rgb(250, 82, 82)\">🚨🚨🚨<strong>MISSION CRITICAL: PLEASE READ</strong>🚨🚨🚨</span></h1><p></p><p><span style=\"color:rgb(190, 75, 219)\">NIGHTLY STATUS: Experimental</span></p><p><span style=\"color:rgb(190, 75, 219)\">2.2 wan training nightly!</span> but if im being honest,<span style=\"color:rgb(250, 82, 82)\"> <strong><u>its not ready</u></strong> </span>so unless you don't mind experimenting with something unfinished you can try it out. I know nsfwsks is still the \"trigger word\" but honestly I think <span style=\"color:rgb(190, 75, 219)\">you just want really descriptive prompting</span> (the more you describe features in the prompt, the better imo) tomorrows run will be with the correct timesteps, and maybe some cleanup of the dataset.</p><p>The other reason im skeptical to post is because you have to adjust the blocks, which I haven't experimented enough with, but I believe improves the quality, so if want a workflow with the adjustment, click here:</p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/articles/17635/22-block-guide-experimentation\">https://civitai.com/articles/17635/22-block-guide-experimentation</a></p><p></p><p><span style=\"color:rgb(250, 176, 5)\">I do recommend at least trying a couple seeds as well, some seeds will be bad.</span></p><p></p><p><span style=\"color:rgb(34, 139, 230)\">Help me continue to feed the open source AI porn community, please consider visiting my kofi and helping me out! anything means alot to me!</span> <a target=\"_blank\" rel=\"ugc\" href=\"https://ko-fi.com/cubeyai\">https://ko-fi.com/cubeyai</a></p><p><span style=\"color:rgb(121, 80, 242)\">\\/\\/\\/\\/ CIVIT GENERATION FILTER NOTICE \\/\\/\\/\\/</span></p><p><span style=\"color:rgb(190, 75, 219)\">You're not allowed to make NSFW using i2v unless the image has been generated with a1111 or Civitai and still has the metadata.</span><span style=\"color:rgb(193, 194, 197)\"> I'm getting reports that civit is blocking nsfw generations while some users seem to have no issue. It seems with the recent change that they also might be filtering real names used in prompts as well!!</span></p><p><span style=\"color:rgb(21, 170, 191)\">_________________________________________________________________________________________________</span></p><h2 id=\"2.1-wan-info:\"><span style=\"color:rgb(21, 170, 191)\">2.1 Wan INFO:</span></h2><p><span style=\"color:rgb(250, 82, 82)\">&gt;&lt;&gt;&lt;seems to work fine with any 14B model still, skyreels V2, DF, Phantom and Vace, even causvid&gt;&lt;&gt;&lt;</span></p><p></p><p><span style=\"color:rgb(34, 139, 230)\">&gt;&gt;&gt;&gt;BLOCKS= Using WanVideoWrapper, you can edit the blocks that are used for inference. SET Blocks 0-19 as True and the rest as False for best use!&lt;&lt;&lt;&lt;</span></p><p></p><p>Hope you enjoy, please consider donating as literally anything helps me out.</p><p><br /><span style=\"color:rgb(250, 176, 5)\">This LoRA works best with 14B T2V or 480P I2V, results with 720P I2V are poor so I do not recommend it at this time under more experimentation is completed.</span></p><p>Strength= I like 0.9~ for loras on wan so far</p><p></p><p>Trained on a 4090 using diffusion-pipe for T2V. can be loaded as T2V of I2V lora. Its just a collection of nsfw videos, so while missionary seems good, it'll do doggy, cowgirl, and more (probably just not really good) seems to be good enough on first try but I still have seem some where a second run is needed. I literally can't train and test at the same time so most of what you see is just my couple attempts I ran. there's not enough time in the day and I only have one GPU. and I have more epochs to try but I figured I'd get this out for others to try and I'll try to keep this one updated with other epochs. success not guaranteed.</p><p></p><p><span style=\"color:rgb(250, 82, 82)\">By using this LoRA model, you acknowledge that you alone are responsible for your creations, and like any powerful tool, it demands ethical judgment and responsible use.</span></p><p></p><p><span style=\"color:rgb(64, 192, 87)\">The examples above are mainly just the default workflow with a lora node added. prompts should include nsfwsks and description of the action \"penis goes in and out of vagina\"</span></p>",
+	"allowNoCredit": true,
+	"allowCommercialUse": [
+		"RentCivit"
+	],
+	"allowDerivatives": true,
+	"allowDifferentLicense": true,
+	"type": "LORA",
+	"minor": false,
+	"sfwOnly": false,
+	"poi": false,
+	"nsfw": true,
+	"nsfwLevel": 60,
+	"availability": "Public",
+	"cosmetic": null,
+	"supportsGeneration": true,
+	"stats": {
+		"downloadCount": 63979,
+		"favoriteCount": 0,
+		"thumbsUpCount": 6038,
+		"thumbsDownCount": 3,
+		"commentCount": 160,
+		"ratingCount": 0,
+		"rating": 0,
+		"tippedAmountCount": 7395
+	},
+	"creator": {
+		"username": "CubeyAI",
+		"image": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/5cc3bc43-6d2e-49cd-8b58-b531e66ebd75/width=96/CubeyAI.jpeg"
+	},
+	"tags": [
+		"concept",
+		"sex",
+		"nsfw",
+		"video",
+		"wan"
+	],
+	"modelVersions": [
+		{
+			"id": 2070122,
+			"index": 0,
+			"name": "2.2 HIGH v0.06 (Nightly)",
+			"baseModel": "Wan Video 14B i2v 480p",
+			"baseModelType": "Standard",
+			"createdAt": "2025-08-01T07:41:21.447Z",
+			"publishedAt": "2025-08-01T08:42:51.481Z",
+			"status": "Published",
+			"availability": "Public",
+			"nsfwLevel": 60,
+			"description": "<p>IMPORTANT:</p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/articles/17635/22-block-guide-experimentation\">https://civitai.com/articles/17635/22-block-guide-experimentation</a></p><p>2.2 wan trained, but if im being honest, its not ready so unless you don't mind experimenting with something unfinished you can try it out. I know nsfwsks is still the \"trigger word\" but honestly I think you just want really descriptive prompting (the more you describe features in the prompt, the better imo) tomorrows run will be with the correct timesteps, and maybe some cleanup of the dataset.</p><p>The other reason im skeptical to post is because you have to adjust the blocks, which I haven't experimented enough with, but I believe improves the quality.</p><p><a target=\"_blank\" rel=\"ugc\" href=\"https://civitai.com/articles/17635/22-block-guide-experimentation\">https://civitai.com/articles/17635/22-block-guide-experimentation</a></p>",
+			"covered": true,
+			"stats": {
+				"downloadCount": 1246,
+				"ratingCount": 0,
+				"rating": 0,
+				"thumbsUpCount": 194,
+				"thumbsDownCount": 0
+			},
+			"files": [
+				{
+					"id": 1966421,
+					"sizeKB": 299617.1640625,
+					"name": "22-nsfw-HIGH-e6.safetensors",
+					"type": "Model",
+					"pickleScanResult": "Success",
+					"pickleScanMessage": "No Pickle imports",
+					"virusScanResult": "Success",
+					"virusScanMessage": null,
+					"scannedAt": "2025-08-01T07:45:47.037Z",
+					"metadata": {
+						"format": "SafeTensor"
+					},
+					"hashes": {
+						"AutoV1": "6A4EA46A",
+						"AutoV2": "C7580EC3B3",
+						"SHA256": "C7580EC3B3B6133EA724C655AE70411B139261E3921DFE27F9799AD86C4B3A06",
+						"CRC32": "99274D11",
+						"BLAKE3": "A3B2574024077A15EB183AC0885E0EA5787A333F9F9C9C3B0E21265DABFEF94D",
+						"AutoV3": "92C6AFC70C47"
+					},
+					"downloadUrl": "https://civitai.com/api/download/models/2070122",
+					"primary": true
+				}
+			],
+			"images": [
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/36d8cb3b-8069-4cc3-addc-a668b3cba3a6/width=1280/91725510.mp4",
+					"nsfwLevel": 16,
+					"width": 1280,
+					"height": 864,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/a10d3ff1-f9ac-4d3a-87e2-0f976e2dbcb8/width=1280/91725508.mp4",
+					"nsfwLevel": 16,
+					"width": 1280,
+					"height": 864,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/55a59d4b-acf2-43e4-b2df-5416abee12c4/width=864/91725512.mp4",
+					"nsfwLevel": 16,
+					"width": 864,
+					"height": 1280,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/e6de0644-f630-417e-967f-6c212cf1ffab/width=864/91725509.mp4",
+					"nsfwLevel": 16,
+					"width": 864,
+					"height": 1280,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/3a54ead1-8422-4d82-8206-60fceaa5e8a4/width=832/91725511.mp4",
+					"nsfwLevel": 16,
+					"width": 832,
+					"height": 1280,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				}
+			],
+			"downloadUrl": "https://civitai.com/api/download/models/2070122"
+		},
+		{
+			"id": 1475095,
+			"index": 1,
+			"name": "v.014 (FIXED)",
+			"baseModel": "Wan Video 14B i2v 480p",
+			"baseModelType": "Standard",
+			"createdAt": "2025-03-01T03:55:51.855Z",
+			"publishedAt": "2025-03-01T09:47:51.901Z",
+			"status": "Published",
+			"availability": "Public",
+			"nsfwLevel": 60,
+			"description": "<p>The original file was not the correct LoRA. Please redownload to resolve this.</p>",
+			"trainedWords": [
+				"nsfwsks"
+			],
+			"covered": true,
+			"stats": {
+				"downloadCount": 62766,
+				"ratingCount": 0,
+				"rating": 0,
+				"thumbsUpCount": 5959,
+				"thumbsDownCount": 3
+			},
+			"files": [
+				{
+					"id": 1384956,
+					"sizeKB": 599137.453125,
+					"name": "wan-nsfw-e14-fixed.safetensors",
+					"type": "Model",
+					"pickleScanResult": "Success",
+					"pickleScanMessage": "No Pickle imports",
+					"virusScanResult": "Success",
+					"virusScanMessage": null,
+					"scannedAt": "2025-03-03T01:30:51.423Z",
+					"metadata": {
+						"format": "SafeTensor"
+					},
+					"hashes": {
+						"AutoV1": "CF21CC5D",
+						"AutoV2": "9795720988",
+						"SHA256": "9795720988C72CAE6B0A9C262DE5FDCB606ADD8799B6E23444FD889E505A0D11",
+						"CRC32": "BFBEB52B",
+						"BLAKE3": "77C06F35CA7E14CBD5CAF6C2736FB5E9429B43FCFD18C2ECBE0D434DD1B5259F",
+						"AutoV3": "26A51ACCFC79"
+					},
+					"downloadUrl": "https://civitai.com/api/download/models/1475095",
+					"primary": true
+				}
+			],
+			"images": [
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/572f8ab7-8333-4770-9e51-1831d09e8fd9/width=544/91240402.mp4",
+					"nsfwLevel": 16,
+					"width": 544,
+					"height": 832,
+					"hash": "U00000fQfQfQfQfQfQfQfQfQfQfQfQfQfQfQ",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/2b01a8d2-5686-4481-a237-066c11ad41f8/width=592/60812239.mp4",
+					"nsfwLevel": 16,
+					"width": 592,
+					"height": 864,
+					"hash": "UCC$s3%101WBx]t79uR*0Kof~Vof0LRk$%WC",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": true,
+					"hasPositivePrompt": true,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/a7cf7cf0-de97-4d56-a23e-e7faaedebc6e/width=592/60813518.mp4",
+					"nsfwLevel": 16,
+					"width": 592,
+					"height": 864,
+					"hash": "UINl+0005ntl%N8_yDXm4T%2RjS4~W?bVs?b",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/19de4d11-9289-4799-a028-f1e2d2d893ca/width=576/60812240.mp4",
+					"nsfwLevel": 16,
+					"width": 576,
+					"height": 880,
+					"hash": "UKKAf^o}SO8_~qo~t7M{tR%2%LE2t7en%LRj",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/1367ee8b-d887-4900-8c3c-972bb718dd92/width=576/60812300.mp4",
+					"nsfwLevel": 16,
+					"width": 576,
+					"height": 880,
+					"hash": "UFK,Et~W0Lo$5U-;?Ht88^M{%1xu?HIoNGj=",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/c5636fa8-1dfa-418d-9e12-f4fefaa36da1/width=720/60812238.mp4",
+					"nsfwLevel": 16,
+					"width": 720,
+					"height": 480,
+					"hash": "UYLW-Lo~j]_NyEITI9kDoetSV@RPs:kDbcRj",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/3430169a-0eed-42b0-af18-2d2709757f40/width=720/60812237.mp4",
+					"nsfwLevel": 16,
+					"width": 720,
+					"height": 480,
+					"hash": "UOG*vb_N%h_4.8NxM{-pNGRiIARj%MoffkRk",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/33b120ac-2ee3-48ed-a897-6396cb8f396e/width=480/60812241.mp4",
+					"nsfwLevel": 16,
+					"width": 480,
+					"height": 720,
+					"hash": "URN]eN%2TexuJXoftRog4njFtQt6~WoftRoz",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/f94de537-b881-482a-a37f-219eda58c626/width=720/60812236.mp4",
+					"nsfwLevel": 16,
+					"width": 720,
+					"height": 480,
+					"hash": "ULKn6x00.T4T.S_NnORPyYRjIAx]-pMwozbc",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/58d7cb22-e230-4ca1-9730-c5ae0fbbe1fd/width=432/61179561.mp4",
+					"nsfwLevel": 16,
+					"width": 432,
+					"height": 848,
+					"hash": "UHMYvg-U0zxZ0LWV9ZI:00WBs,R*~Vj[?Gs:",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/e4c2147b-368d-4224-9370-edf8793b8808/width=592/61179562.mp4",
+					"nsfwLevel": 16,
+					"width": 592,
+					"height": 864,
+					"hash": "UCDvcjcD9[?H9u-V~WWVJ8_2%M9F-oD*kB%2",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				},
+				{
+					"url": "https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/8b220481-2bab-472f-a10a-0559fd5cdd51/width=592/61179563.mp4",
+					"nsfwLevel": 16,
+					"width": 592,
+					"height": 864,
+					"hash": "UMFrkj~V-pt7EM4:bH?HayIUNG%M-o%1M{M|",
+					"type": "video",
+					"minor": false,
+					"poi": false,
+					"hasMeta": false,
+					"hasPositivePrompt": false,
+					"onSite": false,
+					"remixOfId": null
+				}
+			],
+			"downloadUrl": "https://civitai.com/api/download/models/1475095"
+		}
+	]
+}

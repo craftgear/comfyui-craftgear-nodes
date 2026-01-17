@@ -37,6 +37,7 @@ import {
   resolveVisibleSelection,
   resolveFilteredSelection,
   resolveSelectionByVisibleIndex,
+  resolveHoverSelection,
   resolveOption,
   resolveActiveIndex,
   resetIconPath,
@@ -135,6 +136,70 @@ describe('loadLorasWithTagsUiUtils', () => {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
     });
+    assert.deepEqual(
+      resolveHoverSelection(
+        [
+          { index: 1, label: 'alpha' },
+          { index: 3, label: 'beta' },
+        ],
+        1,
+        1,
+        true,
+      ),
+      {
+        shouldUpdateSelection: false,
+        selectedVisibleIndex: -1,
+        selectedOptionIndex: -1,
+      },
+    );
+    assert.deepEqual(
+      resolveHoverSelection(
+        [
+          { index: 1, label: 'alpha' },
+          { index: 3, label: 'beta' },
+        ],
+        5,
+        1,
+        false,
+      ),
+      {
+        shouldUpdateSelection: false,
+        selectedVisibleIndex: -1,
+        selectedOptionIndex: -1,
+      },
+    );
+    assert.deepEqual(
+      resolveHoverSelection(
+        [
+          { index: 1, label: 'alpha' },
+          { index: 3, label: 'beta' },
+        ],
+        1,
+        3,
+        false,
+      ),
+      {
+        shouldUpdateSelection: false,
+        selectedVisibleIndex: 1,
+        selectedOptionIndex: 3,
+      },
+    );
+    assert.deepEqual(
+      resolveHoverSelection(
+        [
+          { index: 1, label: 'alpha' },
+          { index: 3, label: 'beta' },
+        ],
+        0,
+        3,
+        false,
+      ),
+      {
+        shouldUpdateSelection: true,
+        selectedVisibleIndex: 0,
+        selectedOptionIndex: 1,
+      },
+    );
     assert.deepEqual(resolveSelectionByVisibleIndex([], 0), {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,

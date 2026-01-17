@@ -169,6 +169,37 @@ const resolveSelectionByVisibleIndex = (visibleOptions, visibleIndex) => {
   return { selectedVisibleIndex: safeIndex, selectedOptionIndex: optionIndex };
 };
 
+const resolveHoverSelection = (
+  visibleOptions,
+  hoveredVisibleIndex,
+  selectedOptionIndex,
+  suppressSelection = false,
+) => {
+  if (suppressSelection) {
+    return {
+      shouldUpdateSelection: false,
+      selectedVisibleIndex: -1,
+      selectedOptionIndex: -1,
+    };
+  }
+  const resolved = resolveSelectionByVisibleIndex(
+    visibleOptions,
+    hoveredVisibleIndex,
+  );
+  if (resolved.selectedOptionIndex < 0) {
+    return {
+      shouldUpdateSelection: false,
+      selectedVisibleIndex: -1,
+      selectedOptionIndex: -1,
+    };
+  }
+  return {
+    shouldUpdateSelection: resolved.selectedOptionIndex !== selectedOptionIndex,
+    selectedVisibleIndex: resolved.selectedVisibleIndex,
+    selectedOptionIndex: resolved.selectedOptionIndex,
+  };
+};
+
 const resolveFilteredSelection = (
   visibleOptions,
   selectedOptionIndex,
@@ -377,6 +408,7 @@ export {
   resolveFilteredSelection,
   resolveVisibleSelection,
   resolveSelectionByVisibleIndex,
+  resolveHoverSelection,
   resolveComboLabel,
   normalizeStrengthOptions,
   normalizeOptions,
