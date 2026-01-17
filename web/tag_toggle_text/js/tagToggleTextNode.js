@@ -2,6 +2,7 @@ import { app } from '../../../../scripts/app.js';
 import {
   buildTagDisplaySegments,
   computeDisplayHeight,
+  defaultDisplayHeight,
   findInputIndex,
   persistInputText,
   readPersistedInputText,
@@ -16,7 +17,6 @@ const TEXT_INPUT_NAME = 'text';
 const EXCLUDED_WIDGET_NAME = 'excluded_tags';
 const DISPLAY_WIDGET_NAME = 'tag_toggle_display';
 
-const DISPLAY_HEIGHT = 120;
 const DISPLAY_PADDING_X = 8;
 const DISPLAY_PADDING_Y = 6;
 const TAG_LINE_HEIGHT = 18;
@@ -204,7 +204,7 @@ const getDisplayHeight = (node) =>
   computeDisplayHeight({
     nodeHeight: node?.size?.[1],
     titleHeight: LiteGraph?.NODE_TITLE_HEIGHT,
-    fallbackHeight: DISPLAY_HEIGHT,
+    fallbackHeight: defaultDisplayHeight,
     extraPadding: DISPLAY_PADDING_TOTAL,
   });
 

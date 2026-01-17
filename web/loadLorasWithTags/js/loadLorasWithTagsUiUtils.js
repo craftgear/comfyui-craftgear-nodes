@@ -119,6 +119,47 @@ const resolveComboLabel = (rawValue, options, fallback = "None") => {
   return String(list[0] ?? fallback);
 };
 
+const resolveRawComboLabel = (rawValue) => {
+  if (rawValue === undefined || rawValue === null) {
+    return '';
+  }
+  if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+    return '';
+  }
+  let value = rawValue;
+  if (value && typeof value === 'object') {
+    if ('value' in value) {
+      value = value.value;
+    } else if ('name' in value) {
+      value = value.name;
+    }
+  }
+  return String(value ?? '').trim();
+};
+
+const shouldPreserveUnknownOption = (rawValue, options, fallback = 'None') => {
+  const text = resolveRawComboLabel(rawValue);
+  if (!text) {
+    return false;
+  }
+  if (text === fallback) {
+    return false;
+  }
+  const list = normalizeOptions(options);
+  if (list.length === 0) {
+    return false;
+  }
+  return !list.includes(text);
+};
+
+const resolveComboDisplayLabel = (rawValue, options, fallback = 'None') => {
+  if (shouldPreserveUnknownOption(rawValue, options, fallback)) {
+    const text = resolveRawComboLabel(rawValue);
+    return text || fallback;
+  }
+  return resolveComboLabel(rawValue, options, fallback);
+};
+
 const moveIndex = (currentIndex, direction, length) => {
   if (!Number.isFinite(length) || length <= 0) {
     return -1;
@@ -364,8 +405,8 @@ const resolveFixedLabelWidth = (charWidth, charCount = 4, padding = 4) => {
 };
 
 const strengthRangeInputClass = "craftgear-hoge-strength-range";
-const strengthRangeThumbSize = { width: 18, height: 12 };
-const strengthRangeTrackHeight = 4;
+const strengthRangeThumbSize = { width: 27, height: 18 };
+const strengthRangeTrackHeight = 6;
 const strengthRangeFillColor = "#4aa3ff";
 const strengthRangeBaseColor = "#3a3a3a";
 
@@ -459,6 +500,21 @@ const resolveToggleSize = (rowHeight) => {
   return { height, width: Math.round(height * 1.8) };
 };
 
+const resolveToggleLabelRect = (toggleRect, textWidth, innerMargin = 0) => {
+  const rectX = Number(toggleRect?.x ?? 0) || 0;
+  const rectY = Number(toggleRect?.y ?? 0) || 0;
+  const rectWidth = Number(toggleRect?.width ?? 0) || 0;
+  const rectHeight = Number(toggleRect?.height ?? 0) || 0;
+  const safeWidth = Math.max(0, Number(textWidth) || 0);
+  const safeMargin = Math.max(0, Number(innerMargin) || 0);
+  return {
+    x: rectX + rectWidth + safeMargin,
+    y: rectY,
+    width: safeWidth,
+    height: rectHeight,
+  };
+};
+
 const shouldCloseDialogOnOverlayClick = (overlay, target) => overlay === target;
 
 const resolveStrengthDefault = (options, fallback = 1.0) => {
@@ -486,6 +542,29 @@ const shouldCloseStrengthPopupOnInnerClick = (target, range, resetButton) => {
     return false;
   }
   return true;
+};
+
+const shouldToggleTagSelectionOnKey = (event, isTextInput) => {
+  if (isTextInput) {
+    return false;
+  }
+  const key = event?.key;
+  const code = event?.code;
+  return (
+    key === " " ||
+    key === "Spacebar" ||
+    code === "Space" ||
+    key === "ArrowLeft" ||
+    key === "ArrowRight"
+  );
+};
+
+const shouldBlurTagFilterOnKey = (event, isTextInput) => {
+  if (!isTextInput) {
+    return false;
+  }
+  const key = event?.key;
+  return key === "ArrowUp" || key === "ArrowDown";
 };
 
 const getStepDecimals = (step) => {
@@ -618,6 +697,8 @@ export {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolveComboLabel,
+  resolveComboDisplayLabel,
+  shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,
   filterLoraOptionIndices,
@@ -659,9 +740,12 @@ export {
   resolveCenteredY,
   resolveRowLineHeight,
   resolveToggleSize,
+  resolveToggleLabelRect,
   shouldCloseDialogOnOverlayClick,
   resolveStrengthDefault,
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnPress,
   shouldCloseStrengthPopupOnInnerClick,
+  shouldToggleTagSelectionOnKey,
+  shouldBlurTagFilterOnKey,
 };

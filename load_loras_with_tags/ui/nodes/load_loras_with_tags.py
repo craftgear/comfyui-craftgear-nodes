@@ -71,6 +71,8 @@ class LoadLorasWithTags:
         required: dict[str, Any] = {
             'model': ('MODEL',),
             'clip': ('CLIP',),
+        }
+        optional: dict[str, Any] = {
             'tags': ('STRING', {'default': '', 'forceInput': True}),
         }
         for index in range(1, MAX_LORA_STACK + 1):
@@ -87,7 +89,7 @@ class LoadLorasWithTags:
             )
             required[f'lora_on_{index}'] = ('BOOLEAN', {'default': True})
             required[f'tag_selection_{index}'] = ('STRING', {'default': ''})
-        return {'required': required}
+        return {'required': required, 'optional': optional}
 
     RETURN_TYPES: ClassVar[tuple[str, str, str]] = ('MODEL', 'CLIP', 'STRING')
     RETURN_NAMES: ClassVar[tuple[str, str, str]] = ('model', 'clip', 'tags')

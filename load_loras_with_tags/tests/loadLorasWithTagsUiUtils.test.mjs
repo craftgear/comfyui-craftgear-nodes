@@ -9,6 +9,8 @@ import {
   computeSliderRatio,
   moveIndex,
   resolveComboLabel,
+  resolveComboDisplayLabel,
+  shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,
   loraDialogWidth,
@@ -19,6 +21,8 @@ import {
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnInnerClick,
   shouldCloseStrengthPopupOnPress,
+  shouldToggleTagSelectionOnKey,
+  shouldBlurTagFilterOnKey,
   buildStrengthRangeCss,
   buildStrengthRangeProgressBackground,
   strengthRangeInputClass,
@@ -29,6 +33,7 @@ import {
   resolveFixedLabelWidth,
   resolveRowLineHeight,
   resolveToggleSize,
+  resolveToggleLabelRect,
   filterLoraOptionIndices,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
@@ -95,6 +100,14 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.ok(shouldCloseStrengthPopupOnPress({ type: 'pointerdown' }));
     assert.ok(shouldCloseStrengthPopupOnPress({ type: 'touchstart' }));
     assert.ok(!shouldCloseStrengthPopupOnPress({ type: 'mouseup' }));
+    assert.ok(shouldToggleTagSelectionOnKey({ key: ' ' }, false));
+    assert.ok(shouldToggleTagSelectionOnKey({ code: 'Space' }, false));
+    assert.ok(shouldToggleTagSelectionOnKey({ key: 'ArrowLeft' }, false));
+    assert.ok(shouldToggleTagSelectionOnKey({ key: 'ArrowRight' }, false));
+    assert.ok(!shouldToggleTagSelectionOnKey({ key: 'ArrowLeft' }, true));
+    assert.ok(shouldBlurTagFilterOnKey({ key: 'ArrowUp' }, true));
+    assert.ok(shouldBlurTagFilterOnKey({ key: 'ArrowDown' }, true));
+    assert.ok(!shouldBlurTagFilterOnKey({ key: 'ArrowUp' }, false));
     const range = { contains: (target) => target === 'range' };
     const resetButton = { contains: (target) => target === 'reset' };
     assert.equal(
@@ -110,8 +123,8 @@ describe('loadLorasWithTagsUiUtils', () => {
       true,
     );
     assert.equal(strengthRangeInputClass, 'craftgear-hoge-strength-range');
-    assert.deepEqual(strengthRangeThumbSize, { width: 18, height: 12 });
-    assert.equal(strengthRangeTrackHeight, 4);
+    assert.deepEqual(strengthRangeThumbSize, { width: 27, height: 18 });
+    assert.equal(strengthRangeTrackHeight, 6);
     assert.equal(
       buildStrengthRangeProgressBackground(0.3),
       'linear-gradient(to right, #4aa3ff 0%, #4aa3ff 30%, #3a3a3a 30%, #3a3a3a 100%)',
@@ -130,33 +143,33 @@ describe('loadLorasWithTagsUiUtils', () => {
         '  border-radius: 999px;',
         '}',
         '.craftgear-hoge-strength-range::-webkit-slider-runnable-track {',
-        '  height: 4px;',
+        '  height: 6px;',
         '  background: transparent;',
         '  border-radius: 999px;',
         '}',
         '.craftgear-hoge-strength-range::-moz-range-track {',
-        '  height: 4px;',
+        '  height: 6px;',
         '  background: #3a3a3a;',
         '  border-radius: 999px;',
         '}',
         '.craftgear-hoge-strength-range::-moz-range-progress {',
-        '  height: 4px;',
+        '  height: 6px;',
         '  background: #4aa3ff;',
         '  border-radius: 999px;',
         '}',
         '.craftgear-hoge-strength-range::-webkit-slider-thumb {',
         '  -webkit-appearance: none;',
-        '  width: 18px;',
-        '  height: 12px;',
+        '  width: 27px;',
+        '  height: 18px;',
         '  background: #d0d0d0;',
         '  border: 1px solid #3a3a3a;',
         '  border-radius: 999px;',
         '  box-sizing: border-box;',
-        '  margin-top: -4px;',
+        '  margin-top: -6px;',
         '}',
         '.craftgear-hoge-strength-range::-moz-range-thumb {',
-        '  width: 18px;',
-        '  height: 12px;',
+        '  width: 27px;',
+        '  height: 18px;',
         '  background: #d0d0d0;',
         '  border: 1px solid #3a3a3a;',
         '  border-radius: 999px;',
@@ -236,6 +249,10 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.deepEqual(resolveToggleSize(24), { height: 14, width: 25 });
     assert.deepEqual(resolveToggleSize(30), { height: 14, width: 25 });
     assert.deepEqual(resolveToggleSize(12), { height: 10, width: 18 });
+    assert.deepEqual(
+      resolveToggleLabelRect({ x: 10, y: 20, width: 30, height: 12 }, 50, 4),
+      { x: 44, y: 20, width: 50, height: 12 },
+    );
     assert.deepEqual(filterLoraOptionIndices('', options), [0, 1, 2]);
     assert.deepEqual(filterLoraOptionIndices('a', options), [1]);
     assert.deepEqual(filterLoraOptionIndices('b', options), [2]);
@@ -402,6 +419,14 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(resolveComboLabel(2, options), 'b.safetensors');
     assert.equal(resolveComboLabel('missing', options), 'None');
     assert.equal(resolveComboLabel('a.safetensors', options), 'a.safetensors');
+    assert.equal(resolveComboDisplayLabel(2, options), 'b.safetensors');
+    assert.equal(resolveComboDisplayLabel('missing', options), 'missing');
+    assert.equal(resolveComboDisplayLabel('a.safetensors', options), 'a.safetensors');
+    assert.equal(resolveComboDisplayLabel('None', options), 'None');
+    assert.equal(shouldPreserveUnknownOption('missing', options), true);
+    assert.equal(shouldPreserveUnknownOption('a.safetensors', options), false);
+    assert.equal(shouldPreserveUnknownOption('None', options), false);
+    assert.equal(shouldPreserveUnknownOption(1, options), false);
     assert.equal(loraLabelButtonHeightPadding, 8);
     assert.equal(loraLabelTextPadding, 8);
     assert.equal(loraDialogItemBackground, 'transparent');

@@ -1,0 +1,19 @@
+[project]
+name = "TBD"
+version = "TBD"
+description = "TBD"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "TBD" }
+authors = [
+  { name = "TBD", email = "TBD" },
+]
+
+[project.urls]
+Repository = "TBD"
+
+[tool.comfy]
+PublisherId = "TBD"
+DisplayName = "TBD"
+Description = "TBD"
+Icon = "TBD"

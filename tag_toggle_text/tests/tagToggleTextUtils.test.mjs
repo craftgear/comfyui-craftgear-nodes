@@ -4,6 +4,7 @@ import { describe, it } from 'vitest';
 import {
   buildTagDisplaySegments,
   computeDisplayHeight,
+  defaultDisplayHeight,
   findInputIndex,
   persistInputText,
   readPersistedInputText,
@@ -56,21 +57,35 @@ describe('tagToggleTextUtils', () => {
     ]);
   });
 
+  it('exposes the default display height', () => {
+    assert.equal(defaultDisplayHeight, 100);
+  });
+
   it('uses fallback height when node height is missing', () => {
     const height = computeDisplayHeight({
       nodeHeight: null,
       titleHeight: 20,
-      fallbackHeight: 120,
+      fallbackHeight: defaultDisplayHeight,
       extraPadding: 6,
     });
-    assert.equal(height, 120);
+    assert.equal(height, defaultDisplayHeight);
+  });
+
+  it('uses fallback height when computed height is smaller', () => {
+    const height = computeDisplayHeight({
+      nodeHeight: 100,
+      titleHeight: 20,
+      fallbackHeight: defaultDisplayHeight,
+      extraPadding: 6,
+    });
+    assert.equal(height, defaultDisplayHeight);
   });
 
   it('computes display height from node height', () => {
     const height = computeDisplayHeight({
       nodeHeight: 200,
       titleHeight: 20,
-      fallbackHeight: 120,
+      fallbackHeight: defaultDisplayHeight,
       extraPadding: 6,
     });
     assert.equal(height, 174);

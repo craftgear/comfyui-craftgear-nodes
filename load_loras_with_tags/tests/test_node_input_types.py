@@ -38,8 +38,10 @@ class LoadLorasWithTagsInputTypesTest(unittest.TestCase):
         self.assertIn('lora_on_10', required)
         self.assertIn('tag_selection_1', required)
         self.assertIn('tag_selection_10', required)
-        self.assertIn('tags', required)
-        tags = required['tags']
+        self.assertNotIn('tags', required)
+        optional = inputs.get('optional', {})
+        self.assertIn('tags', optional)
+        tags = optional['tags']
         self.assertEqual(tags[0], 'STRING')
         self.assertTrue(tags[1].get('forceInput'))
 

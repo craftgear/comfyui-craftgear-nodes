@@ -37,6 +37,8 @@ import {
   resolveHoverSelection,
   resolveActiveIndex,
   resolveComboLabel,
+  resolveComboDisplayLabel,
+  shouldPreserveUnknownOption,
   resolveOption,
   resolveBelowCenteredPopupPosition,
   resolveInlineControlLayout,
@@ -44,12 +46,15 @@ import {
   resolveCenteredY,
   resolveRowLineHeight,
   resolveToggleSize,
+  resolveToggleLabelRect,
   shouldCloseDialogOnOverlayClick,
   resolveStrengthDefault,
   resetIconPath,
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnPress,
   shouldCloseStrengthPopupOnInnerClick,
+  shouldToggleTagSelectionOnKey,
+  shouldBlurTagFilterOnKey,
   buildStrengthRangeCss,
   buildStrengthRangeProgressBackground,
   strengthRangeInputClass,
@@ -862,6 +867,12 @@ const openTriggerDialog = async (
     if (event?.target?.type === "range") {
       return;
     }
+    const isTextInput =
+      event?.target?.tagName === "INPUT" && event?.target?.type === "text";
+    if (shouldBlurTagFilterOnKey(event, isTextInput)) {
+      event.preventDefault();
+      filterInput?.blur?.();
+    }
     if (event.key === "ArrowDown") {
       event.preventDefault();
       moveActive(1);
@@ -872,14 +883,7 @@ const openTriggerDialog = async (
       moveActive(-1);
       return;
     }
-    const isTextInput =
-      event?.target?.tagName === "INPUT" && event?.target?.type === "text";
-    if (
-      (event.key === " " ||
-        event.code === "Space" ||
-        event.key === "Spacebar") &&
-      !isTextInput
-    ) {
+    if (shouldToggleTagSelectionOnKey(event, isTextInput)) {
       event.preventDefault();
       toggleActiveSelection();
       return;
@@ -1059,7 +1063,7 @@ const getLoraState = (widget) => {
   const options = getComboOptions(widget);
   const raw = widget?.value;
   const { index } = resolveOption(raw, options);
-  const label = resolveComboLabel(raw, options);
+  const label = resolveComboDisplayLabel(raw, options);
   return { index, label, options, raw };
 };
 
@@ -1135,6 +1139,12 @@ const setupHogeUi = (node) => {
         const state = getAllToggleState?.() ?? null;
         drawToggle(ctx, toggleRect, state === true, state === null);
         const midY = toggleRect.y + toggleRect.height / 2;
+        const labelWidth = ctx.measureText(TOGGLE_LABEL_TEXT).width;
+        widget.__toggleLabelRect = resolveToggleLabelRect(
+          toggleRect,
+          labelWidth,
+          INNER_MARGIN,
+        );
         ctx.save();
         ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
         ctx.textAlign = "left";
@@ -1355,6 +1365,11 @@ const setupHogeUi = (node) => {
       setComboWidgetValue(widget, "None");
       return;
     }
+    const options = getComboOptions(widget);
+    if (shouldPreserveUnknownOption(value, options)) {
+      setWidgetValue(widget, value);
+      return;
+    }
     setComboWidgetValue(widget, value);
   };
 
@@ -1438,7 +1453,11 @@ const setupHogeUi = (node) => {
       if (options.length === 0) {
         return;
       }
-      const resolved = resolveComboLabel(slot.loraWidget?.value, options);
+      const rawValue = slot.loraWidget?.value;
+      if (shouldPreserveUnknownOption(rawValue, options)) {
+        return;
+      }
+      const resolved = resolveComboLabel(rawValue, options);
       if (slot.loraWidget?.value !== resolved) {
         setWidgetValue(slot.loraWidget, resolved);
       }
@@ -1842,7 +1861,8 @@ const setupHogeUi = (node) => {
     }
     if (
       headerWidget?.__toggleRect &&
-      isPointInRect(pos, headerWidget.__toggleRect)
+      (isPointInRect(pos, headerWidget.__toggleRect) ||
+        isPointInRect(pos, headerWidget.__toggleLabelRect))
     ) {
       const state = getAllToggleState();
       setAllToggleState(state === true ? false : true);
@@ -1986,10 +2006,9 @@ const setupHogeUi = (node) => {
           slot.strengthWidget?.options,
           1.0,
         );
-        const loraValue = resolveComboLabel(
-          slot.loraWidget?.value,
-          getComboOptions(slot.loraWidget),
-        );
+        const rawValue = slot.loraWidget?.value;
+        const options = getComboOptions(slot.loraWidget);
+        const loraValue = resolveComboDisplayLabel(rawValue, options);
         values.push(
           loraValue,
           slot.strengthWidget?.value ?? strengthDefault,

@@ -1,4 +1,5 @@
 const normalizeTag = (value) => String(value ?? '').trim();
+const defaultDisplayHeight = 100;
 
 const splitTags = (value) => {
   if (value == null) {
@@ -105,7 +106,10 @@ const computeDisplayHeight = ({
   const header = Number.isFinite(titleHeight) ? titleHeight : 0;
   const padding = Number.isFinite(extraPadding) ? extraPadding : 0;
   const height = nodeHeight - header - padding;
-  return height > 0 ? height : fallback;
+  if (height <= 0) {
+    return fallback;
+  }
+  return height < fallback ? fallback : height;
 };
 
 const findInputIndex = (inputs, name) => {
@@ -133,6 +137,7 @@ const readPersistedInputText = (info) => {
 export {
   buildTagDisplaySegments,
   computeDisplayHeight,
+  defaultDisplayHeight,
   findInputIndex,
   persistInputText,
   readPersistedInputText,
