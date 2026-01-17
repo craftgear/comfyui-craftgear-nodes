@@ -5,6 +5,7 @@ import { getTagVisibility, getTopNVisibility } from "./tagFilterUtils.js";
 import { normalizeSelectionValue } from "./selectionValueUtils.js";
 import {
   computeButtonRect,
+  computeSliderRatio,
   moveIndex,
   normalizeStrengthOptions,
   normalizeOptions,
@@ -49,6 +50,11 @@ import {
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnPress,
   shouldCloseStrengthPopupOnInnerClick,
+  buildStrengthRangeCss,
+  buildStrengthRangeProgressBackground,
+  strengthRangeInputClass,
+  strengthRangeThumbSize,
+  strengthRangeTrackHeight,
 } from "./loadLorasWithTagsUiUtils.js";
 
 const TARGET_NODE_CLASS = "LoadLorasWithTags";
@@ -66,6 +72,7 @@ const SELECT_TRIGGER_LABEL = "Select Tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
 const DIALOG_ID = "craftgear-hoge-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-hoge-strength-popup";
+const STRENGTH_POPUP_STYLE_ID = "craftgear-hoge-strength-popup-style";
 const TOP_N_STORAGE_KEY = "craftgear-hoge-trigger-dialog-top-n";
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
@@ -283,6 +290,36 @@ const updateStrengthPopupValue = (slot) => {
   const strengthDefault = resolveStrengthDefault(options, 1.0);
   const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
   strengthPopupState.range.value = String(strengthValue);
+  updateStrengthRangeBackground(strengthPopupState.range, strengthValue, options);
+};
+
+const updateStrengthRangeBackground = (range, value, options) => {
+  if (!range) {
+    return;
+  }
+  const ratio = computeSliderRatio(value, options);
+  range.style.background = buildStrengthRangeProgressBackground(ratio);
+};
+
+const ensureStrengthPopupStyles = () => {
+  if (typeof document === "undefined") {
+    return;
+  }
+  if (document.getElementById(STRENGTH_POPUP_STYLE_ID)) {
+    return;
+  }
+  const css = buildStrengthRangeCss(
+    strengthRangeInputClass,
+    strengthRangeThumbSize,
+    strengthRangeTrackHeight,
+  );
+  if (!css) {
+    return;
+  }
+  const style = document.createElement("style");
+  style.id = STRENGTH_POPUP_STYLE_ID;
+  style.textContent = css;
+  document.head.append(style);
 };
 
 const openStrengthPopup = (slot, event, targetNode) => {
@@ -294,6 +331,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
     return;
   }
   closeStrengthPopup();
+  ensureStrengthPopupStyles();
   const options = normalizeStrengthOptions(slot.strengthWidget?.options);
   const strengthDefault = resolveStrengthDefault(options, 1.0);
   const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
@@ -370,11 +408,14 @@ const openStrengthPopup = (slot, event, targetNode) => {
     value: Number.isFinite(strengthValue) ? strengthValue : 0,
     style: { width: "220px", flex: "1 1 auto" },
   });
+  range.className = strengthRangeInputClass;
   controlRow.append(range, resetButton);
+  updateStrengthRangeBackground(range, strengthValue, options);
   range.oninput = () => {
     const next = Number(range.value);
     setWidgetValue(slot.strengthWidget, next);
     markDirty(targetNode);
+    updateStrengthRangeBackground(range, next, options);
   };
   const handleRelease = (nextEvent) => {
     if (!shouldCloseStrengthPopupOnRelease(nextEvent)) {

@@ -363,6 +363,74 @@ const resolveFixedLabelWidth = (charWidth, charCount = 4, padding = 4) => {
   return safeCharWidth * safeCount + safePadding * 2;
 };
 
+const strengthRangeInputClass = "craftgear-hoge-strength-range";
+const strengthRangeThumbSize = { width: 18, height: 12 };
+const strengthRangeTrackHeight = 4;
+const strengthRangeFillColor = "#4aa3ff";
+const strengthRangeBaseColor = "#3a3a3a";
+
+const buildStrengthRangeProgressBackground = (
+  ratio,
+  fillColor = strengthRangeFillColor,
+  baseColor = strengthRangeBaseColor,
+) => {
+  const safeRatio = clampNumber(Number(ratio) || 0, 0, 1);
+  const percent = Math.round(safeRatio * 100);
+  return `linear-gradient(to right, ${fillColor} 0%, ${fillColor} ${percent}%, ${baseColor} ${percent}%, ${baseColor} 100%)`;
+};
+
+const buildStrengthRangeCss = (className, size, trackHeight) => {
+  const safeClass = String(className ?? "").trim();
+  if (!safeClass) {
+    return "";
+  }
+  const width = Math.max(0, Number(size?.width ?? 0) || 0);
+  const height = Math.max(0, Number(size?.height ?? 0) || 0);
+  const safeTrackHeight = Math.max(0, Number(trackHeight ?? 0) || 0);
+  const thumbOffset = Math.round((safeTrackHeight - height) / 2);
+  return [
+    `.${safeClass} {`,
+    "  -webkit-appearance: none;",
+    "  appearance: none;",
+    `  background: ${strengthRangeBaseColor};`,
+    "  border-radius: 999px;",
+    "}",
+    `.${safeClass}::-webkit-slider-runnable-track {`,
+    `  height: ${safeTrackHeight}px;`,
+    "  background: transparent;",
+    "  border-radius: 999px;",
+    "}",
+    `.${safeClass}::-moz-range-track {`,
+    `  height: ${safeTrackHeight}px;`,
+    `  background: ${strengthRangeBaseColor};`,
+    "  border-radius: 999px;",
+    "}",
+    `.${safeClass}::-moz-range-progress {`,
+    `  height: ${safeTrackHeight}px;`,
+    `  background: ${strengthRangeFillColor};`,
+    "  border-radius: 999px;",
+    "}",
+    `.${safeClass}::-webkit-slider-thumb {`,
+    "  -webkit-appearance: none;",
+    `  width: ${width}px;`,
+    `  height: ${height}px;`,
+    "  background: #d0d0d0;",
+    "  border: 1px solid #3a3a3a;",
+    "  border-radius: 999px;",
+    "  box-sizing: border-box;",
+    `  margin-top: ${thumbOffset}px;`,
+    "}",
+    `.${safeClass}::-moz-range-thumb {`,
+    `  width: ${width}px;`,
+    `  height: ${height}px;`,
+    "  background: #d0d0d0;",
+    "  border: 1px solid #3a3a3a;",
+    "  border-radius: 999px;",
+    "  box-sizing: border-box;",
+    "}",
+  ].join("\n");
+};
+
 const resolveCenteredY = (top, height, itemHeight) => {
   const safeTop = Number(top) || 0;
   const safeHeight = Math.max(0, Number(height) || 0);
@@ -583,6 +651,11 @@ export {
   resolveBelowCenteredPopupPosition,
   resolveInlineControlLayout,
   resolveFixedLabelWidth,
+  strengthRangeInputClass,
+  strengthRangeThumbSize,
+  strengthRangeTrackHeight,
+  buildStrengthRangeProgressBackground,
+  buildStrengthRangeCss,
   resolveCenteredY,
   resolveRowLineHeight,
   resolveToggleSize,

@@ -19,6 +19,11 @@ import {
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnInnerClick,
   shouldCloseStrengthPopupOnPress,
+  buildStrengthRangeCss,
+  buildStrengthRangeProgressBackground,
+  strengthRangeInputClass,
+  strengthRangeThumbSize,
+  strengthRangeTrackHeight,
   resolveInlineControlLayout,
   resolveCenteredY,
   resolveFixedLabelWidth,
@@ -103,6 +108,61 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(
       shouldCloseStrengthPopupOnInnerClick('other', range, resetButton),
       true,
+    );
+    assert.equal(strengthRangeInputClass, 'craftgear-hoge-strength-range');
+    assert.deepEqual(strengthRangeThumbSize, { width: 18, height: 12 });
+    assert.equal(strengthRangeTrackHeight, 4);
+    assert.equal(
+      buildStrengthRangeProgressBackground(0.3),
+      'linear-gradient(to right, #4aa3ff 0%, #4aa3ff 30%, #3a3a3a 30%, #3a3a3a 100%)',
+    );
+    assert.equal(
+      buildStrengthRangeCss(
+        strengthRangeInputClass,
+        strengthRangeThumbSize,
+        strengthRangeTrackHeight,
+      ),
+      [
+        '.craftgear-hoge-strength-range {',
+        '  -webkit-appearance: none;',
+        '  appearance: none;',
+        '  background: #3a3a3a;',
+        '  border-radius: 999px;',
+        '}',
+        '.craftgear-hoge-strength-range::-webkit-slider-runnable-track {',
+        '  height: 4px;',
+        '  background: transparent;',
+        '  border-radius: 999px;',
+        '}',
+        '.craftgear-hoge-strength-range::-moz-range-track {',
+        '  height: 4px;',
+        '  background: #3a3a3a;',
+        '  border-radius: 999px;',
+        '}',
+        '.craftgear-hoge-strength-range::-moz-range-progress {',
+        '  height: 4px;',
+        '  background: #4aa3ff;',
+        '  border-radius: 999px;',
+        '}',
+        '.craftgear-hoge-strength-range::-webkit-slider-thumb {',
+        '  -webkit-appearance: none;',
+        '  width: 18px;',
+        '  height: 12px;',
+        '  background: #d0d0d0;',
+        '  border: 1px solid #3a3a3a;',
+        '  border-radius: 999px;',
+        '  box-sizing: border-box;',
+        '  margin-top: -4px;',
+        '}',
+        '.craftgear-hoge-strength-range::-moz-range-thumb {',
+        '  width: 18px;',
+        '  height: 12px;',
+        '  background: #d0d0d0;',
+        '  border: 1px solid #3a3a3a;',
+        '  border-radius: 999px;',
+        '  box-sizing: border-box;',
+        '}',
+      ].join('\n'),
     );
     assert.ok(shouldCloseDialogOnOverlayClick(options, options));
     assert.ok(!shouldCloseDialogOnOverlayClick(options, ['None']));
