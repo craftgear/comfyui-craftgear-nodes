@@ -1,5 +1,7 @@
 # Toggle Tags
 
+![node](./images/toggle_tags.png)
+
 ## 特徴
 
 - 入力されたタグテキストを表示し、クリックでタグのオン/オフを切り替えられます。

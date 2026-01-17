@@ -1,5 +1,7 @@
 # Image Batch Loader
 
+![node](./images/image_batch_loader.png)
+
 ## 特徴
 
 - 指定したディレクトリ内の画像ファイルをバッチとして読み込みます。

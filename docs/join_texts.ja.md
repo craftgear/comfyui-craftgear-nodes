@@ -1,5 +1,7 @@
 # Join Texts
 
+![node](./images/join_texts.png)
+
 ## 特徴
 
 - 複数のテキスト入力を1つのテキストに結合します。

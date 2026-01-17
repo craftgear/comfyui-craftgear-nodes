@@ -2,7 +2,10 @@
 
 ComfyUI 用の少し便利なカスタムノード集です。
 
-ノード一覧:
+## ノード一覧
+
+詳細はリンク先の各ノードのドキュメントをご覧下さい。 
+
 - [Load LoRAs With Tags](./docs/load_loras_with_tags.ja.md) : タグをLoRA＆jsonから読み込み、選択を可能にします。LoRA選択は名前のファジーマッチで行えます
 - [Toggle Tags](./docs/toggle_tags.ja.md) : 入力されたタグテキストからタグのオンオフをクリックで切り替えます
 - [Commentable Multiline Text](./docs/commentable_multiline_text.ja.md) : コメント行を除去して出力します

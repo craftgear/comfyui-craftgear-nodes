@@ -1,5 +1,7 @@
 # Commentable Multiline Text
 
+![node](./images/commentable_multi_line.png)
+
 ## 特徴
 
 - 複数行のテキストからコメント行を除去して出力します。

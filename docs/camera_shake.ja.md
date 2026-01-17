@@ -1,5 +1,7 @@
 # Camera Shake
 
+![node](./images/camera_shake.png)
+
 ## 特徴
 
 - 画像バッチに手持ちカメラ風の揺れ効果を追加します。
