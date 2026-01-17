@@ -281,6 +281,128 @@ const clampNumber = (value, min, max) => {
   return value;
 };
 
+const resolvePopupPosition = (
+  anchor,
+  popupSize,
+  viewport,
+  offset = { x: 0, y: 8 },
+  margin = 8,
+) => {
+  const safeMargin = Math.max(0, Number(margin) || 0);
+  const safeOffsetX = Number(offset?.x ?? 0) || 0;
+  const safeOffsetY = Number(offset?.y ?? 0) || 0;
+  const popupWidth = Math.max(0, Number(popupSize?.width ?? 0) || 0);
+  const popupHeight = Math.max(0, Number(popupSize?.height ?? 0) || 0);
+  const viewportWidth = Math.max(0, Number(viewport?.width ?? 0) || 0);
+  const viewportHeight = Math.max(0, Number(viewport?.height ?? 0) || 0);
+  const maxLeft = Math.max(safeMargin, viewportWidth - popupWidth - safeMargin);
+  const maxTop = Math.max(safeMargin, viewportHeight - popupHeight - safeMargin);
+  const left = clampNumber(
+    Number(anchor?.x ?? 0) + safeOffsetX,
+    safeMargin,
+    maxLeft,
+  );
+  const top = clampNumber(
+    Number(anchor?.y ?? 0) + safeOffsetY,
+    safeMargin,
+    maxTop,
+  );
+  return { left, top };
+};
+
+const resolveBelowCenteredPopupPosition = (
+  anchor,
+  popupSize,
+  viewport,
+  gap = 8,
+  margin = 8,
+) => {
+  const anchorWidth = Math.max(0, Number(anchor?.width ?? 0) || 0);
+  const anchorHeight = Math.max(0, Number(anchor?.height ?? 0) || 0);
+  const anchorX = Number(anchor?.x ?? 0) || 0;
+  const anchorY = Number(anchor?.y ?? 0) || 0;
+  const popupWidth = Math.max(0, Number(popupSize?.width ?? 0) || 0);
+  const centeredLeft = anchorX + anchorWidth / 2 - popupWidth / 2;
+  const top = anchorY + anchorHeight + gap;
+  return resolvePopupPosition(
+    { x: centeredLeft, y: top },
+    popupSize,
+    viewport,
+    { x: 0, y: 0 },
+    margin,
+  );
+};
+
+const resolveInlineControlLayout = (
+  availableWidth,
+  valueWidth,
+  buttonWidth,
+  gap = 4,
+) => {
+  const safeAvailable = Math.max(0, Number(availableWidth) || 0);
+  const safeValueWidth = Math.max(0, Number(valueWidth) || 0);
+  const safeButtonWidth = Math.max(0, Number(buttonWidth) || 0);
+  const safeGap = Math.max(0, Number(gap) || 0);
+  const totalGap = safeGap * 2;
+  const labelWidth = Math.max(
+    0,
+    safeAvailable - safeValueWidth - safeButtonWidth - totalGap,
+  );
+  return {
+    labelWidth,
+    valueWidth: safeValueWidth,
+    buttonWidth: safeButtonWidth,
+    gap: safeGap,
+  };
+};
+
+const resolveFixedLabelWidth = (charWidth, charCount = 4, padding = 4) => {
+  const safeCharWidth = Math.max(0, Number(charWidth) || 0);
+  const safeCount = Math.max(0, Number(charCount) || 0);
+  const safePadding = Math.max(0, Number(padding) || 0);
+  return safeCharWidth * safeCount + safePadding * 2;
+};
+
+const resolveCenteredY = (top, height, itemHeight) => {
+  const safeTop = Number(top) || 0;
+  const safeHeight = Math.max(0, Number(height) || 0);
+  const safeItemHeight = Math.max(0, Number(itemHeight) || 0);
+  return safeTop + (safeHeight - safeItemHeight) / 2;
+};
+
+const resolveRowLineHeight = (
+  rowHeight,
+  paddingY,
+  minHeight = 16,
+  adjust = 0,
+) => {
+  const safeRow = Math.max(0, Number(rowHeight) || 0);
+  const safePadding = Math.max(0, Number(paddingY) || 0);
+  const safeMin = Math.max(0, Number(minHeight) || 0);
+  const safeAdjust = Number.isFinite(adjust) ? adjust : 0;
+  const available = safeRow - safePadding * 2;
+  const base = Math.max(safeMin, available);
+  return Math.max(0, base + safeAdjust);
+};
+
+const resolveToggleSize = (rowHeight) => {
+  const safeHeight = Math.max(0, Number(rowHeight) || 0);
+  const height = Math.max(10, Math.min(14, safeHeight - 8));
+  return { height, width: Math.round(height * 1.8) };
+};
+
+const shouldCloseDialogOnOverlayClick = (overlay, target) => overlay === target;
+
+const resolveStrengthDefault = (options, fallback = 1.0) => {
+  const value = Number(options?.default ?? fallback);
+  return Number.isFinite(value) ? value : fallback;
+};
+
+const shouldCloseStrengthPopupOnRelease = (event) => {
+  const type = event?.type;
+  return type === "mouseup" || type === "pointerup" || type === "touchend";
+};
+
 const getStepDecimals = (step) => {
   if (!Number.isFinite(step)) {
     return 0;
@@ -349,6 +471,7 @@ const loraDialogMatchFontWeight = "600";
 const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
+const loraDialogWidth = "65vw";
 const tagDialogItemBackground = "transparent";
 const tagDialogItemActiveBackground = "#3a3a3a";
 const tagDialogItemHoverBackground = "#333333";
@@ -425,6 +548,7 @@ export {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  loraDialogWidth,
   tagDialogItemBackground,
   tagDialogItemActiveBackground,
   tagDialogItemHoverBackground,
@@ -438,4 +562,14 @@ export {
   resolveActiveIndex,
   resolveOption,
   resetIconPath,
+  resolvePopupPosition,
+  resolveBelowCenteredPopupPosition,
+  resolveInlineControlLayout,
+  resolveFixedLabelWidth,
+  resolveCenteredY,
+  resolveRowLineHeight,
+  resolveToggleSize,
+  shouldCloseDialogOnOverlayClick,
+  resolveStrengthDefault,
+  shouldCloseStrengthPopupOnRelease,
 };

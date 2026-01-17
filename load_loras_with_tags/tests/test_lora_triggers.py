@@ -142,7 +142,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             triggers = logic_triggers.extract_lora_triggers(lora_path)
             self.assertEqual(triggers, ["beta", "alpha"])
 
-    def test_splits_trained_words_string_by_comma(self) -> None:
+    def test_keeps_trained_words_string_with_commas(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             lora_path = os.path.join(temp_dir, "test.safetensors")
             write_safetensors_with_metadata(lora_path, {"trigger_words": ["meta"]})
@@ -150,9 +150,9 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             with open(model_info_path, "w", encoding="utf-8") as file:
                 json.dump({"trainedWords": "alpha, beta"}, file)
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta", "meta"])
+            self.assertEqual(triggers, ["alpha, beta", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
-            self.assertEqual([tag for tag, _count in frequencies], ["alpha", "beta"])
+            self.assertEqual([tag for tag, _count in frequencies], ["alpha, beta"])
             self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))
 
     def test_extracts_trained_words_from_any_json_file(self) -> None:

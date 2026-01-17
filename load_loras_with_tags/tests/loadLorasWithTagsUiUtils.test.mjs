@@ -11,6 +11,17 @@ import {
   resolveComboLabel,
   normalizeStrengthOptions,
   normalizeOptions,
+  loraDialogWidth,
+  resolvePopupPosition,
+  resolveBelowCenteredPopupPosition,
+  shouldCloseDialogOnOverlayClick,
+  resolveStrengthDefault,
+  shouldCloseStrengthPopupOnRelease,
+  resolveInlineControlLayout,
+  resolveCenteredY,
+  resolveFixedLabelWidth,
+  resolveRowLineHeight,
+  resolveToggleSize,
   filterLoraOptionIndices,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
@@ -65,6 +76,86 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.deepEqual(normalizeOptions(['a', 'b']), ['a', 'b']);
     assert.deepEqual(normalizeOptions({ a: 'x', b: 'y' }), ['x', 'y']);
     assert.deepEqual(normalizeOptions(null), []);
+    assert.equal(loraDialogWidth, '65vw');
+    assert.equal(resolveStrengthDefault({ default: 0.7 }), 0.7);
+    assert.equal(resolveStrengthDefault({ default: 'oops' }, 0.5), 0.5);
+    assert.equal(resolveStrengthDefault(null, 0.5), 0.5);
+    assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'mouseup' }));
+    assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'pointerup' }));
+    assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'touchend' }));
+    assert.ok(!shouldCloseStrengthPopupOnRelease({ type: 'mousedown' }));
+    assert.ok(shouldCloseDialogOnOverlayClick(options, options));
+    assert.ok(!shouldCloseDialogOnOverlayClick(options, ['None']));
+    assert.deepEqual(
+      resolvePopupPosition(
+        { x: 100, y: 100 },
+        { width: 200, height: 100 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 100, top: 108 },
+    );
+    assert.deepEqual(
+      resolvePopupPosition(
+        { x: 990, y: 790 },
+        { width: 200, height: 100 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 792, top: 692 },
+    );
+    assert.deepEqual(
+      resolvePopupPosition(
+        { x: 0, y: 0 },
+        { width: 2000, height: 2000 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 8, top: 8 },
+    );
+    assert.deepEqual(
+      resolveBelowCenteredPopupPosition(
+        { x: 100, y: 100, width: 80, height: 20 },
+        { width: 200, height: 100 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 40, top: 128 },
+    );
+    assert.deepEqual(
+      resolveBelowCenteredPopupPosition(
+        { x: 990, y: 790, width: 20, height: 20 },
+        { width: 200, height: 100 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 792, top: 692 },
+    );
+    assert.deepEqual(
+      resolveBelowCenteredPopupPosition(
+        { x: 0, y: 0, width: 10, height: 10 },
+        { width: 2000, height: 2000 },
+        { width: 1000, height: 800 },
+      ),
+      { left: 8, top: 8 },
+    );
+    assert.deepEqual(resolveInlineControlLayout(300, 40, 80, 4), {
+      labelWidth: 172,
+      valueWidth: 40,
+      buttonWidth: 80,
+      gap: 4,
+    });
+    assert.deepEqual(resolveInlineControlLayout(100, 40, 80, 4), {
+      labelWidth: 0,
+      valueWidth: 40,
+      buttonWidth: 80,
+      gap: 4,
+    });
+    assert.equal(resolveCenteredY(10, 20, 10), 15);
+    assert.equal(resolveCenteredY(0, 16, 12), 2);
+    assert.equal(resolveFixedLabelWidth(10), 48);
+    assert.equal(resolveFixedLabelWidth(8, 3, 2), 28);
+    assert.equal(resolveRowLineHeight(24, 4, 16, -6), 10);
+    assert.equal(resolveRowLineHeight(24, 4), 16);
+    assert.equal(resolveRowLineHeight(8, 4, 16, -4), 12);
+    assert.deepEqual(resolveToggleSize(24), { height: 14, width: 25 });
+    assert.deepEqual(resolveToggleSize(30), { height: 14, width: 25 });
+    assert.deepEqual(resolveToggleSize(12), { height: 10, width: 18 });
     assert.deepEqual(filterLoraOptionIndices('', options), [0, 1, 2]);
     assert.deepEqual(filterLoraOptionIndices('a', options), [1]);
     assert.deepEqual(filterLoraOptionIndices('b', options), [2]);

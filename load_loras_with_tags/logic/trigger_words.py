@@ -85,7 +85,8 @@ def _parse_trained_word_values(value: Any) -> list[Any]:
     def split_text(text: str) -> list[str]:
         if not text:
             return []
-        return [part.strip() for part in text.split(",") if part.strip()]
+        trimmed = text.strip()
+        return [trimmed] if trimmed else []
 
     if isinstance(value, (list, tuple)):
         output: list[Any] = []

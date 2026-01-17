@@ -21,6 +21,12 @@ describe('loraFuzzyMatch', () => {
     assert.ok(scoreFuzzy('fb', 'foo-bar') > scoreFuzzy('fb', 'foobar'));
     assert.ok(scoreFuzzy('fb', 'foo bar') > scoreFuzzy('fb', 'foobar'));
     assert.ok(scoreFuzzy('fb', 'foo.bar') > scoreFuzzy('fb', 'foobar'));
+    assert.ok(scoreFuzzy('fb', 'foo/bar') > scoreFuzzy('fb', 'foobar'));
+    assert.ok(scoreFuzzy('fb', 'foo\\bar') > scoreFuzzy('fb', 'foobar'));
+    assert.ok(scoreFuzzy('gen wan', 'WAN/General') > Number.NEGATIVE_INFINITY);
+    assert.ok(scoreFuzzy('gen wan', 'WAN General') > Number.NEGATIVE_INFINITY);
+    assert.ok(scoreFuzzy('wan gen', 'WAN/General') > Number.NEGATIVE_INFINITY);
+    assert.equal(scoreFuzzy('gen wan', 'WAN/Other'), Number.NEGATIVE_INFINITY);
 
     assert.equal(scoreFuzzy('a', ''), Number.NEGATIVE_INFINITY);
     assert.equal(scoreFuzzy('abc', 'ab'), Number.NEGATIVE_INFINITY);
@@ -73,7 +79,11 @@ describe('loraFuzzyMatch', () => {
 
     assertMatchPositions('abc', 'a_b_c');
     assertMatchPositions('fb', 'fooBar');
-    assertMatchPositions('rei ne', 'Rei Ayanami, Neon Genesis');
+    assertMatchPositions('rei', 'Rei Ayanami, Neon Genesis');
+    assert.deepEqual(matchFuzzyPositions('wan', 'wan/wan'), [0, 1, 2]);
+    assert.deepEqual(matchFuzzyPositions('wan', 'wan\\wan'), [0, 1, 2]);
+    assert.deepEqual(matchFuzzyPositions('wan gen', 'gen/wan'), [0, 1, 2, 4, 5, 6]);
+    assert.equal(matchFuzzyPositions('wan gen', 'wan/other'), null);
     assert.deepEqual(matchFuzzyPositions('', 'abc'), []);
     assert.equal(matchFuzzyPositions('abc', 'def'), null);
   });

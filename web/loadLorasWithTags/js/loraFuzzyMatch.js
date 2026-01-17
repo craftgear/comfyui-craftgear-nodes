@@ -6,6 +6,7 @@ const SCORE_GAP_TRAILING = -0.005;
 const SCORE_GAP_INNER = -0.01;
 
 const SCORE_MATCH_CONSECUTIVE = 1.0;
+const SCORE_MATCH_START = 0.9;
 const SCORE_MATCH_WORD = 0.8;
 const SCORE_MATCH_CAPITAL = 0.7;
 const SCORE_MATCH_DOT = 0.6;
@@ -16,13 +17,24 @@ const isLower = (code) => code >= 97 && code <= 122;
 const isUpper = (code) => code >= 65 && code <= 90;
 const isDigit = (code) => code >= 48 && code <= 57;
 
+const splitQueryTokens = (query) => {
+	const trimmed = String(query ?? '').trim();
+	if (!trimmed) {
+		return [];
+	}
+	return trimmed.split(/\s+/);
+};
+
 const computeBonus = (lastChar, currentChar) => {
 	const currentCode = currentChar.charCodeAt(0);
 	if (!(isUpper(currentCode) || isLower(currentCode) || isDigit(currentCode))) {
 		return 0;
 	}
 
-	if (lastChar === '-' || lastChar === '_' || lastChar === ' ') {
+	if (lastChar === '') {
+		return SCORE_MATCH_START;
+	}
+	if (lastChar === '-' || lastChar === '_' || lastChar === ' ' || lastChar === '/' || lastChar === '\\') {
 		return SCORE_MATCH_WORD;
 	}
 	if (lastChar === '.') {
@@ -41,7 +53,7 @@ const computeBonus = (lastChar, currentChar) => {
 
 const buildBonus = (haystack) => {
 	const bonus = new Array(haystack.length);
-	let lastChar = '/';
+	let lastChar = '';
 	for (let i = 0; i < haystack.length; i += 1) {
 		const currentChar = haystack[i];
 		bonus[i] = computeBonus(lastChar, currentChar);
@@ -230,31 +242,51 @@ const matchPositions = (needle, haystack) => {
 };
 
 export const scoreFuzzy = (query, target) => {
-	const trimmed = query.trim();
-	if (!trimmed) {
+	const tokens = splitQueryTokens(query);
+	if (tokens.length === 0) {
 		return 0;
 	}
 	if (!target) {
 		return SCORE_MIN;
 	}
-
-	return matchScore(trimmed, target);
+	if (tokens.length === 1) {
+		return matchScore(tokens[0], target);
+	}
+	let total = 0;
+	for (const token of tokens) {
+		const score = matchScore(token, target);
+		if (score === SCORE_MIN) {
+			return SCORE_MIN;
+		}
+		total += score;
+	}
+	return total;
 };
 
 export const matchFuzzyPositions = (query, target) => {
-	const trimmed = query.trim();
-	if (!trimmed) {
+	const tokens = splitQueryTokens(query);
+	if (tokens.length === 0) {
 		return [];
 	}
 	if (!target) {
 		return null;
 	}
-
-	return matchPositions(trimmed, target);
+	if (tokens.length === 1) {
+		return matchPositions(tokens[0], target);
+	}
+	const matches = new Set();
+	for (const token of tokens) {
+		const positions = matchPositions(token, target);
+		if (!positions) {
+			return null;
+		}
+		positions.forEach((index) => matches.add(index));
+	}
+	return Array.from(matches).sort((a, b) => a - b);
 };
 
 export const rankFuzzy = (query, items) => {
-	const normalizedQuery = query.trim();
+	const normalizedQuery = String(query ?? '').trim();
 	if (!normalizedQuery) {
 		return items.slice();
 	}

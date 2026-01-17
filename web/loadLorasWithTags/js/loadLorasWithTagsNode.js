@@ -4,15 +4,10 @@ import { $el } from "../../../../scripts/ui.js";
 import { getTagVisibility, getTopNVisibility } from "./tagFilterUtils.js";
 import { normalizeSelectionValue } from "./selectionValueUtils.js";
 import {
-  calculateSliderValue,
   computeButtonRect,
-  computeResetButtonRect,
-  computeSplitWidths,
-  computeSliderRatio,
   moveIndex,
   normalizeStrengthOptions,
   normalizeOptions,
-  resetIconPath,
   filterLoraOptionIndices,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
@@ -26,6 +21,7 @@ import {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  loraDialogWidth,
   tagDialogItemBackground,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
@@ -41,25 +37,36 @@ import {
   resolveActiveIndex,
   resolveComboLabel,
   resolveOption,
+  resolveBelowCenteredPopupPosition,
+  resolveInlineControlLayout,
+  resolveFixedLabelWidth,
+  resolveCenteredY,
+  resolveRowLineHeight,
+  resolveToggleSize,
+  shouldCloseDialogOnOverlayClick,
+  resolveStrengthDefault,
+  resetIconPath,
+  shouldCloseStrengthPopupOnRelease,
 } from "./loadLorasWithTagsUiUtils.js";
 
 const TARGET_NODE_CLASS = "LoadLorasWithTags";
 const MAX_LORA_STACK = 10;
-const ROW_HEIGHT = 50;
-const ROW_PADDING_Y = 8;
+const ROW_HEIGHT = 24;
+const ROW_PADDING_Y = 0;
 const HEADER_HEIGHT = 24;
+const HEADER_TOP_PADDING = 4;
 const MARGIN = 10;
 const INNER_MARGIN = 4;
-const CONTENT_PADDING = 4;
 const CONTENT_PADDING_Y = 4;
-const CONTENT_GAP_Y = 4;
 const CONTENT_SIDE_INSET = 6;
 const SELECT_BUTTON_PADDING = 2;
 const SELECT_TRIGGER_LABEL = "Select Tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
 const DIALOG_ID = "craftgear-hoge-trigger-dialog";
+const STRENGTH_POPUP_ID = "craftgear-hoge-strength-popup";
 const TOP_N_STORAGE_KEY = "craftgear-hoge-trigger-dialog-top-n";
 let dialogKeydownHandler = null;
+let strengthPopupState = null;
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || "";
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
@@ -169,7 +176,22 @@ const fetchTriggers = async (loraName) => {
   };
 };
 
+const closeStrengthPopup = () => {
+  const existing = document.getElementById(STRENGTH_POPUP_ID);
+  if (existing) {
+    existing.remove();
+  }
+  if (strengthPopupState?.cleanup) {
+    strengthPopupState.cleanup();
+  }
+  if (strengthPopupState?.targetNode) {
+    strengthPopupState.targetNode.__hogeStrengthPopupSlot = null;
+  }
+  strengthPopupState = null;
+};
+
 const closeDialog = () => {
+  closeStrengthPopup();
   const existing = document.getElementById(DIALOG_ID);
   if (existing) {
     existing.remove();
@@ -194,6 +216,12 @@ const showMessage = (message) => {
       justifyContent: "center",
     },
   });
+  overlay.addEventListener("mousedown", (event) => {
+    if (!shouldCloseDialogOnOverlayClick(overlay, event.target)) {
+      return;
+    }
+    closeDialog();
+  });
   const panel = $el("div", {
     style: {
       background: "#1e1e1e",
@@ -214,6 +242,185 @@ const showMessage = (message) => {
   panel.append(body, okButton);
   overlay.append(panel);
   document.body.append(overlay);
+};
+
+const resolveStrengthPopupAnchor = (slot, targetNode, event) => {
+  const fallbackX = event?.clientX ?? 0;
+  const fallbackY = event?.clientY ?? 0;
+  const rect = slot?.__hitStrengthValue;
+  const nodePos = Array.isArray(targetNode?.pos) ? targetNode.pos : null;
+  const canvas = app?.canvas;
+  const canvasElement = canvas?.canvas;
+  if (!rect || !nodePos || !canvasElement) {
+    return { x: fallbackX, y: fallbackY, width: 0, height: 0 };
+  }
+  const bounds = canvasElement.getBoundingClientRect?.();
+  const scaleRaw = Number(canvas?.ds ?? canvas?.scale ?? 1);
+  const scale = Number.isFinite(scaleRaw) && scaleRaw > 0 ? scaleRaw : 1;
+  const offsetX = Number(canvas?.offset?.[0] ?? 0);
+  const offsetY = Number(canvas?.offset?.[1] ?? 0);
+  const originX = Number(bounds?.left ?? 0);
+  const originY = Number(bounds?.top ?? 0);
+  const graphX = Number(nodePos[0] ?? 0) + Number(rect.x ?? 0);
+  const graphY = Number(nodePos[1] ?? 0) + Number(rect.y ?? 0);
+  const width = Math.max(0, Number(rect.width ?? 0));
+  const height = Math.max(0, Number(rect.height ?? 0));
+  return {
+    x: originX + (graphX + offsetX) * scale,
+    y: originY + (graphY + offsetY) * scale,
+    width: width * scale,
+    height: height * scale,
+  };
+};
+
+const updateStrengthPopupValue = (slot) => {
+  if (!strengthPopupState || strengthPopupState.slot !== slot) {
+    return;
+  }
+  const options = normalizeStrengthOptions(slot.strengthWidget?.options);
+  const strengthDefault = resolveStrengthDefault(options, 1.0);
+  const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
+  strengthPopupState.range.value = String(strengthValue);
+};
+
+const openStrengthPopup = (slot, event, targetNode) => {
+  if (!slot?.strengthWidget || !targetNode) {
+    return;
+  }
+  if (targetNode.__hogeStrengthPopupSlot === slot) {
+    closeStrengthPopup();
+    return;
+  }
+  closeStrengthPopup();
+  const options = normalizeStrengthOptions(slot.strengthWidget?.options);
+  const strengthDefault = resolveStrengthDefault(options, 1.0);
+  const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
+  const min = Number(options?.min ?? 0);
+  const max = Number(options?.max ?? 1);
+  const step = Number(options?.step ?? 0.1);
+  const popup = $el("div", {
+    id: STRENGTH_POPUP_ID,
+    style: {
+      position: "fixed",
+      zIndex: 10001,
+      background: "#1e1e1e",
+      border: "1px solid #3a3a3a",
+      borderRadius: "6px",
+      padding: "8px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      fontFamily: "sans-serif",
+    },
+  });
+  const controlRow = $el("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+    },
+  });
+  const resetButton = $el("button", {
+    "aria-label": "Reset",
+    title: "Reset",
+    style: {
+      width: "22px",
+      height: "22px",
+      padding: "0",
+      borderRadius: "4px",
+      border: "1px solid #3a3a3a",
+      background: "#2a2a2a",
+      color: "#e0e0e0",
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  });
+  const resetIcon = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "svg",
+  );
+  resetIcon.setAttribute("viewBox", "0 0 32 32");
+  resetIcon.setAttribute("width", "14");
+  resetIcon.setAttribute("height", "14");
+  const resetPath = document.createElementNS(
+    "http://www.w3.org/2000/svg",
+    "path",
+  );
+  resetPath.setAttribute("d", resetIconPath);
+  resetPath.setAttribute("fill", "currentColor");
+  resetIcon.append(resetPath);
+  resetButton.append(resetIcon);
+  resetButton.onclick = () => {
+    const next = resolveStrengthDefault(options, 1.0);
+    setWidgetValue(slot.strengthWidget, next);
+    updateStrengthPopupValue(slot);
+    markDirty(targetNode);
+    closeStrengthPopup();
+  };
+  const range = $el("input", {
+    type: "range",
+    min: Number.isFinite(min) ? min : 0,
+    max: Number.isFinite(max) ? max : 1,
+    step: Number.isFinite(step) && step > 0 ? step : 0.1,
+    value: Number.isFinite(strengthValue) ? strengthValue : 0,
+    style: { width: "220px", flex: "1 1 auto" },
+  });
+  controlRow.append(range, resetButton);
+  range.oninput = () => {
+    const next = Number(range.value);
+    setWidgetValue(slot.strengthWidget, next);
+    markDirty(targetNode);
+  };
+  const handleRelease = (nextEvent) => {
+    if (!shouldCloseStrengthPopupOnRelease(nextEvent)) {
+      return;
+    }
+    closeStrengthPopup();
+  };
+  range.addEventListener("mouseup", handleRelease);
+  range.addEventListener("pointerup", handleRelease);
+  range.addEventListener("touchend", handleRelease);
+  popup.append(controlRow);
+  document.body.append(popup);
+  const popupRect = popup.getBoundingClientRect();
+  const anchor = resolveStrengthPopupAnchor(slot, targetNode, event);
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const position = resolveBelowCenteredPopupPosition(
+    anchor,
+    { width: popupRect.width, height: popupRect.height },
+    viewport,
+  );
+  popup.style.left = `${position.left}px`;
+  popup.style.top = `${position.top}px`;
+  const handleOutside = (nextEvent) => {
+    if (popup.contains(nextEvent.target)) {
+      return;
+    }
+    closeStrengthPopup();
+  };
+  const handleKeydown = (nextEvent) => {
+    if (nextEvent.key === "Escape") {
+      closeStrengthPopup();
+    }
+  };
+  document.addEventListener("mousedown", handleOutside, true);
+  document.addEventListener("keydown", handleKeydown, true);
+  strengthPopupState = {
+    slot,
+    range,
+    targetNode,
+    cleanup: () => {
+      range.removeEventListener("mouseup", handleRelease);
+      range.removeEventListener("pointerup", handleRelease);
+      range.removeEventListener("touchend", handleRelease);
+      document.removeEventListener("mousedown", handleOutside, true);
+      document.removeEventListener("keydown", handleKeydown, true);
+    },
+  };
+  targetNode.__hogeStrengthPopupSlot = slot;
 };
 
 const parseSelection = (selectionText, triggers) => {
@@ -262,6 +469,12 @@ const openTriggerDialog = async (
       alignItems: "center",
       justifyContent: "center",
     },
+  });
+  overlay.addEventListener("mousedown", (event) => {
+    if (!shouldCloseDialogOnOverlayClick(overlay, event.target)) {
+      return;
+    }
+    closeDialog();
   });
   const panel = $el("div", {
     style: {
@@ -482,7 +695,10 @@ const openTriggerDialog = async (
       return;
     }
     activeIndex = resolveActiveIndex(visibleIndices, activeIndex);
-    const currentVisibleIndex = Math.max(0, visibleIndices.indexOf(activeIndex));
+    const currentVisibleIndex = Math.max(
+      0,
+      visibleIndices.indexOf(activeIndex),
+    );
     const nextVisibleIndex = moveIndex(
       currentVisibleIndex,
       direction,
@@ -600,9 +816,12 @@ const openTriggerDialog = async (
       moveActive(-1);
       return;
     }
-    const isTextInput = event?.target?.tagName === "INPUT" && event?.target?.type === "text";
+    const isTextInput =
+      event?.target?.tagName === "INPUT" && event?.target?.type === "text";
     if (
-      (event.key === " " || event.code === "Space" || event.key === "Spacebar") &&
+      (event.key === " " ||
+        event.code === "Space" ||
+        event.key === "Spacebar") &&
       !isTextInput
     ) {
       event.preventDefault();
@@ -734,118 +953,37 @@ const formatStrengthValue = (value, options) => {
   return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 };
 
-const drawStrengthSlider = (ctx, rect, widget, isEnabled) => {
+const drawStrengthSummary = (ctx, rect, widget, isEnabled) => {
   const options = normalizeStrengthOptions(widget?.options);
-  const strengthValue = Number(widget?.value ?? options?.default ?? 0);
-  const ratio = computeSliderRatio(strengthValue, options);
+  const strengthDefault = resolveStrengthDefault(options, 1.0);
+  const strengthValue = Number(widget?.value ?? strengthDefault);
   const valueText = formatStrengthValue(strengthValue, options);
-  const valueTextWidth = ctx.measureText(valueText).width;
   const valuePadding = 4;
-  const valueGap = 6;
-  const resetSize = Math.max(12, Math.min(16, rect.height - 2));
-  const resetGap = 6;
-  const resetRect = computeResetButtonRect(rect, resetSize, 0);
-  const valueAreaWidth = Math.max(24, valueTextWidth + valuePadding * 2);
-  const maxSliderWidth = rect.width * 0.9;
-  const availableWidth =
-    rect.width - valueAreaWidth - valueGap - resetSize - resetGap;
-  const rawSliderWidth = Math.min(maxSliderWidth, availableWidth);
-  const sliderWidth = Math.max(
-    0,
-    Math.min(rect.width, availableWidth, Math.max(20, rawSliderWidth)),
+  const valueAreaWidth = resolveFixedLabelWidth(
+    ctx.measureText("0").width,
+    4,
+    valuePadding,
   );
-  const sliderRect = {
-    x: rect.x,
+  const valueRectWidth = Math.max(0, Math.min(valueAreaWidth, rect.width));
+  const valueRectX = rect.x + (rect.width - valueRectWidth) / 2;
+  const valueRect = {
+    x: valueRectX,
     y: rect.y,
-    width: Math.max(0, sliderWidth),
+    width: valueRectWidth,
     height: rect.height,
   };
-  const trackHeight = Math.max(4, Math.min(8, sliderRect.height / 3));
-  const trackY = sliderRect.y + sliderRect.height / 2 - trackHeight / 2;
-  const trackRadius = trackHeight / 2;
-  const knobHeight = Math.max(10, Math.min(14, sliderRect.height - 2));
-  const knobWidth = Math.max(knobHeight * 1.6, knobHeight + 8);
-  const knobX = sliderRect.x + ratio * sliderRect.width;
-  const knobMin = sliderRect.x + knobWidth / 2;
-  const knobMax = sliderRect.x + sliderRect.width - knobWidth / 2;
-  const knobCenterX = Math.min(Math.max(knobX, knobMin), knobMax);
-  const trackWidth = Math.max(0, sliderRect.width);
-  const fillWidth = Math.max(0, knobCenterX - sliderRect.x);
+  const valueTextX = valueRect.x + valueRect.width - valuePadding;
+  const maxTextWidth = Math.max(0, valueRect.width - valuePadding * 2);
+  const valueLabel = fitText(ctx, valueText, maxTextWidth);
 
   ctx.save();
-  ctx.fillStyle = "#1f1f1f";
-  drawRoundedRect(
-    ctx,
-    sliderRect.x,
-    trackY,
-    trackWidth,
-    trackHeight,
-    trackRadius,
-  );
-  ctx.fill();
-  ctx.fillStyle = "#7a7a7a";
-  drawRoundedRect(
-    ctx,
-    sliderRect.x,
-    trackY,
-    fillWidth,
-    trackHeight,
-    trackRadius,
-  );
-  ctx.fill();
-
-  ctx.fillStyle = "#d0d0d0";
-  const knobRectX = knobCenterX - knobWidth / 2;
-  const knobRectY = sliderRect.y + sliderRect.height / 2 - knobHeight / 2;
-  drawRoundedRect(
-    ctx,
-    knobRectX,
-    knobRectY,
-    knobWidth,
-    knobHeight,
-    knobHeight / 2,
-  );
-  ctx.fill();
-
   ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
-  const valueRectX = sliderRect.x + sliderRect.width + valueGap;
-  const valueRectMax = resetRect.x - resetGap;
-  const valueRectWidth = Math.max(
-    0,
-    Math.min(valueAreaWidth, valueRectMax - valueRectX),
-  );
-  const valueCenterX = valueRectX + valueRectWidth / 2;
-  ctx.textAlign = "center";
+  ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText(valueText, valueCenterX, rect.y + rect.height / 2);
-  ctx.globalAlpha *= isEnabled ? 1 : 0.4;
-  ctx.fillStyle = "#2a2a2a";
-  drawRoundedRect(
-    ctx,
-    resetRect.x,
-    resetRect.y,
-    resetRect.width,
-    resetRect.height,
-    resetRect.height / 2,
-  );
-  ctx.fill();
-  ctx.strokeStyle = "#4a4a4a";
-  ctx.stroke();
-  const iconSize = Math.max(0, Math.min(resetRect.width, resetRect.height) - 4);
-  if (iconSize > 0 && typeof Path2D !== "undefined") {
-    const scale = iconSize / 32;
-    const iconX = resetRect.x + (resetRect.width - iconSize) / 2;
-    const iconY = resetRect.y + (resetRect.height - iconSize) / 2;
-    ctx.save();
-    ctx.translate(iconX, iconY);
-    ctx.scale(scale, scale);
-    ctx.fillStyle = "#d0d0d0";
-    ctx.fill(new Path2D(resetIconPath));
-    ctx.restore();
-  }
+  ctx.fillText(valueLabel, valueTextX, rect.y + rect.height / 2);
   ctx.restore();
 
-  return { sliderRect, resetRect };
+  return { valueRect };
 };
 
 const isPointInRect = (pos, rect) => {
@@ -922,19 +1060,25 @@ const setupHogeUi = (node) => {
       computeSize: (width) => [width ?? 0, HEADER_HEIGHT],
       draw(ctx, _node, width, y, height) {
         const rowHeight = height ?? HEADER_HEIGHT;
-        const midY = y + rowHeight / 2;
         const headerMargin = MARGIN + CONTENT_SIDE_INSET;
-        const toggleHeight = Math.max(10, Math.min(14, rowHeight - 8));
-        const toggleWidth = Math.round(toggleHeight * 1.8);
+        const headerToggleSize = resolveToggleSize(rowHeight);
+        const headerAvailableHeight = Math.max(
+          0,
+          rowHeight - HEADER_TOP_PADDING,
+        );
         const toggleRect = {
           x: headerMargin,
-          y: y + (rowHeight - toggleHeight) / 2,
-          width: toggleWidth,
-          height: toggleHeight,
+          y:
+            y +
+            HEADER_TOP_PADDING +
+            (headerAvailableHeight - headerToggleSize.height) / 2,
+          width: headerToggleSize.width,
+          height: headerToggleSize.height,
         };
         widget.__toggleRect = toggleRect;
         const state = getAllToggleState?.() ?? null;
         drawToggle(ctx, toggleRect, state === true, state === null);
+        const midY = toggleRect.y + toggleRect.height / 2;
         ctx.save();
         ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
         ctx.textAlign = "left";
@@ -968,21 +1112,19 @@ const setupHogeUi = (node) => {
         const contentWidth = width - rowMargin * 2;
         const contentTop = y + ROW_PADDING_Y;
         const availableHeight = rowHeight - ROW_PADDING_Y * 2;
-        const lineHeight = Math.max(16, (availableHeight - CONTENT_GAP_Y) / 2);
-        const controlTop = contentTop + lineHeight + CONTENT_GAP_Y;
+        const lineHeight = resolveRowLineHeight(rowHeight, ROW_PADDING_Y, 16, -6);
 
         ctx.save();
         ctx.fillStyle = "#2a2a2a";
         drawRoundedRect(ctx, rowMargin, y, width - rowMargin * 2, rowHeight, 6);
         ctx.fill();
 
-        const toggleHeight = Math.max(12, Math.min(18, rowHeight - 8));
-        const toggleWidth = Math.round(toggleHeight * 1.8);
+        const rowToggleSize = resolveToggleSize(rowHeight);
         const toggleRect = {
           x: posX,
-          y: contentTop + (availableHeight - toggleHeight) / 2,
-          width: toggleWidth,
-          height: toggleHeight,
+          y: contentTop + (availableHeight - rowToggleSize.height) / 2,
+          width: rowToggleSize.width,
+          height: rowToggleSize.height,
         };
         slot.__hitToggle = toggleRect;
         drawToggle(ctx, toggleRect, !!slot.toggleWidget?.value);
@@ -997,10 +1139,37 @@ const setupHogeUi = (node) => {
         ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
+        const strengthOptions = normalizeStrengthOptions(
+          slot.strengthWidget?.options,
+        );
+        const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
+        const strengthValue = Number(
+          slot.strengthWidget?.value ?? strengthDefault,
+        );
+        const strengthText = formatStrengthValue(
+          strengthValue,
+          strengthOptions,
+        );
+        const strengthValueWidth = resolveFixedLabelWidth(
+          ctx.measureText("0").width,
+          4,
+          4,
+        );
+        const triggerTextWidth = ctx.measureText(SELECT_TRIGGER_LABEL).width;
+        const triggerButtonWidth = Math.max(
+          80,
+          triggerTextWidth + SELECT_BUTTON_PADDING * 2 + 16,
+        );
+        const inlineLayout = resolveInlineControlLayout(
+          labelAreaWidth,
+          strengthValueWidth,
+          triggerButtonWidth,
+          INNER_MARGIN,
+        );
         const labelButtonBaseRect = computeButtonRect(
           posX,
           contentTop,
-          labelAreaWidth,
+          inlineLayout.labelWidth,
           lineHeight,
           CONTENT_PADDING_Y,
         );
@@ -1014,7 +1183,7 @@ const setupHogeUi = (node) => {
         );
         const labelButtonRect = {
           x: labelButtonBaseRect.x,
-          y: contentTop + (lineHeight - labelButtonHeight) / 2,
+          y: resolveCenteredY(contentTop, availableHeight, labelButtonHeight),
           width: labelButtonBaseRect.width,
           height: labelButtonHeight,
         };
@@ -1044,40 +1213,31 @@ const setupHogeUi = (node) => {
         ctx.fillText(
           fitText(ctx, label || "None", labelTextWidth),
           labelTextX,
-          labelTextRect.y + labelTextRect.height / 2,
+          labelButtonRect.y + labelButtonRect.height / 2,
         );
 
         const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
-        const controlWidth = Math.max(
-          100,
-          labelAreaWidth - CONTENT_PADDING * 2,
-        );
-        const controlLeft = posX + CONTENT_PADDING;
-        const { first: strengthWidth, second: buttonWidth } =
-          computeSplitWidths(controlWidth, 2, 1, INNER_MARGIN);
+        const strengthLeft =
+          labelButtonRect.x + labelButtonRect.width + INNER_MARGIN;
         const strengthRect = {
-          x: controlLeft,
-          y:
-            controlTop +
-            CONTENT_PADDING_Y +
-            (lineHeight - CONTENT_PADDING_Y * 2 - strengthHeight) / 2,
-          width: Math.max(0, strengthWidth),
+          x: strengthLeft,
+          y: resolveCenteredY(contentTop, availableHeight, strengthHeight),
+          width: Math.max(0, inlineLayout.valueWidth),
           height: strengthHeight,
         };
-        const strengthRects = drawStrengthSlider(
+        const strengthRects = drawStrengthSummary(
           ctx,
           strengthRect,
           slot.strengthWidget,
           isOn,
         );
-        slot.__hitStrengthSlider = strengthRects.sliderRect;
-        slot.__hitStrengthReset = strengthRects.resetRect;
+        slot.__hitStrengthValue = strengthRects.valueRect;
 
         const buttonHeight = selectTriggerButtonHeight;
         const buttonRect = computeButtonRect(
-          controlLeft + strengthWidth + INNER_MARGIN,
-          controlTop + (lineHeight - buttonHeight) / 2,
-          Math.max(0, buttonWidth),
+          strengthRect.x + strengthRect.width + INNER_MARGIN,
+          resolveCenteredY(contentTop, availableHeight, buttonHeight),
+          Math.max(0, inlineLayout.buttonWidth),
           selectTriggerButtonHeight,
           SELECT_BUTTON_PADDING,
         );
@@ -1154,7 +1314,10 @@ const setupHogeUi = (node) => {
         return;
       }
       applyLoraValue(slot.loraWidget, savedValues[base]);
-      const strengthDefault = slot.strengthWidget?.options?.default ?? 1.0;
+      const strengthDefault = resolveStrengthDefault(
+        slot.strengthWidget?.options,
+        1.0,
+      );
       const strengthValue =
         savedValues.length > base + 1 ? savedValues[base + 1] : strengthDefault;
       setWidgetValue(
@@ -1287,13 +1450,19 @@ const setupHogeUi = (node) => {
         justifyContent: "center",
       },
     });
+    overlay.addEventListener("mousedown", (event) => {
+      if (!shouldCloseDialogOnOverlayClick(overlay, event.target)) {
+        return;
+      }
+      closeDialog();
+    });
     const panel = $el("div", {
       style: {
         background: "#1e1e1e",
         color: "#e0e0e0",
         padding: "16px",
         borderRadius: "8px",
-        width: "50vw",
+        width: loraDialogWidth,
         height: "70vh",
         display: "flex",
         flexDirection: "column",
@@ -1537,7 +1706,7 @@ const setupHogeUi = (node) => {
       renderList(true);
       focusInputLater(filterInput);
     };
-    list.addEventListener('mousemove', resumeHoverSelection);
+    list.addEventListener("mousemove", resumeHoverSelection);
     const scrollSelectedIntoView = () => {
       const entry = renderedButtons[selectedVisibleIndex];
       if (!entry) {
@@ -1683,35 +1852,14 @@ const setupHogeUi = (node) => {
         markDirty(targetNode);
         return true;
       }
-      if (isPointInRect(pos, slot.__hitStrengthReset)) {
+      if (isPointInRect(pos, slot.__hitStrengthValue)) {
         if (!isEnabled) {
           if (event) {
             event.__hogeHandled = true;
           }
           return true;
         }
-        const strengthDefault = slot.strengthWidget?.options?.default ?? 1.0;
-        setWidgetValue(slot.strengthWidget, strengthDefault);
-        if (event) {
-          event.__hogeHandled = true;
-        }
-        markDirty(targetNode);
-        return true;
-      }
-      if (isPointInRect(pos, slot.__hitStrengthSlider)) {
-        if (!isEnabled) {
-          if (event) {
-            event.__hogeHandled = true;
-          }
-          return true;
-        }
-        targetNode.__hogeActiveSlider = slot;
-        const next = calculateSliderValue(
-          pos[0],
-          slot.__hitStrengthSlider,
-          normalizeStrengthOptions(slot.strengthWidget?.options),
-        );
-        setWidgetValue(slot.strengthWidget, next);
+        openStrengthPopup(slot, event, targetNode);
         if (event) {
           event.__hogeHandled = true;
         }
@@ -1720,49 +1868,6 @@ const setupHogeUi = (node) => {
       }
     }
     return false;
-  };
-
-  const handleMouseMove = (event, pos, targetNode) => {
-    if (
-      event?.type &&
-      event.type !== "mousemove" &&
-      event.type !== "pointermove"
-    ) {
-      return false;
-    }
-    if (!Array.isArray(pos)) {
-      return false;
-    }
-    const activeSlot = targetNode.__hogeActiveSlider;
-    if (!activeSlot?.__hitStrengthSlider) {
-      return false;
-    }
-    const next = calculateSliderValue(
-      pos[0],
-      activeSlot.__hitStrengthSlider,
-      normalizeStrengthOptions(activeSlot.strengthWidget?.options),
-    );
-    setWidgetValue(activeSlot.strengthWidget, next);
-    if (event) {
-      event.__hogeHandled = true;
-    }
-    markDirty(targetNode);
-    return true;
-  };
-
-  const handleMouseUp = (event, _pos, targetNode) => {
-    if (event?.type && event.type !== "mouseup" && event.type !== "pointerup") {
-      return false;
-    }
-    if (!targetNode.__hogeActiveSlider) {
-      return false;
-    }
-    targetNode.__hogeActiveSlider = null;
-    if (event) {
-      event.__hogeHandled = true;
-    }
-    markDirty(targetNode);
-    return true;
   };
 
   for (let index = 1; index <= MAX_LORA_STACK; index += 1) {
@@ -1814,34 +1919,6 @@ const setupHogeUi = (node) => {
     node.onMouseDown = wrappedMouseDown;
   }
 
-  if (!node.__hogeMouseMoveWrapped) {
-    node.__hogeMouseMoveWrapped = true;
-    const originalMouseMove = node.onMouseMove;
-    node.onMouseMove = function (event, pos) {
-      if (event?.__hogeHandled) {
-        return true;
-      }
-      if (handleMouseMove(event, pos, this)) {
-        return true;
-      }
-      return originalMouseMove?.apply(this, arguments);
-    };
-  }
-
-  if (!node.__hogeMouseUpWrapped) {
-    node.__hogeMouseUpWrapped = true;
-    const originalMouseUp = node.onMouseUp;
-    node.onMouseUp = function (event, pos) {
-      if (event?.__hogeHandled) {
-        return true;
-      }
-      if (handleMouseUp(event, pos, this)) {
-        return true;
-      }
-      return originalMouseUp?.apply(this, arguments);
-    };
-  }
-
   if (!node.__hogeSerializeWrapped) {
     node.__hogeSerializeWrapped = true;
     const originalSerialize = node.onSerialize;
@@ -1849,7 +1926,10 @@ const setupHogeUi = (node) => {
       originalSerialize?.apply(this, arguments);
       const values = [];
       slots.forEach((slot) => {
-        const strengthDefault = slot.strengthWidget?.options?.default ?? 1.0;
+        const strengthDefault = resolveStrengthDefault(
+          slot.strengthWidget?.options,
+          1.0,
+        );
         const loraValue = resolveComboLabel(
           slot.loraWidget?.value,
           getComboOptions(slot.loraWidget),
