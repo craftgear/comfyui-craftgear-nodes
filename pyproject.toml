@@ -1,19 +1,14 @@
 [project]
-name = "TBD"
-version = "TBD"
-description = "TBD"
-readme = "README.md"
-requires-python = ">=3.10"
-license = { text = "TBD" }
-authors = [
-  { name = "TBD", email = "TBD" },
-]
+name = "comfyui-craftgear-nodes"
+description = "some tiny nodes for better QoL "
+version = "0.4.2"
+license = { file = "LICENSE" }
+dependencies = []
 
 [project.urls]
-Repository = "TBD"
+Repository = "https://github.com/YOUR_USERNAME/comfyui-craftgear-nodes"
 
 [tool.comfy]
-PublisherId = "TBD"
-DisplayName = "TBD"
-Description = "TBD"
-Icon = "TBD"
+PublisherId = "craftgear"
+DisplayName = "Craftgear Nodes"
+Icon = ""

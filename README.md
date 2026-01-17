@@ -1,6 +1,6 @@
 # craftgear nodes
 
-A collection of handy custom nodes for ComfyUI.
+some tiny nodes for better QoL.
 
 ## Node List
 
