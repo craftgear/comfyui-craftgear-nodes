@@ -11,6 +11,10 @@ import {
   splitTags,
   toggleTag,
 } from './tagToggleTextUtils.js';
+import {
+  FONT_SIZE_SETTING_ID,
+  normalizeFontSize,
+} from './tagToggleTextSettings.js';
 
 const TARGET_NODE_CLASS = 'TagToggleTextNode';
 const TEXT_INPUT_NAME = 'text';
@@ -19,12 +23,19 @@ const DISPLAY_WIDGET_NAME = 'tag_toggle_display';
 
 const DISPLAY_PADDING_X = 8;
 const DISPLAY_PADDING_Y = 6;
-const TAG_LINE_HEIGHT = 18;
 const DISPLAY_PADDING_TOTAL = DISPLAY_PADDING_Y * 2 + 4;
+const LINE_HEIGHT_RATIO = 18 / 14;
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || '';
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
 const getWidget = (node, name) => node.widgets?.find((widget) => widget.name === name);
+
+const getFontSize = () => {
+  const value = app?.extensionManager?.setting?.get?.(FONT_SIZE_SETTING_ID);
+  return normalizeFontSize(value);
+};
+
+const resolveLineHeight = (fontSize) => Math.round(fontSize * LINE_HEIGHT_RATIO);
 
 const hideExcludedTagsInput = (node) => {
   if (!node) {
@@ -219,9 +230,20 @@ const syncDisplayHeight = (node) => {
   display.container.style.maxHeight = `${height}px`;
 };
 
+const applyFontSize = (node) => {
+  const display = node.__tagToggleDisplay;
+  if (!display?.container) {
+    return;
+  }
+  const fontSize = getFontSize();
+  display.container.style.fontSize = `${fontSize}px`;
+  display.container.style.lineHeight = `${resolveLineHeight(fontSize)}px`;
+};
+
 const createDisplayDom = (node) => {
   const container = document.createElement('div');
   const content = document.createElement('div');
+  const fontSize = getFontSize();
 
   container.style.height = '100%';
   container.style.width = '100%';
@@ -229,8 +251,8 @@ const createDisplayDom = (node) => {
   container.style.overflowX = 'hidden';
   container.style.boxSizing = 'border-box';
   container.style.padding = `${DISPLAY_PADDING_Y}px ${DISPLAY_PADDING_X}px`;
-  container.style.fontSize = '14px';
-  container.style.lineHeight = `${TAG_LINE_HEIGHT}px`;
+  container.style.fontSize = `${fontSize}px`;
+  container.style.lineHeight = `${resolveLineHeight(fontSize)}px`;
   container.style.fontFamily = 'sans-serif';
   container.style.whiteSpace = 'normal';
   container.style.wordBreak = 'break-word';
@@ -357,6 +379,7 @@ const setupTagToggleUi = (node) => {
   if (display?.widget) {
     moveWidgetBefore(node, display.widget, excludedWidget ?? textWidget);
   }
+  applyFontSize(node);
   syncDisplayHeight(node);
   renderTagDisplay(node);
   resizeNodeToContent(node, true);

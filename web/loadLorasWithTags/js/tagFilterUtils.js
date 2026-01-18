@@ -62,4 +62,30 @@ const getTopNVisibility = (tags, frequencies, topN) => {
   return tags.map((_, index) => topIndices.has(index));
 };
 
-export { getTagVisibility, isTagMatch, getTopNVisibility };
+const getMinFrequencyVisibility = (tags, frequencies, minFrequency) => {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+  const threshold = Number(minFrequency);
+  if (!Number.isFinite(threshold) || threshold <= 0) {
+    return tags.map(() => true);
+  }
+  if (!frequencies || typeof frequencies !== 'object') {
+    return tags.map(() => true);
+  }
+  const hasAnyFrequency = Object.keys(frequencies).length > 0;
+  if (!hasAnyFrequency) {
+    return tags.map(() => true);
+  }
+  return tags.map((tag) => {
+    const raw = frequencies[tag];
+    const value = raw === null || raw === undefined ? 0 : Number(raw);
+    if (value === Infinity) {
+      return true;
+    }
+    const freq = Number.isFinite(value) ? value : 0;
+    return freq > threshold;
+  });
+};
+
+export { getMinFrequencyVisibility, getTagVisibility, isTagMatch, getTopNVisibility };

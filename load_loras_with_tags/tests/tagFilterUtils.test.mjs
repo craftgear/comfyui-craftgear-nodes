@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'vitest';
 
-import { getTagVisibility, isTagMatch, getTopNVisibility } from '../../web/loadLorasWithTags/js/tagFilterUtils.js';
+import {
+  getMinFrequencyVisibility,
+  getTagVisibility,
+  getTopNVisibility,
+  isTagMatch,
+} from '../../web/loadLorasWithTags/js/tagFilterUtils.js';
 
 describe('tagFilterUtils', () => {
   it('matches tags by query', () => {
@@ -34,5 +39,35 @@ describe('tagFilterUtils', () => {
     const sameFreqTags = ['x', 'y', 'z'];
     const sameFreq = { x: 10, y: 10, z: 10 };
     assert.deepEqual(getTopNVisibility(sameFreqTags, sameFreq, 2), [true, true, false]);
+  });
+
+  it('filters visibility by minimum frequency', () => {
+    const tags = ['a', 'b', 'c'];
+    const frequencies = { a: 1, b: 5, c: 0 };
+
+    assert.deepEqual(getMinFrequencyVisibility(tags, frequencies, 0), [
+      true,
+      true,
+      true,
+    ]);
+    assert.deepEqual(getMinFrequencyVisibility(tags, frequencies, 2), [
+      false,
+      true,
+      false,
+    ]);
+    assert.deepEqual(getMinFrequencyVisibility(tags, frequencies, 10), [
+      false,
+      false,
+      false,
+    ]);
+    assert.deepEqual(getMinFrequencyVisibility(tags, null, 2), [true, true, true]);
+    assert.deepEqual(getMinFrequencyVisibility([], frequencies, 2), []);
+  });
+
+  it('keeps infinite frequency tags visible', () => {
+    const tags = ['a', 'b'];
+    const frequencies = { a: Infinity, b: 5 };
+
+    assert.deepEqual(getMinFrequencyVisibility(tags, frequencies, 10), [true, false]);
   });
 });

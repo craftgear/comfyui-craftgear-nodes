@@ -7,6 +7,7 @@ import {
   computeSplitWidths,
   computeResetButtonRect,
   computeSliderRatio,
+  createDebouncedRunner,
   moveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
@@ -35,6 +36,7 @@ import {
   resolveToggleSize,
   resolveToggleLabelRect,
   filterLoraOptionIndices,
+  filterLoraOptionIndicesFromBase,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
   loraLabelTextPadding,
@@ -49,6 +51,7 @@ import {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  getLoraDialogListStyle,
   tagDialogItemBackground,
   tagDialogItemActiveBackground,
   tagDialogItemHoverBackground,
@@ -63,6 +66,8 @@ import {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolveOption,
+  resolveNoneOptionIndex,
+  resolveSameNameLoraIndex,
   resolveActiveIndex,
   resolveMissingLoraFilterValue,
   resolveLoraDialogFilterValue,
@@ -73,6 +78,7 @@ import {
   resolveDragSlotOffset,
   compactListByPredicate,
   resetIconPath,
+  trashIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
 describe('loadLorasWithTagsUiUtils', () => {
@@ -86,6 +92,15 @@ describe('loadLorasWithTagsUiUtils', () => {
       label: 'b.safetensors',
     });
     assert.deepEqual(resolveOption('missing', options), { index: 0, label: 'missing' });
+    assert.equal(resolveNoneOptionIndex(options), 0);
+    assert.equal(resolveNoneOptionIndex(['a', 'b']), -1);
+    assert.equal(resolveNoneOptionIndex(null), -1);
+    assert.equal(resolveSameNameLoraIndex('b.safetensors', options), 2);
+    assert.equal(resolveSameNameLoraIndex('dir/b', options), -1);
+    assert.equal(resolveSameNameLoraIndex('dir/b.safetensors', options), 2);
+    assert.equal(resolveSameNameLoraIndex('None', options), -1);
+    assert.equal(resolveSameNameLoraIndex('', options), -1);
+    assert.equal(resolveSameNameLoraIndex('b.safetensors', null), -1);
 
     assert.equal(moveIndex(0, 1, 3), 1);
     assert.equal(moveIndex(2, 1, 3), 0);
@@ -105,6 +120,7 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(normalizeDialogFilterValue(null), '');
     assert.equal(resolveLoraDialogFilterValue(undefined, 'missing'), 'missing');
     assert.equal(resolveLoraDialogFilterValue('', 'missing'), '');
+    assert.equal(resolveLoraDialogFilterValue('None', ''), '');
     assert.equal(resolveLoraDialogFilterValue('beta', 'missing'), 'beta');
     assert.equal(resolveLoraSlotFilterValue({ __loadLorasLoraFilter: 'slot' }, 'missing'), 'slot');
     assert.equal(resolveLoraSlotFilterValue({}, 'missing'), 'missing');
@@ -322,6 +338,9 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.deepEqual(filterLoraOptionIndices('', options), [0, 1, 2]);
     assert.deepEqual(filterLoraOptionIndices('a', options), [1]);
     assert.deepEqual(filterLoraOptionIndices('b', options), [2]);
+    assert.deepEqual(filterLoraOptionIndicesFromBase('', options, [2, 1]), [2, 1]);
+    assert.deepEqual(filterLoraOptionIndicesFromBase('b', options, [1, 2]), [2]);
+    assert.deepEqual(filterLoraOptionIndicesFromBase('b', options, null), [2]);
     assert.deepEqual(filterLoraOptions('', options), options);
     assert.deepEqual(filterLoraOptions('a', options), ['a.safetensors']);
     assert.deepEqual(filterLoraOptions('b', options), ['b.safetensors']);
@@ -511,6 +530,7 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(loraDialogItemGap, 0);
     assert.equal(loraDialogItemPaddingY, 4);
     assert.equal(loraDialogItemPaddingX, 8);
+    assert.equal(getLoraDialogListStyle().overflowX, 'hidden');
     assert.equal(tagDialogItemBackground, 'transparent');
     assert.equal(tagDialogItemActiveBackground, '#3a3a3a');
     assert.equal(tagDialogItemHoverBackground, '#333333');
@@ -551,9 +571,41 @@ describe('loadLorasWithTagsUiUtils', () => {
       assert.equal(scheduled, true);
       assert.equal(focused, true);
     }
+    {
+      const calls = [];
+      const scheduled = [];
+      const timers = {
+        setTimeout: (fn) => {
+          scheduled.push(fn);
+          return fn;
+        },
+        clearTimeout: (fn) => {
+          const index = scheduled.indexOf(fn);
+          if (index >= 0) {
+            scheduled.splice(index, 1);
+          }
+        },
+      };
+      const runner = createDebouncedRunner((value) => calls.push(value), 50, timers);
+      runner.run('a');
+      runner.run('b');
+      assert.equal(scheduled.length, 1);
+      scheduled[0]();
+      assert.deepEqual(calls, ['b']);
+      runner.run('c');
+      runner.flush();
+      assert.deepEqual(calls, ['b', 'c']);
+      runner.run('d');
+      runner.cancel();
+      assert.deepEqual(calls, ['b', 'c']);
+    }
     assert.equal(
       resetIconPath,
       'M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z',
+    );
+    assert.equal(
+      trashIconPath,
+      'M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z',
     );
     assert.deepEqual(computeResetButtonRect({ x: 10, y: 20, width: 100, height: 40 }, 12), {
       x: 98,

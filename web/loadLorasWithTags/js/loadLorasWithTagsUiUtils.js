@@ -21,6 +21,25 @@ const filterLoraOptionIndices = (query, options) => {
   return rankFuzzyIndices(normalized, bases);
 };
 
+const filterLoraOptionIndicesFromBase = (query, options, baseIndices) => {
+  const list = normalizeOptions(options);
+  if (list.length === 0) {
+    return [];
+  }
+  const normalized = String(query ?? "").trim();
+  const indices = Array.isArray(baseIndices)
+    ? baseIndices.filter((index) => Number.isFinite(index))
+    : list.map((_item, index) => index);
+  if (!normalized) {
+    return indices;
+  }
+  const bases = indices.map((index) => stripLoraExtension(list[index]));
+  const ranked = rankFuzzyIndices(normalized, bases);
+  return ranked
+    .map((rankedIndex) => indices[rankedIndex])
+    .filter((index) => index !== undefined);
+};
+
 const filterLoraOptions = (query, options) => {
   const list = normalizeOptions(options);
   const indices = filterLoraOptionIndices(query, list);
@@ -104,6 +123,38 @@ const resolveOption = (rawValue, options) => {
   return { index, label };
 };
 
+const resolveNoneOptionIndex = (options, fallback = 'None') => {
+  const list = normalizeOptions(options);
+  if (list.length === 0) {
+    return -1;
+  }
+  return list.indexOf(fallback);
+};
+
+const resolveSameNameLoraIndex = (rawValue, options, fallback = 'None') => {
+  const list = normalizeOptions(options);
+  if (list.length === 0) {
+    return -1;
+  }
+  const label = resolveRawComboLabel(rawValue);
+  if (!label || label === fallback) {
+    return -1;
+  }
+  const extractBasename = (value) => {
+    const text = String(value ?? '');
+    if (!text) {
+      return '';
+    }
+    const lastSlash = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
+    return lastSlash >= 0 ? text.slice(lastSlash + 1) : text;
+  };
+  const target = extractBasename(label);
+  if (!target || target === fallback) {
+    return -1;
+  }
+  return list.findIndex((entry) => extractBasename(entry) === target);
+};
+
 const resolveComboLabel = (rawValue, options, fallback = "None") => {
   const list = normalizeOptions(options);
   if (list.length === 0) {
@@ -174,10 +225,15 @@ const resolveMissingLoraFilterValue = (rawValue, options, fallback = 'None') => 
 const normalizeDialogFilterValue = (value) => String(value ?? '').trim();
 
 const resolveLoraDialogFilterValue = (savedFilter, missingFilter) => {
+  const normalizedMissing = normalizeDialogFilterValue(missingFilter);
   if (savedFilter === undefined || savedFilter === null) {
-    return normalizeDialogFilterValue(missingFilter);
+    return normalizedMissing;
   }
-  return normalizeDialogFilterValue(savedFilter);
+  const normalizedSaved = normalizeDialogFilterValue(savedFilter);
+  if (normalizedMissing === '' && normalizedSaved === 'None') {
+    return '';
+  }
+  return normalizedSaved;
 };
 
 const resolveLoraSlotFilterValue = (slot, missingFilter) =>
@@ -766,6 +822,18 @@ const getFrequencyLabelStyle = () => ({
   alignItems: "center",
 });
 
+const getLoraDialogListStyle = () => ({
+  overflow: "auto",
+  overflowX: "hidden",
+  padding: "8px",
+  background: "#2a2a2a",
+  borderRadius: "6px",
+  flex: "1 1 auto",
+  display: "flex",
+  flexDirection: "column",
+  gap: `${loraDialogItemGap}px`,
+});
+
 const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
   if (isSelected) {
     return loraDialogItemSelectedBackground;
@@ -788,6 +856,48 @@ const resolveTagDialogItemBackground = (isActive, isHovered) => {
 
 const resetIconPath =
   "M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z";
+const trashIconPath =
+  "M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6z";
+
+const createDebouncedRunner = (callback, wait = 0, timers) => {
+  if (typeof callback !== "function") {
+    return {
+      run: () => {},
+      flush: () => {},
+      cancel: () => {},
+    };
+  }
+  const schedule = timers?.setTimeout ?? setTimeout;
+  const cancelTimer = timers?.clearTimeout ?? clearTimeout;
+  let handle = null;
+  let lastArgs = [];
+  const run = (...args) => {
+    lastArgs = args;
+    if (handle !== null) {
+      cancelTimer(handle);
+    }
+    handle = schedule(() => {
+      handle = null;
+      callback(...lastArgs);
+    }, wait);
+  };
+  const flush = () => {
+    if (handle === null) {
+      return;
+    }
+    cancelTimer(handle);
+    handle = null;
+    callback(...lastArgs);
+  };
+  const cancel = () => {
+    if (handle === null) {
+      return;
+    }
+    cancelTimer(handle);
+    handle = null;
+  };
+  return { run, flush, cancel };
+};
 
 const focusInputLater = (input, schedule) => {
   if (!input || typeof input.focus !== "function") {
@@ -807,6 +917,7 @@ export {
   computeSplitWidths,
   computeResetButtonRect,
   computeSliderRatio,
+  createDebouncedRunner,
   moveIndex,
   resolveFilteredSelection,
   resolveVisibleSelection,
@@ -826,6 +937,7 @@ export {
   normalizeStrengthOptions,
   normalizeOptions,
   filterLoraOptionIndices,
+  filterLoraOptionIndicesFromBase,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
   loraLabelTextPadding,
@@ -840,6 +952,7 @@ export {
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
   loraDialogWidth,
+  getLoraDialogListStyle,
   tagDialogItemBackground,
   tagDialogItemActiveBackground,
   tagDialogItemHoverBackground,
@@ -852,7 +965,10 @@ export {
   focusInputLater,
   resolveActiveIndex,
   resolveOption,
+  resolveNoneOptionIndex,
+  resolveSameNameLoraIndex,
   resetIconPath,
+  trashIconPath,
   resolvePopupPosition,
   resolveBelowCenteredPopupPosition,
   resolveInlineControlLayout,

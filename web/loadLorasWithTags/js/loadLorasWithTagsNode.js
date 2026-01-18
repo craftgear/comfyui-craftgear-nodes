@@ -1,15 +1,27 @@
 import { app } from "../../../../scripts/app.js";
 import { api } from "../../../../scripts/api.js";
 import { $el } from "../../../../scripts/ui.js";
-import { getTagVisibility, getTopNVisibility } from "./tagFilterUtils.js";
+import {
+  getMinFrequencyVisibility,
+  getTagVisibility,
+  getTopNVisibility,
+} from "./tagFilterUtils.js";
 import { normalizeSelectionValue } from "./selectionValueUtils.js";
+import {
+  AUTO_SELECT_MISSING_LORA_SETTING_ID,
+  MIN_FREQUENCY_SETTING_ID,
+  normalizeAutoSelectMissingLora,
+  normalizeMinFrequency,
+} from "./loadLorasWithTagsSettings.js";
+import { getSavedSlotValues } from "./loadLorasWithTagsSavedValuesUtils.js";
 import {
   computeButtonRect,
   computeSliderRatio,
+  createDebouncedRunner,
   moveIndex,
   normalizeStrengthOptions,
   normalizeOptions,
-  filterLoraOptionIndices,
+  filterLoraOptionIndicesFromBase,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
   loraLabelTextPadding,
@@ -23,6 +35,7 @@ import {
   loraDialogItemGap,
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
+  getLoraDialogListStyle,
   loraDialogWidth,
   tagDialogItemBackground,
   resolveLoraDialogItemBackground,
@@ -48,6 +61,8 @@ import {
   compactListByPredicate,
   shouldPreserveUnknownOption,
   resolveOption,
+  resolveNoneOptionIndex,
+  resolveSameNameLoraIndex,
   resolveBelowCenteredPopupPosition,
   resolveInlineControlLayout,
   resolveFixedLabelWidth,
@@ -58,6 +73,7 @@ import {
   shouldCloseDialogOnOverlayClick,
   resolveStrengthDefault,
   resetIconPath,
+  trashIconPath,
   shouldCloseStrengthPopupOnRelease,
   shouldCloseStrengthPopupOnPress,
   shouldCloseStrengthPopupOnInnerClick,
@@ -91,6 +107,7 @@ const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
 const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
 const TOP_N_STORAGE_KEY = "craftgear-load-loras-with-tags-trigger-dialog-top-n";
+const LORA_DIALOG_FILTER_DEBOUNCE_MS = 120;
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
 
@@ -98,6 +115,18 @@ const getNodeClass = (node) => node?.comfyClass || node?.type || "";
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
 const getWidget = (node, name) =>
   node.widgets?.find((widget) => widget.name === name);
+
+const getMinFrequencyThreshold = () => {
+  const value = app?.extensionManager?.setting?.get?.(MIN_FREQUENCY_SETTING_ID);
+  return normalizeMinFrequency(value);
+};
+
+const getAutoSelectMissingLoraEnabled = () => {
+  const value = app?.extensionManager?.setting?.get?.(
+    AUTO_SELECT_MISSING_LORA_SETTING_ID,
+  );
+  return normalizeAutoSelectMissingLora(value);
+};
 
 const markDirty = (node) => {
   if (typeof node?.setDirtyCanvas === "function") {
@@ -220,6 +249,10 @@ const closeDialog = () => {
   closeStrengthPopup();
   const existing = document.getElementById(DIALOG_ID);
   if (existing) {
+    const cleanup = existing.__loadLorasCleanup;
+    if (typeof cleanup === "function") {
+      cleanup();
+    }
     existing.remove();
   }
   if (dialogKeydownHandler) {
@@ -821,10 +854,18 @@ const openTriggerDialog = async (
     const textVisibility = getTagVisibility(tagList, query);
     const topNValue = Number(topN) || 0;
     const topNVisibility = getTopNVisibility(tagList, frequencies, topNValue);
+    const minFrequency = getMinFrequencyThreshold();
+    const minFrequencyVisibility = getMinFrequencyVisibility(
+      tagList,
+      frequencies,
+      minFrequency,
+    );
     items.forEach((item, index) => {
       renderTriggerLabel(item.label, item.trigger, query);
       const isVisible =
-        (textVisibility[index] ?? true) && (topNVisibility[index] ?? true);
+        (textVisibility[index] ?? true) &&
+        (topNVisibility[index] ?? true) &&
+        (minFrequencyVisibility[index] ?? true);
       item.row.style.display = isVisible ? "flex" : "none";
       if (!(topNVisibility[index] ?? true)) {
         item.checkbox.checked = false;
@@ -1449,32 +1490,60 @@ const setupLoadLorasUi = (node) => {
     if (!Array.isArray(savedValues)) {
       return;
     }
-    const stride =
-      savedValues.length % 4 === 0 ? 4 : savedValues.length % 3 === 0 ? 3 : 4;
+    let stride = getSavedSlotValues(savedValues, 0)?.stride ?? 0;
+    if (stride === 5) {
+      const hasInvalidLoraValue = slots.some((_, index) => {
+        const entry = getSavedSlotValues(savedValues, index, 5);
+        if (!entry) {
+          return false;
+        }
+        return typeof entry.loraValue !== "string";
+      });
+      const hasInvalidFilterValue = slots.some((_, index) => {
+        const entry = getSavedSlotValues(savedValues, index, 5);
+        if (!entry) {
+          return false;
+        }
+        if (entry.filterValue === null || entry.filterValue === undefined) {
+          return false;
+        }
+        return typeof entry.filterValue !== "string";
+      });
+      if (hasInvalidLoraValue || hasInvalidFilterValue) {
+        stride = 4;
+      }
+    }
     slots.forEach((slot, index) => {
-      const base = index * stride;
-      if (savedValues.length <= base) {
+      const entry = getSavedSlotValues(savedValues, index, stride);
+      if (!entry) {
         return;
       }
-      applyLoraValue(slot.loraWidget, savedValues[base]);
+      applyLoraValue(slot.loraWidget, entry.loraValue);
       const strengthDefault = resolveStrengthDefault(
         slot.strengthWidget?.options,
         1.0,
       );
       const strengthValue =
-        savedValues.length > base + 1 ? savedValues[base + 1] : strengthDefault;
+        entry.strengthValue !== undefined ? entry.strengthValue : strengthDefault;
       setWidgetValue(
         slot.strengthWidget,
         Number.isFinite(strengthValue) ? strengthValue : strengthDefault,
       );
-      const toggleValue =
-        savedValues.length > base + 2 ? savedValues[base + 2] : true;
+      const toggleValue = entry.toggleValue ?? true;
       setWidgetValue(slot.toggleWidget, !!toggleValue);
-      const selectionValue =
-        savedValues.length > base + 3 ? savedValues[base + 3] : "";
+      const selectionValue = entry.stride >= 4 ? entry.selectionValue : "";
       slot.selectionWidget.value = normalizeSelectionValue(
-        stride === 4 ? selectionValue : "",
+        selectionValue,
       );
+      if (
+        entry.stride >= 5 &&
+        entry.filterValue !== null &&
+        entry.filterValue !== undefined
+      ) {
+        slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
+          entry.filterValue,
+        );
+      }
     });
   };
 
@@ -1521,6 +1590,7 @@ const setupLoadLorasUi = (node) => {
   };
 
   const normalizeLoraWidgetValues = () => {
+    const autoSelectMissing = getAutoSelectMissingLoraEnabled();
     slots.forEach((slot) => {
       const options = getComboOptions(slot.loraWidget);
       if (options.length === 0) {
@@ -1528,6 +1598,18 @@ const setupLoadLorasUi = (node) => {
       }
       const rawValue = slot.loraWidget?.value;
       if (shouldPreserveUnknownOption(rawValue, options)) {
+        if (!autoSelectMissing) {
+          return;
+        }
+        const matchedIndex = resolveSameNameLoraIndex(rawValue, options);
+        if (matchedIndex < 0) {
+          return;
+        }
+        const matchedLabel = options[matchedIndex];
+        if (!matchedLabel) {
+          return;
+        }
+        setComboWidgetValue(slot.loraWidget, matchedLabel);
         return;
       }
       const resolved = resolveComboLabel(rawValue, options);
@@ -1791,6 +1873,9 @@ const setupLoadLorasUi = (node) => {
     let isFilterComposing = false;
     let suppressEnterOnce = false;
     let hadComposingEnter = false;
+    let lastFilterQuery = "";
+    let lastFilteredIndices = null;
+    let activeFilterQuery = "";
 
     closeDialog();
     const overlay = $el("div", {
@@ -1871,36 +1956,66 @@ const setupLoadLorasUi = (node) => {
         opacity: "0.7",
       },
     });
-    const filterContainer = $el("div", {
+    const filterContainer = $el('div', {
       style: {
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        marginBottom: "12px",
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        flex: '1 1 auto',
       },
     });
     filterContainer.append(filterInput, clearFilterButton);
-    const list = $el("div", {
+    const trashButton = $el('button', {
+      'aria-label': 'Clear filter',
+      title: 'Clear filter',
       style: {
-        overflow: "auto",
-        padding: "8px",
-        background: "#2a2a2a",
-        borderRadius: "6px",
-        flex: "1 1 auto",
-        display: "flex",
-        flexDirection: "column",
-        gap: `${loraDialogItemGap}px`,
+        width: '28px',
+        height: '28px',
+        padding: '0',
+        borderRadius: '4px',
+        border: '1px solid #3a3a3a',
+        background: '#2a2a2a',
+        color: '#e0e0e0',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       },
     });
-    const actions = $el("div", {
+    const trashIcon = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'svg',
+    );
+    trashIcon.setAttribute('viewBox', '0 0 24 24');
+    trashIcon.setAttribute('width', '14');
+    trashIcon.setAttribute('height', '14');
+    trashIcon.setAttribute('aria-hidden', 'true');
+    trashIcon.style.display = 'block';
+    const trashPath = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'path',
+    );
+    trashPath.setAttribute('d', trashIconPath);
+    trashPath.setAttribute('fill', '#fff');
+    trashIcon.append(trashPath);
+    trashButton.append(trashIcon);
+    const cancelButton = $el('button', { textContent: 'Cancel' });
+    const debouncedFilter = createDebouncedRunner(() => {
+      slot.__loadLorasLoraFilter = normalizeDialogFilterValue(filterInput.value);
+      renderList(true);
+    }, LORA_DIALOG_FILTER_DEBOUNCE_MS);
+    const headerRow = $el('div', {
       style: {
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: "12px",
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '12px',
       },
     });
-    const cancelButton = $el("button", { textContent: "Cancel" });
-    actions.append(cancelButton);
+    headerRow.append(trashButton, filterContainer, cancelButton);
+    const list = $el('div', {
+      style: getLoraDialogListStyle(),
+    });
 
     const applySelection = (nextLabel) => {
       const prevLabel = resolveComboLabel(slot.loraWidget?.value, options);
@@ -2020,7 +2135,28 @@ const setupLoadLorasUi = (node) => {
       list.textContent = "";
       renderedButtons = [];
       hoveredVisibleIndex = -1;
-      filteredIndices = filterLoraOptionIndices(filterInput.value, options);
+      const normalizedQuery = normalizeDialogFilterValue(filterInput.value);
+      activeFilterQuery = normalizedQuery;
+      if (
+        normalizedQuery === lastFilterQuery &&
+        Array.isArray(lastFilteredIndices)
+      ) {
+        filteredIndices = lastFilteredIndices;
+      } else {
+        const baseIndices =
+          lastFilterQuery &&
+          normalizedQuery.startsWith(lastFilterQuery) &&
+          Array.isArray(lastFilteredIndices)
+            ? lastFilteredIndices
+            : null;
+        filteredIndices = filterLoraOptionIndicesFromBase(
+          normalizedQuery,
+          options,
+          baseIndices,
+        );
+      }
+      lastFilterQuery = normalizedQuery;
+      lastFilteredIndices = filteredIndices;
       visibleOptions = filteredIndices
         .map((optionIndex) => ({
           index: optionIndex,
@@ -2058,7 +2194,7 @@ const setupLoadLorasUi = (node) => {
         });
         button.style.color = "#e0e0e0";
         button.style.fontWeight = "400";
-        renderLabel(button, label, filterInput.value);
+        renderLabel(button, label, activeFilterQuery);
         renderedButtons.push({ button, index });
         button.onmouseenter = () => {
           applyHoverSelection(index);
@@ -2080,13 +2216,36 @@ const setupLoadLorasUi = (node) => {
       refreshButtonStates();
     };
 
-    cancelButton.onclick = closeDialog;
-    filterInput.oninput = () => renderList(true);
-    clearFilterButton.onclick = () => {
-      filterInput.value = "";
+    const clearFilterValue = () => {
+      debouncedFilter.cancel();
+      filterInput.value = '';
+      slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
+        filterInput.value,
+      );
       renderList(true);
       focusInputLater(filterInput);
     };
+    const applyNoneSelection = () => {
+      debouncedFilter.cancel();
+      const noneIndex = resolveNoneOptionIndex(options);
+      if (noneIndex < 0) {
+        clearFilterValue();
+        return;
+      }
+      filterInput.value = '';
+      slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
+        filterInput.value,
+      );
+      selectedOptionIndex = noneIndex;
+      renderList(true);
+      applySelectedLabel();
+    };
+    cancelButton.onclick = closeDialog;
+    filterInput.oninput = () => {
+      debouncedFilter.run();
+    };
+    clearFilterButton.onclick = clearFilterValue;
+    trashButton.onclick = applyNoneSelection;
     list.addEventListener("mousemove", resumeHoverSelection);
     const scrollSelectedIntoView = () => {
       const entry = renderedButtons[selectedVisibleIndex];
@@ -2137,18 +2296,21 @@ const setupLoadLorasUi = (node) => {
         return;
       }
       if (event.key === "ArrowDown") {
+        debouncedFilter.flush();
         event.preventDefault();
         event.stopPropagation();
         moveSelection(1);
         return;
       }
       if (event.key === "ArrowUp") {
+        debouncedFilter.flush();
         event.preventDefault();
         event.stopPropagation();
         moveSelection(-1);
         return;
       }
       if (event.key === "Enter") {
+        debouncedFilter.flush();
         event.preventDefault();
         event.stopPropagation();
         applySelectedLabel();
@@ -2165,9 +2327,12 @@ const setupLoadLorasUi = (node) => {
     filterInput.addEventListener("keydown", handleDialogKeyDown);
 
     renderList();
-    panel.append(filterContainer, list, actions);
+    panel.append(headerRow, list);
     overlay.append(panel);
     document.body.append(overlay);
+    overlay.__loadLorasCleanup = () => {
+      debouncedFilter.cancel();
+    };
     focusInputLater(filterInput);
   };
 
@@ -2388,11 +2553,17 @@ const setupLoadLorasUi = (node) => {
         const rawValue = slot.loraWidget?.value;
         const options = getComboOptions(slot.loraWidget);
         const loraValue = resolveComboDisplayLabel(rawValue, options);
+        const rawFilterValue = slot.__loadLorasLoraFilter;
+        const normalizedFilterValue =
+          rawFilterValue === undefined || rawFilterValue === null
+            ? null
+            : normalizeDialogFilterValue(rawFilterValue);
         values.push(
           loraValue,
           slot.strengthWidget?.value ?? strengthDefault,
           slot.toggleWidget?.value ?? true,
           normalizeSelectionValue(slot.selectionWidget?.value),
+          normalizedFilterValue,
         );
       });
       o.widgets_values = values;
