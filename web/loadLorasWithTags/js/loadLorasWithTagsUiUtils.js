@@ -171,6 +171,41 @@ const resolveMissingLoraFilterValue = (rawValue, options, fallback = 'None') => 
   return stripLoraBasename(label);
 };
 
+const normalizeDialogFilterValue = (value) => String(value ?? '').trim();
+
+const resolveLoraDialogFilterValue = (savedFilter, missingFilter) => {
+  if (savedFilter === undefined || savedFilter === null) {
+    return normalizeDialogFilterValue(missingFilter);
+  }
+  return normalizeDialogFilterValue(savedFilter);
+};
+
+const resolveLoraSlotFilterValue = (slot, missingFilter) =>
+  resolveLoraDialogFilterValue(slot?.__loadLorasLoraFilter, missingFilter);
+
+const shouldIgnoreLoraDialogKeydownForIme = (
+  event,
+  isComposing,
+  suppressEnterOnce,
+) => {
+  if (!event || typeof event !== 'object') {
+    return false;
+  }
+  if (event.key === 'Process' || event.keyCode === 229) {
+    return true;
+  }
+  if (event.key !== 'Enter') {
+    return false;
+  }
+  if (event.isComposing) {
+    return true;
+  }
+  if (isComposing) {
+    return true;
+  }
+  return !!suppressEnterOnce;
+};
+
 const moveIndex = (currentIndex, direction, length) => {
   if (!Number.isFinite(length) || length <= 0) {
     return -1;
@@ -711,6 +746,10 @@ export {
   resolveComboLabel,
   resolveComboDisplayLabel,
   resolveMissingLoraFilterValue,
+  resolveLoraDialogFilterValue,
+  resolveLoraSlotFilterValue,
+  normalizeDialogFilterValue,
+  shouldIgnoreLoraDialogKeydownForIme,
   shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,

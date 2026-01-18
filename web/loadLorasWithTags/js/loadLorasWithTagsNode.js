@@ -40,6 +40,9 @@ import {
   resolveComboLabel,
   resolveComboDisplayLabel,
   resolveMissingLoraFilterValue,
+  resolveLoraSlotFilterValue,
+  normalizeDialogFilterValue,
+  shouldIgnoreLoraDialogKeydownForIme,
   shouldPreserveUnknownOption,
   resolveOption,
   resolveBelowCenteredPopupPosition,
@@ -1516,6 +1519,9 @@ const setupLoadLorasUi = (node) => {
     let hoveredVisibleIndex = -1;
     let renderedButtons = [];
     let suppressHoverSelection = false;
+    let isFilterComposing = false;
+    let suppressEnterOnce = false;
+    let hadComposingEnter = false;
 
     closeDialog();
     const overlay = $el("div", {
@@ -1550,18 +1556,34 @@ const setupLoadLorasUi = (node) => {
       },
     });
     const title = null;
-    const filterInput = $el("input", {
-      type: "text",
-      placeholder: "Filter LoRAs",
-      style: { flex: "1 1 auto", paddingRight: "28px" },
+    const filterInput = $el('input', {
+      type: 'text',
+      placeholder: 'Filter LoRAs',
+      style: { flex: '1 1 auto', paddingRight: '28px' },
+    });
+    // IME確定のEnterで選択が走らないように抑制するため
+    filterInput.addEventListener('compositionstart', () => {
+      isFilterComposing = true;
+      hadComposingEnter = false;
+    });
+    filterInput.addEventListener('compositionend', () => {
+      isFilterComposing = false;
+      if (hadComposingEnter) {
+        hadComposingEnter = false;
+        suppressEnterOnce = false;
+        return;
+      }
+      suppressEnterOnce = true;
     });
     const missingFilterValue = resolveMissingLoraFilterValue(
       slot.loraWidget?.value,
       options,
     );
-    if (missingFilterValue) {
-      filterInput.value = missingFilterValue;
-    }
+    const initialFilterValue = resolveLoraSlotFilterValue(
+      slot,
+      missingFilterValue,
+    );
+    filterInput.value = initialFilterValue;
     const clearFilterButton = $el("button", {
       textContent: "\u00d7",
       style: {
@@ -1620,6 +1642,9 @@ const setupLoadLorasUi = (node) => {
         setWidgetValue(slot.selectionWidget, "");
         slot.selectionWidget.__loadLorasResetTopN = true;
       }
+      slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
+        filterInput.value,
+      );
       applyRowVisibility();
       markDirty(targetNode);
     };
@@ -1822,6 +1847,26 @@ const setupLoadLorasUi = (node) => {
         return;
       }
       event.__loadLorasDialogHandled = true;
+      const isProcessKey =
+        event?.key === 'Process' || event?.keyCode === 229;
+      if (suppressEnterOnce && !isProcessKey && event?.key !== 'Enter') {
+        suppressEnterOnce = false;
+      }
+      if (suppressEnterOnce && event?.key === 'Enter') {
+        suppressEnterOnce = false;
+        return;
+      }
+      if (
+        shouldIgnoreLoraDialogKeydownForIme(event, isFilterComposing, false)
+      ) {
+        if (
+          event?.key === 'Enter' &&
+          (event?.isComposing || isFilterComposing || isProcessKey)
+        ) {
+          hadComposingEnter = true;
+        }
+        return;
+      }
       if (event.key === "ArrowDown") {
         event.preventDefault();
         event.stopPropagation();

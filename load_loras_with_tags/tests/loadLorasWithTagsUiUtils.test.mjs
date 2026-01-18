@@ -65,6 +65,10 @@ import {
   resolveOption,
   resolveActiveIndex,
   resolveMissingLoraFilterValue,
+  resolveLoraDialogFilterValue,
+  normalizeDialogFilterValue,
+  resolveLoraSlotFilterValue,
+  shouldIgnoreLoraDialogKeydownForIme,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
@@ -94,6 +98,41 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(resolveStrengthDefault({ default: 0.7 }), 0.7);
     assert.equal(resolveStrengthDefault({ default: 'oops' }, 0.5), 0.5);
     assert.equal(resolveStrengthDefault(null, 0.5), 0.5);
+    assert.equal(normalizeDialogFilterValue('  alpha  '), 'alpha');
+    assert.equal(normalizeDialogFilterValue(null), '');
+    assert.equal(resolveLoraDialogFilterValue(undefined, 'missing'), 'missing');
+    assert.equal(resolveLoraDialogFilterValue('', 'missing'), '');
+    assert.equal(resolveLoraDialogFilterValue('beta', 'missing'), 'beta');
+    assert.equal(resolveLoraSlotFilterValue({ __loadLorasLoraFilter: 'slot' }, 'missing'), 'slot');
+    assert.equal(resolveLoraSlotFilterValue({}, 'missing'), 'missing');
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Enter', isComposing: true }, false, false),
+      true,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Enter' }, true, false),
+      true,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Enter' }, false, true),
+      true,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Process' }, false, false),
+      true,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Unidentified', keyCode: 229 }, false, false),
+      true,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'Enter' }, false, false),
+      false,
+    );
+    assert.equal(
+      shouldIgnoreLoraDialogKeydownForIme({ key: 'ArrowDown' }, false, false),
+      false,
+    );
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'mouseup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'pointerup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'touchend' }));
