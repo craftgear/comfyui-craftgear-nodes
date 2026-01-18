@@ -206,6 +206,56 @@ const shouldIgnoreLoraDialogKeydownForIme = (
   return !!suppressEnterOnce;
 };
 
+const reorderListByMove = (list, fromIndex, toIndex) => {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  const length = list.length;
+  if (length === 0) {
+    return [];
+  }
+  const from = Math.trunc(fromIndex);
+  const to = Math.trunc(toIndex);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) {
+    return list.slice();
+  }
+  if (from < 0 || to < 0 || from >= length || to >= length) {
+    return list.slice();
+  }
+  if (from === to) {
+    return list.slice();
+  }
+  const next = list.slice();
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved);
+  return next;
+};
+
+const resolveDragSlotOffset = (sourceIndex, targetIndex, slotIndex, step) => {
+  if (
+    !Number.isFinite(sourceIndex) ||
+    !Number.isFinite(targetIndex) ||
+    !Number.isFinite(slotIndex) ||
+    !Number.isFinite(step) ||
+    step <= 0
+  ) {
+    return 0;
+  }
+  if (sourceIndex === targetIndex || slotIndex === sourceIndex) {
+    return 0;
+  }
+  if (sourceIndex < targetIndex) {
+    if (slotIndex > sourceIndex && slotIndex <= targetIndex) {
+      return -step;
+    }
+    return 0;
+  }
+  if (slotIndex >= targetIndex && slotIndex < sourceIndex) {
+    return step;
+  }
+  return 0;
+};
+
 const moveIndex = (currentIndex, direction, length) => {
   if (!Number.isFinite(length) || length <= 0) {
     return -1;
@@ -750,6 +800,8 @@ export {
   resolveLoraSlotFilterValue,
   normalizeDialogFilterValue,
   shouldIgnoreLoraDialogKeydownForIme,
+  reorderListByMove,
+  resolveDragSlotOffset,
   shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,

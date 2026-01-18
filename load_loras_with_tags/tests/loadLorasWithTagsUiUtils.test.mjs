@@ -69,6 +69,8 @@ import {
   normalizeDialogFilterValue,
   resolveLoraSlotFilterValue,
   shouldIgnoreLoraDialogKeydownForIme,
+  reorderListByMove,
+  resolveDragSlotOffset,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
@@ -133,6 +135,18 @@ describe('loadLorasWithTagsUiUtils', () => {
       shouldIgnoreLoraDialogKeydownForIme({ key: 'ArrowDown' }, false, false),
       false,
     );
+    assert.deepEqual(reorderListByMove(['a', 'b', 'c'], 0, 2), ['b', 'c', 'a']);
+    assert.deepEqual(reorderListByMove(['a', 'b', 'c'], 2, 0), ['c', 'a', 'b']);
+    assert.deepEqual(reorderListByMove(['a', 'b', 'c'], 1, 1), ['a', 'b', 'c']);
+    assert.deepEqual(reorderListByMove(['a', 'b', 'c'], -1, 1), ['a', 'b', 'c']);
+    assert.deepEqual(reorderListByMove(['a', 'b', 'c'], 0, 3), ['a', 'b', 'c']);
+    assert.equal(resolveDragSlotOffset(0, 2, 1, 24), -24);
+    assert.equal(resolveDragSlotOffset(0, 2, 2, 24), -24);
+    assert.equal(resolveDragSlotOffset(2, 0, 1, 24), 24);
+    assert.equal(resolveDragSlotOffset(2, 0, 0, 24), 24);
+    assert.equal(resolveDragSlotOffset(2, 0, 2, 24), 0);
+    assert.equal(resolveDragSlotOffset(1, 1, 0, 24), 0);
+    assert.equal(resolveDragSlotOffset(0, 2, 1, 0), 0);
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'mouseup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'pointerup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'touchend' }));

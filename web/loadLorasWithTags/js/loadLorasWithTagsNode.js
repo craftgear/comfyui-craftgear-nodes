@@ -43,6 +43,8 @@ import {
   resolveLoraSlotFilterValue,
   normalizeDialogFilterValue,
   shouldIgnoreLoraDialogKeydownForIme,
+  reorderListByMove,
+  resolveDragSlotOffset,
   shouldPreserveUnknownOption,
   resolveOption,
   resolveBelowCenteredPopupPosition,
@@ -77,6 +79,10 @@ const MARGIN = 10;
 const INNER_MARGIN = 4;
 const CONTENT_PADDING_Y = 4;
 const CONTENT_SIDE_INSET = 6;
+const DRAG_HANDLE_SIZE = 12;
+const DRAG_HANDLE_GAP = 6;
+const DRAG_ACTIVE_BACKGROUND = "#353535";
+const DRAG_START_THRESHOLD = 4;
 const SELECT_BUTTON_PADDING = 2;
 const SELECT_TRIGGER_LABEL = "Select Tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
@@ -1169,6 +1175,210 @@ const setupLoadLorasUi = (node) => {
     return widget;
   };
 
+  const drawRowContent = (slot, ctx, width, y, isOverlay = false) => {
+    const rowHeight = ROW_HEIGHT;
+    const rowMargin = MARGIN;
+    const contentMargin = rowMargin + CONTENT_SIDE_INSET;
+    let posX = contentMargin;
+    const contentWidth = width - rowMargin * 2;
+    const contentTop = y + ROW_PADDING_Y;
+    const availableHeight = rowHeight - ROW_PADDING_Y * 2;
+    const lineHeight = resolveRowLineHeight(rowHeight, ROW_PADDING_Y, 16, -6);
+    const rowRect = {
+      x: rowMargin,
+      y,
+      width: width - rowMargin * 2,
+      height: rowHeight,
+    };
+    if (!isOverlay) {
+      slot.__rowRect = rowRect;
+    }
+
+    ctx.save();
+    const isDraggingRow =
+      dragState.active && dragState.sourceIndex === slot.index - 1;
+    ctx.fillStyle = isDraggingRow ? DRAG_ACTIVE_BACKGROUND : "#2a2a2a";
+    drawRoundedRect(ctx, rowMargin, y, width - rowMargin * 2, rowHeight, 6);
+    ctx.fill();
+
+    const rowToggleSize = resolveToggleSize(rowHeight);
+    const handleY = contentTop + (availableHeight - DRAG_HANDLE_SIZE) / 2;
+    const handleRect = {
+      x: posX,
+      y: handleY,
+      width: DRAG_HANDLE_SIZE,
+      height: DRAG_HANDLE_SIZE,
+    };
+    if (!isOverlay) {
+      slot.__hitDragHandle = handleRect;
+    }
+    ctx.save();
+    ctx.fillStyle = "#5a5a5a";
+    ctx.strokeStyle = "#5a5a5a";
+    const dotRadius = 1.2;
+    const dotGap = 3.5;
+    for (let col = 0; col < 2; col += 1) {
+      for (let row = 0; row < 3; row += 1) {
+        const dotX = handleRect.x + 3 + col * dotGap;
+        const dotY = handleRect.y + 2 + row * dotGap;
+        ctx.beginPath();
+        ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    posX += DRAG_HANDLE_SIZE + DRAG_HANDLE_GAP;
+    const toggleRect = {
+      x: posX,
+      y: contentTop + (availableHeight - rowToggleSize.height) / 2,
+      width: rowToggleSize.width,
+      height: rowToggleSize.height,
+    };
+    if (!isOverlay) {
+      slot.__hitToggle = toggleRect;
+    }
+    drawToggle(ctx, toggleRect, !!slot.toggleWidget?.value);
+    posX += toggleRect.width + INNER_MARGIN;
+
+    const labelAreaWidth = Math.max(10, rowMargin + contentWidth - posX);
+    const { label, isMissing } = getLoraState(slot.loraWidget);
+    const isOn = !!slot.toggleWidget?.value;
+    if (!isOn) {
+      ctx.globalAlpha *= 0.4;
+    }
+    ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    const strengthOptions = normalizeStrengthOptions(
+      slot.strengthWidget?.options,
+    );
+    const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
+    const strengthValue = Number(
+      slot.strengthWidget?.value ?? strengthDefault,
+    );
+    const strengthText = formatStrengthValue(strengthValue, strengthOptions);
+    const strengthValueWidth = resolveFixedLabelWidth(
+      ctx.measureText("0").width,
+      4,
+      4,
+    );
+    const triggerTextWidth = ctx.measureText(SELECT_TRIGGER_LABEL).width;
+    const triggerButtonWidth = Math.max(
+      80,
+      triggerTextWidth + SELECT_BUTTON_PADDING * 2 + 16,
+    );
+    const inlineLayout = resolveInlineControlLayout(
+      labelAreaWidth,
+      strengthValueWidth,
+      triggerButtonWidth,
+      INNER_MARGIN,
+    );
+    const labelButtonBaseRect = computeButtonRect(
+      posX,
+      contentTop,
+      inlineLayout.labelWidth,
+      lineHeight,
+      CONTENT_PADDING_Y,
+    );
+    const labelButtonHeightPadding = Math.max(0, loraLabelButtonHeightPadding);
+    const labelButtonHeight = Math.min(
+      labelButtonBaseRect.height + labelButtonHeightPadding,
+      lineHeight,
+    );
+    const labelButtonRect = {
+      x: labelButtonBaseRect.x,
+      y: resolveCenteredY(contentTop, availableHeight, labelButtonHeight),
+      width: labelButtonBaseRect.width,
+      height: labelButtonHeight,
+    };
+    if (!isOverlay) {
+      slot.__hitLabel = labelButtonRect;
+    }
+    ctx.fillStyle = "#242424";
+    drawRoundedRect(
+      ctx,
+      labelButtonRect.x,
+      labelButtonRect.y,
+      labelButtonRect.width,
+      labelButtonRect.height,
+      6,
+    );
+    ctx.fill();
+    ctx.strokeStyle = "#3a3a3a";
+    ctx.stroke();
+    ctx.fillStyle = isMissing
+      ? missingLoraLabelColor
+      : LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+    const labelTextRect = computeButtonRect(
+      labelButtonRect.x,
+      labelButtonRect.y,
+      labelButtonRect.width,
+      labelButtonRect.height,
+      loraLabelTextPadding,
+    );
+    const labelTextX = labelTextRect.x;
+    const labelTextWidth = Math.max(0, labelTextRect.width);
+    ctx.fillText(
+      fitText(ctx, label || "None", labelTextWidth),
+      labelTextX,
+      labelButtonRect.y + labelButtonRect.height / 2,
+    );
+
+    const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
+    const strengthLeft =
+      labelButtonRect.x + labelButtonRect.width + INNER_MARGIN;
+    const strengthRect = {
+      x: strengthLeft,
+      y: resolveCenteredY(contentTop, availableHeight, strengthHeight),
+      width: Math.max(0, inlineLayout.valueWidth),
+      height: strengthHeight,
+    };
+    const strengthRects = drawStrengthSummary(
+      ctx,
+      strengthRect,
+      slot.strengthWidget,
+      isOn,
+    );
+    if (!isOverlay) {
+      slot.__hitStrengthValue = strengthRects.valueRect;
+    }
+
+    const buttonHeight = selectTriggerButtonHeight;
+    const buttonRect = computeButtonRect(
+      strengthRect.x + strengthRect.width + INNER_MARGIN,
+      resolveCenteredY(contentTop, availableHeight, buttonHeight),
+      Math.max(0, inlineLayout.buttonWidth),
+      selectTriggerButtonHeight,
+      SELECT_BUTTON_PADDING,
+    );
+    if (!isOverlay) {
+      slot.__hitSelectTrigger = buttonRect;
+    }
+    ctx.globalAlpha *= isOn ? 0.85 : 0.45;
+    ctx.fillStyle = "#242424";
+    drawRoundedRect(
+      ctx,
+      buttonRect.x,
+      buttonRect.y,
+      buttonRect.width,
+      buttonRect.height,
+      6,
+    );
+    ctx.fill();
+    ctx.strokeStyle = "#3a3a3a";
+    ctx.stroke();
+    ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(
+      SELECT_TRIGGER_LABEL,
+      buttonRect.x + buttonRect.width / 2,
+      buttonRect.y + buttonRect.height / 2,
+    );
+
+    ctx.restore();
+  };
+
   const createRowWidget = (slot) => {
     const widget = {
       type: "load-loras-with-tags-row",
@@ -1177,168 +1387,21 @@ const setupLoadLorasUi = (node) => {
       serialize: false,
       __loadLorasCustomSize: true,
       draw(ctx, _node, width, y, _height) {
-        const rowHeight = ROW_HEIGHT;
-        const rowMargin = MARGIN;
-        const contentMargin = rowMargin + CONTENT_SIDE_INSET;
-        let posX = contentMargin;
-        const contentWidth = width - rowMargin * 2;
-        const contentTop = y + ROW_PADDING_Y;
-        const availableHeight = rowHeight - ROW_PADDING_Y * 2;
-        const lineHeight = resolveRowLineHeight(rowHeight, ROW_PADDING_Y, 16, -6);
-
-        ctx.save();
-        ctx.fillStyle = "#2a2a2a";
-        drawRoundedRect(ctx, rowMargin, y, width - rowMargin * 2, rowHeight, 6);
-        ctx.fill();
-
-        const rowToggleSize = resolveToggleSize(rowHeight);
-        const toggleRect = {
-          x: posX,
-          y: contentTop + (availableHeight - rowToggleSize.height) / 2,
-          width: rowToggleSize.width,
-          height: rowToggleSize.height,
-        };
-        slot.__hitToggle = toggleRect;
-        drawToggle(ctx, toggleRect, !!slot.toggleWidget?.value);
-        posX += toggleRect.width + INNER_MARGIN;
-
-        const labelAreaWidth = Math.max(10, rowMargin + contentWidth - posX);
-        const { label, isMissing } = getLoraState(slot.loraWidget);
-        const isOn = !!slot.toggleWidget?.value;
-        if (!isOn) {
-          ctx.globalAlpha *= 0.4;
+        const slotIndex = slot.index - 1;
+        const isDraggingRow =
+          dragState.active && dragState.sourceIndex === slotIndex;
+        if (isDraggingRow) {
+          return;
         }
-        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        const strengthOptions = normalizeStrengthOptions(
-          slot.strengthWidget?.options,
-        );
-        const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
-        const strengthValue = Number(
-          slot.strengthWidget?.value ?? strengthDefault,
-        );
-        const strengthText = formatStrengthValue(
-          strengthValue,
-          strengthOptions,
-        );
-        const strengthValueWidth = resolveFixedLabelWidth(
-          ctx.measureText("0").width,
-          4,
-          4,
-        );
-        const triggerTextWidth = ctx.measureText(SELECT_TRIGGER_LABEL).width;
-        const triggerButtonWidth = Math.max(
-          80,
-          triggerTextWidth + SELECT_BUTTON_PADDING * 2 + 16,
-        );
-        const inlineLayout = resolveInlineControlLayout(
-          labelAreaWidth,
-          strengthValueWidth,
-          triggerButtonWidth,
-          INNER_MARGIN,
-        );
-        const labelButtonBaseRect = computeButtonRect(
-          posX,
-          contentTop,
-          inlineLayout.labelWidth,
-          lineHeight,
-          CONTENT_PADDING_Y,
-        );
-        const labelButtonHeightPadding = Math.max(
-          0,
-          loraLabelButtonHeightPadding,
-        );
-        const labelButtonHeight = Math.min(
-          labelButtonBaseRect.height + labelButtonHeightPadding,
-          lineHeight,
-        );
-        const labelButtonRect = {
-          x: labelButtonBaseRect.x,
-          y: resolveCenteredY(contentTop, availableHeight, labelButtonHeight),
-          width: labelButtonBaseRect.width,
-          height: labelButtonHeight,
-        };
-        slot.__hitLabel = labelButtonRect;
-        ctx.fillStyle = "#242424";
-        drawRoundedRect(
-          ctx,
-          labelButtonRect.x,
-          labelButtonRect.y,
-          labelButtonRect.width,
-          labelButtonRect.height,
-          6,
-        );
-        ctx.fill();
-        ctx.strokeStyle = "#3a3a3a";
-        ctx.stroke();
-        ctx.fillStyle = isMissing
-          ? missingLoraLabelColor
-          : LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
-        const labelTextRect = computeButtonRect(
-          labelButtonRect.x,
-          labelButtonRect.y,
-          labelButtonRect.width,
-          labelButtonRect.height,
-          loraLabelTextPadding,
-        );
-        const labelTextX = labelTextRect.x;
-        const labelTextWidth = Math.max(0, labelTextRect.width);
-        ctx.fillText(
-          fitText(ctx, label || "None", labelTextWidth),
-          labelTextX,
-          labelButtonRect.y + labelButtonRect.height / 2,
-        );
-
-        const strengthHeight = Math.max(12, lineHeight - CONTENT_PADDING_Y * 2);
-        const strengthLeft =
-          labelButtonRect.x + labelButtonRect.width + INNER_MARGIN;
-        const strengthRect = {
-          x: strengthLeft,
-          y: resolveCenteredY(contentTop, availableHeight, strengthHeight),
-          width: Math.max(0, inlineLayout.valueWidth),
-          height: strengthHeight,
-        };
-        const strengthRects = drawStrengthSummary(
-          ctx,
-          strengthRect,
-          slot.strengthWidget,
-          isOn,
-        );
-        slot.__hitStrengthValue = strengthRects.valueRect;
-
-        const buttonHeight = selectTriggerButtonHeight;
-        const buttonRect = computeButtonRect(
-          strengthRect.x + strengthRect.width + INNER_MARGIN,
-          resolveCenteredY(contentTop, availableHeight, buttonHeight),
-          Math.max(0, inlineLayout.buttonWidth),
-          selectTriggerButtonHeight,
-          SELECT_BUTTON_PADDING,
-        );
-        slot.__hitSelectTrigger = buttonRect;
-        ctx.globalAlpha *= isOn ? 0.85 : 0.45;
-        ctx.fillStyle = "#242424";
-        drawRoundedRect(
-          ctx,
-          buttonRect.x,
-          buttonRect.y,
-          buttonRect.width,
-          buttonRect.height,
-          6,
-        );
-        ctx.fill();
-        ctx.strokeStyle = "#3a3a3a";
-        ctx.stroke();
-        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(
-          SELECT_TRIGGER_LABEL,
-          buttonRect.x + buttonRect.width / 2,
-          buttonRect.y + buttonRect.height / 2,
-        );
-
-        ctx.restore();
+        const offset = dragState.active
+          ? resolveDragSlotOffset(
+              dragState.sourceIndex,
+              dragState.targetIndex,
+              slotIndex,
+              ROW_HEIGHT,
+            )
+          : 0;
+        drawRowContent(slot, ctx, width, y + offset, false);
       },
     };
     widget.computeSize = (width) => {
@@ -1470,6 +1533,193 @@ const setupLoadLorasUi = (node) => {
         setWidgetValue(slot.loraWidget, resolved);
       }
     });
+  };
+
+  const dragState = {
+    active: false,
+    pending: false,
+    sourceIndex: -1,
+    targetIndex: -1,
+    pointerY: null,
+    startPointerY: null,
+    pointerOffsetY: 0,
+    pointerDown: false,
+  };
+
+  const buildSlotEntry = (slot) => {
+    const options = getComboOptions(slot.loraWidget);
+    const rawValue = slot.loraWidget?.value;
+    const loraValue = resolveComboDisplayLabel(rawValue, options);
+    const strengthDefault = resolveStrengthDefault(
+      slot.strengthWidget?.options,
+      1.0,
+    );
+    const strengthValue = slot.strengthWidget?.value ?? strengthDefault;
+    const toggleValue = slot.toggleWidget?.value ?? true;
+    const selectionValue = normalizeSelectionValue(slot.selectionWidget?.value);
+    const filterValue = normalizeDialogFilterValue(slot.__loadLorasLoraFilter);
+    const resetTopN = !!slot.selectionWidget?.__loadLorasResetTopN;
+    return {
+      loraValue,
+      strengthValue,
+      toggleValue,
+      selectionValue,
+      filterValue,
+      resetTopN,
+    };
+  };
+
+  const applySlotEntry = (slot, entry) => {
+    applyLoraValue(slot.loraWidget, entry?.loraValue);
+    const strengthDefault = resolveStrengthDefault(
+      slot.strengthWidget?.options,
+      1.0,
+    );
+    const strengthValue = Number.isFinite(entry?.strengthValue)
+      ? entry.strengthValue
+      : strengthDefault;
+    setWidgetValue(slot.strengthWidget, strengthValue);
+    setWidgetValue(slot.toggleWidget, !!entry?.toggleValue);
+    slot.selectionWidget.value = normalizeSelectionValue(entry?.selectionValue);
+    slot.selectionWidget.__loadLorasResetTopN = !!entry?.resetTopN;
+    slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
+      entry?.filterValue,
+    );
+  };
+
+  const reorderSlots = (sourceIndex, targetIndex) => {
+    if (!Number.isFinite(sourceIndex) || !Number.isFinite(targetIndex)) {
+      return;
+    }
+    if (sourceIndex === targetIndex) {
+      return;
+    }
+    const entries = slots.map((slot) => buildSlotEntry(slot));
+    const reordered = reorderListByMove(entries, sourceIndex, targetIndex);
+    reordered.forEach((entry, index) => {
+      applySlotEntry(slots[index], entry);
+    });
+    applyRowVisibility();
+    markDirty(node);
+  };
+
+  const findSlotByPos = (pos) =>
+    slots.find(
+      (slot) =>
+        !slot.rowWidget?.hidden && isPointInRect(pos, slot.__rowRect),
+    );
+
+  const isSlotDraggable = (slot) => {
+    if (!slot) {
+      return false;
+    }
+    return true;
+  };
+
+  const startSlotDrag = (slot, pos) => {
+    if (!isSlotDraggable(slot)) {
+      return false;
+    }
+    if (!Array.isArray(pos)) {
+      return false;
+    }
+    const sourceIndex = slots.indexOf(slot);
+    if (sourceIndex < 0) {
+      return false;
+    }
+    const rowY = slot.__rowRect?.y ?? pos[1];
+    dragState.active = false;
+    dragState.pending = true;
+    dragState.pointerDown = true;
+    dragState.sourceIndex = sourceIndex;
+    dragState.targetIndex = sourceIndex;
+    dragState.pointerY = pos[1];
+    dragState.startPointerY = pos[1];
+    dragState.pointerOffsetY = pos[1] - rowY;
+    markDirty(node);
+    return true;
+  };
+
+  const updateSlotDrag = (event, pos) => {
+    if (!dragState.pointerDown) {
+      return false;
+    }
+    if (!Array.isArray(pos)) {
+      return false;
+    }
+    if (typeof event?.buttons === 'number' && (event.buttons & 1) === 0) {
+      cancelSlotDrag();
+      return false;
+    }
+    dragState.pointerY = pos[1];
+    if (dragState.pending && !dragState.active) {
+      const startY =
+        dragState.startPointerY ?? dragState.pointerY ?? 0;
+      const distance = Math.abs(dragState.pointerY - startY);
+      if (distance < DRAG_START_THRESHOLD) {
+        return true;
+      }
+      dragState.active = true;
+      dragState.pending = false;
+      markDirty(node);
+    }
+    if (!dragState.active) {
+      return true;
+    }
+    const targetSlot = findSlotByPos(pos);
+    if (!targetSlot || !isSlotDraggable(targetSlot)) {
+      markDirty(node);
+      return true;
+    }
+    const targetIndex = slots.indexOf(targetSlot);
+    if (targetIndex < 0) {
+      markDirty(node);
+      return true;
+    }
+    dragState.targetIndex = targetIndex;
+    markDirty(node);
+    return true;
+  };
+
+  const cancelSlotDrag = () => {
+    if (!dragState.active && !dragState.pending) {
+      return false;
+    }
+    dragState.active = false;
+    dragState.pending = false;
+    dragState.pointerDown = false;
+    dragState.sourceIndex = -1;
+    dragState.targetIndex = -1;
+    dragState.pointerY = null;
+    dragState.startPointerY = null;
+    dragState.pointerOffsetY = 0;
+    markDirty(node);
+    return true;
+  };
+
+  const endSlotDrag = () => {
+    if (!dragState.active && !dragState.pending) {
+      return false;
+    }
+    const sourceIndex = dragState.sourceIndex;
+    const targetIndex = dragState.targetIndex;
+    const shouldReorder = dragState.active;
+    dragState.active = false;
+    dragState.pending = false;
+    dragState.pointerDown = false;
+    dragState.sourceIndex = -1;
+    dragState.targetIndex = -1;
+    dragState.pointerY = null;
+    dragState.startPointerY = null;
+    dragState.pointerOffsetY = 0;
+    if (!shouldReorder) {
+      return false;
+    }
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return false;
+    }
+    reorderSlots(sourceIndex, targetIndex);
+    return true;
   };
 
   const getAllToggleState = () => {
@@ -1999,6 +2249,16 @@ const setupLoadLorasUi = (node) => {
         markDirty(targetNode);
         return true;
       }
+      if (isPointInRect(pos, slot.__hitDragHandle)) {
+        const isPrimaryButton =
+          event?.button === 0 || event?.which === 1 || event?.buttons === 1;
+        if (isPrimaryButton && startSlotDrag(slot, pos)) {
+          if (event) {
+            event.__loadLorasHandled = true;
+          }
+          return true;
+        }
+      }
     }
     return false;
   };
@@ -2050,6 +2310,49 @@ const setupLoadLorasUi = (node) => {
     };
     wrappedMouseDown.__loadLorasHandler = true;
     node.onMouseDown = wrappedMouseDown;
+
+    const originalMouseMove = node.onMouseMove;
+    const wrappedMouseMove = function (event, pos) {
+      if (dragState.pointerDown) {
+        updateSlotDrag(event, pos);
+        return true;
+      }
+      return originalMouseMove?.apply(this, arguments);
+    };
+    wrappedMouseMove.__loadLorasHandler = true;
+    node.onMouseMove = wrappedMouseMove;
+
+    const originalMouseUp = node.onMouseUp;
+    const wrappedMouseUp = function (event, pos) {
+      if (endSlotDrag()) {
+        if (event) {
+          event.__loadLorasHandled = true;
+        }
+        return true;
+      }
+      return originalMouseUp?.apply(this, arguments);
+    };
+    wrappedMouseUp.__loadLorasHandler = true;
+    node.onMouseUp = wrappedMouseUp;
+  }
+
+  if (!node.__loadLorasDrawForegroundWrapped) {
+    node.__loadLorasDrawForegroundWrapped = true;
+    const originalDrawForeground = node.onDrawForeground;
+    node.onDrawForeground = function (ctx) {
+      originalDrawForeground?.apply(this, arguments);
+      if (!dragState.active) {
+        return;
+      }
+      const sourceSlot = slots[dragState.sourceIndex];
+      if (!sourceSlot) {
+        return;
+      }
+      const width = this?.size?.[0] ?? 0;
+      const baseY = dragState.pointerY ?? sourceSlot.__rowRect?.y ?? 0;
+      const dragY = baseY - (dragState.pointerOffsetY ?? 0);
+      drawRowContent(sourceSlot, ctx, width, dragY, true);
+    };
   }
 
   if (!node.__loadLorasSerializeWrapped) {
