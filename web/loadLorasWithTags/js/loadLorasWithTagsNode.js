@@ -45,6 +45,7 @@ import {
   shouldIgnoreLoraDialogKeydownForIme,
   reorderListByMove,
   resolveDragSlotOffset,
+  compactListByPredicate,
   shouldPreserveUnknownOption,
   resolveOption,
   resolveBelowCenteredPopupPosition,
@@ -84,7 +85,7 @@ const DRAG_HANDLE_GAP = 6;
 const DRAG_ACTIVE_BACKGROUND = "#353535";
 const DRAG_START_THRESHOLD = 4;
 const SELECT_BUTTON_PADDING = 2;
-const SELECT_TRIGGER_LABEL = "Select Tags";
+const SELECT_TRIGGER_LABEL = "tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
 const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
@@ -1264,7 +1265,7 @@ const setupLoadLorasUi = (node) => {
     );
     const triggerTextWidth = ctx.measureText(SELECT_TRIGGER_LABEL).width;
     const triggerButtonWidth = Math.max(
-      80,
+      40,
       triggerTextWidth + SELECT_BUTTON_PADDING * 2 + 16,
     );
     const inlineLayout = resolveInlineControlLayout(
@@ -1496,6 +1497,7 @@ const setupLoadLorasUi = (node) => {
   };
 
   const applyRowVisibility = () => {
+    compactSlots();
     let lastFilledIndex = 0;
     const states = slots.map((slot) => {
       const state = getLoraState(slot.loraWidget);
@@ -1585,6 +1587,23 @@ const setupLoadLorasUi = (node) => {
     slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
       entry?.filterValue,
     );
+  };
+
+  const compactSlots = () => {
+    const entries = slots.map((slot) => buildSlotEntry(slot));
+    const compacted = compactListByPredicate(entries, (entry) =>
+      isFilledName(entry?.loraValue),
+    );
+    const hasChange = entries.some(
+      (entry, index) => entry !== compacted[index],
+    );
+    if (!hasChange) {
+      return false;
+    }
+    compacted.forEach((entry, index) => {
+      applySlotEntry(slots[index], entry);
+    });
+    return true;
   };
 
   const reorderSlots = (sourceIndex, targetIndex) => {

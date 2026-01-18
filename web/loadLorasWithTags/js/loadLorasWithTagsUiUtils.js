@@ -256,6 +256,25 @@ const resolveDragSlotOffset = (sourceIndex, targetIndex, slotIndex, step) => {
   return 0;
 };
 
+const compactListByPredicate = (items, isFilled) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  if (typeof isFilled !== "function") {
+    return items.slice();
+  }
+  const filled = [];
+  const empty = [];
+  items.forEach((item) => {
+    if (isFilled(item)) {
+      filled.push(item);
+      return;
+    }
+    empty.push(item);
+  });
+  return filled.concat(empty);
+};
+
 const moveIndex = (currentIndex, direction, length) => {
   if (!Number.isFinite(length) || length <= 0) {
     return -1;
@@ -802,6 +821,7 @@ export {
   shouldIgnoreLoraDialogKeydownForIme,
   reorderListByMove,
   resolveDragSlotOffset,
+  compactListByPredicate,
   shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,

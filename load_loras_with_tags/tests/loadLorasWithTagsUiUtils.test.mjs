@@ -71,6 +71,7 @@ import {
   shouldIgnoreLoraDialogKeydownForIme,
   reorderListByMove,
   resolveDragSlotOffset,
+  compactListByPredicate,
   resetIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
 
@@ -147,6 +148,16 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(resolveDragSlotOffset(2, 0, 2, 24), 0);
     assert.equal(resolveDragSlotOffset(1, 1, 0, 24), 0);
     assert.equal(resolveDragSlotOffset(0, 2, 1, 0), 0);
+    assert.deepEqual(
+      compactListByPredicate(['a', 'None', 'b'], (value) => value !== 'None'),
+      ['a', 'b', 'None'],
+    );
+    assert.deepEqual(
+      compactListByPredicate(['a', 'b', 'None'], (value) => value !== 'None'),
+      ['a', 'b', 'None'],
+    );
+    assert.deepEqual(compactListByPredicate([], (value) => value), []);
+    assert.deepEqual(compactListByPredicate(['a'], null), ['a']);
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'mouseup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'pointerup' }));
     assert.ok(shouldCloseStrengthPopupOnRelease({ type: 'touchend' }));
