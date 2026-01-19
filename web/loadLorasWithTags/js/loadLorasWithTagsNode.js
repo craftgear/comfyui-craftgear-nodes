@@ -45,6 +45,9 @@ import {
   loraDialogWidth,
   loraDialogHeaderOrder,
   loraDialogSelectedIconPath,
+  loraDialogSelectedIconSize,
+  loraDialogOpenFolderIconPath,
+  loraDialogOpenFolderIconSize,
   tagDialogItemBackground,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
@@ -246,6 +249,15 @@ const fetchTriggers = async (loraName) => {
     triggers: data.triggers.map((trigger) => String(trigger)),
     frequencies,
   };
+};
+
+const openLoraFolder = async (loraName) => {
+  const response = await api.fetchApi('/my_custom_node/open_lora_folder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lora_name: loraName }),
+  });
+  return response.ok;
 };
 
 const closeStrengthPopup = () => {
@@ -2077,8 +2089,8 @@ const setupLoadLorasUi = (node) => {
         "svg",
       );
       svg.setAttribute("viewBox", "0 0 24 24");
-      svg.setAttribute("width", "16");
-      svg.setAttribute("height", "16");
+      svg.setAttribute("width", String(loraDialogSelectedIconSize));
+      svg.setAttribute("height", String(loraDialogSelectedIconSize));
       svg.setAttribute("aria-hidden", "true");
       svg.setAttribute("fill", "none");
       svg.setAttribute("stroke", "currentColor");
@@ -2091,6 +2103,29 @@ const setupLoadLorasUi = (node) => {
         "path",
       );
       path.setAttribute("d", loraDialogSelectedIconPath);
+      svg.append(path);
+      return svg;
+    };
+    const createOpenFolderIcon = () => {
+      const svg = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'svg',
+      );
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', String(loraDialogOpenFolderIconSize));
+      svg.setAttribute('height', String(loraDialogOpenFolderIconSize));
+      svg.setAttribute('aria-hidden', 'true');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.style.display = 'block';
+      const path = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path',
+      );
+      path.setAttribute('d', loraDialogOpenFolderIconPath);
       svg.append(path);
       return svg;
     };
@@ -2137,6 +2172,7 @@ const setupLoadLorasUi = (node) => {
       renderedButtons.forEach((entry, visibleIndex) => {
         const isSelected = visibleIndex === selectedVisibleIndex;
         const isHovered = visibleIndex === hoveredVisibleIndex;
+        const isActive = isSelected || isHovered;
         entry.button.style.background = resolveLoraDialogItemBackground(
           isSelected,
           isHovered,
@@ -2144,6 +2180,12 @@ const setupLoadLorasUi = (node) => {
         if (entry.iconWrap) {
           entry.iconWrap.style.opacity =
             entry.optionIndex === currentOptionIndex ? "1" : "0";
+        }
+        if (entry.openIconWrap) {
+          entry.openIconWrap.style.opacity =
+            entry.isOpenable && isActive ? '1' : '0';
+          entry.openIconWrap.style.pointerEvents =
+            entry.isOpenable && isActive ? 'auto' : 'none';
         }
       });
     };
@@ -2246,9 +2288,12 @@ const setupLoadLorasUi = (node) => {
       );
       selectedVisibleIndex = resolvedSelection.selectedVisibleIndex;
       selectedOptionIndex = resolvedSelection.selectedOptionIndex;
+      const noneOptionIndex = resolveNoneOptionIndex(options);
       visibleOptions.forEach((entry, index) => {
         const label = entry.label;
         const optionIndex = entry.index;
+        const isOpenable =
+          typeof label === 'string' && label !== 'None' && optionIndex !== noneOptionIndex;
         const button = $el("button", {
           style: {
             textAlign: "left",
@@ -2267,8 +2312,8 @@ const setupLoadLorasUi = (node) => {
         // 選択移動でラベルの位置が揺れないように幅を固定する
         const iconWrap = $el("span", {
           style: {
-            width: "16px",
-            height: "16px",
+            width: `${loraDialogSelectedIconSize}px`,
+            height: `${loraDialogSelectedIconSize}px`,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -2284,8 +2329,40 @@ const setupLoadLorasUi = (node) => {
           },
         });
         renderLabel(labelContainer, label, activeFilterQuery);
-        button.append(iconWrap, labelContainer);
-        renderedButtons.push({ button, optionIndex, iconWrap });
+        const openIconWrap = $el('span', {
+          style: {
+            width: `${loraDialogOpenFolderIconSize}px`,
+            height: `${loraDialogOpenFolderIconSize}px`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 auto',
+            marginLeft: 'auto',
+            opacity: '0',
+            cursor: 'pointer',
+            pointerEvents: 'none',
+            visibility: isOpenable ? 'visible' : 'hidden',
+          },
+        });
+        openIconWrap.append(createOpenFolderIcon());
+        openIconWrap.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!isOpenable) {
+            return;
+          }
+          applySelection(label);
+          closeDialog();
+          void openLoraFolder(label);
+        };
+        button.append(iconWrap, labelContainer, openIconWrap);
+        renderedButtons.push({
+          button,
+          optionIndex,
+          iconWrap,
+          openIconWrap,
+          isOpenable,
+        });
         button.onmouseenter = () => {
           applyHoverSelection(index);
           refreshButtonStates();

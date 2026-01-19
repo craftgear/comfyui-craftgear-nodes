@@ -902,6 +902,10 @@ const resolveTagDialogItemBackground = (isActive, isHovered) => {
 
 const loraDialogSelectedIconPath =
   "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M9 12l2 2l4 -4";
+const loraDialogSelectedIconSize = 19.2;
+const loraDialogOpenFolderIconPath =
+  'M13.5 6a.5.5 0 0 0 .5-.5A1.5 1.5 0 0 0 12.5 4h-5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 5 2H1.5A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h11.1a1.49 1.49 0 0 0 1.42-1.03l1.77-5.32a.5.5 0 0 0-.474-.658h-10.8a.75.75 0 0 0-.712.513l-1.83 5.49h-.5a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h3.5l.9 1.2c.378.504.97.8 1.6.8h5c.276 0 .5.224.5.5s.224.5.5.5z';
+const loraDialogOpenFolderIconSize = 19.2;
 const resetIconPath =
   "M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z";
 const trashIconPath =
@@ -1019,6 +1023,9 @@ export {
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
   loraDialogSelectedIconPath,
+  loraDialogSelectedIconSize,
+  loraDialogOpenFolderIconPath,
+  loraDialogOpenFolderIconSize,
   resetIconPath,
   trashIconPath,
   resolvePopupPosition,
