@@ -123,6 +123,32 @@ const resolveOption = (rawValue, options) => {
   return { index, label };
 };
 
+const resolveComboOptionIndex = (rawValue, options, fallback = 'None') => {
+  const list = normalizeOptions(options);
+  if (list.length === 0) {
+    return -1;
+  }
+  let value = rawValue;
+  if (value && typeof value === 'object') {
+    if ('value' in value) {
+      value = value.value;
+    } else if ('name' in value) {
+      value = value.name;
+    }
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const index = Math.trunc(value);
+    return index >= 0 && index < list.length ? index : -1;
+  }
+  const label = String(value ?? '').trim();
+  if (!label) {
+    const fallbackIndex = list.indexOf(fallback);
+    return fallbackIndex >= 0 ? fallbackIndex : -1;
+  }
+  const index = list.indexOf(label);
+  return index >= 0 ? index : -1;
+};
+
 const resolveNoneOptionIndex = (options, fallback = 'None') => {
   const list = normalizeOptions(options);
   if (list.length === 0) {
@@ -808,6 +834,7 @@ const loraDialogItemGap = 0;
 const loraDialogItemPaddingY = 4;
 const loraDialogItemPaddingX = 8;
 const loraDialogWidth = "65vw";
+const loraDialogHeaderOrder = ["filter", "cancel", "trash"];
 const tagDialogItemBackground = "transparent";
 const tagDialogItemActiveBackground = "#3a3a3a";
 const tagDialogItemHoverBackground = "#333333";
@@ -854,6 +881,8 @@ const resolveTagDialogItemBackground = (isActive, isHovered) => {
   return tagDialogItemBackground;
 };
 
+const loraDialogSelectedIconPath =
+  "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M9 12l2 2l4 -4";
 const resetIconPath =
   "M18 28A12 12 0 1 0 6 16v6.2l-3.6-3.6L1 20l6 6l6-6l-1.4-1.4L8 22.2V16a10 10 0 1 1 10 10Z";
 const trashIconPath =
@@ -925,6 +954,7 @@ export {
   resolveHoverSelection,
   resolveComboLabel,
   resolveComboDisplayLabel,
+  resolveComboOptionIndex,
   resolveMissingLoraFilterValue,
   resolveLoraDialogFilterValue,
   resolveLoraSlotFilterValue,
@@ -952,6 +982,7 @@ export {
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
   loraDialogWidth,
+  loraDialogHeaderOrder,
   getLoraDialogListStyle,
   tagDialogItemBackground,
   tagDialogItemActiveBackground,
@@ -967,6 +998,7 @@ export {
   resolveOption,
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
+  loraDialogSelectedIconPath,
   resetIconPath,
   trashIconPath,
   resolvePopupPosition,

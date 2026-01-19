@@ -37,6 +37,8 @@ import {
   loraDialogItemPaddingX,
   getLoraDialogListStyle,
   loraDialogWidth,
+  loraDialogHeaderOrder,
+  loraDialogSelectedIconPath,
   tagDialogItemBackground,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
@@ -52,6 +54,7 @@ import {
   resolveActiveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
+  resolveComboOptionIndex,
   resolveMissingLoraFilterValue,
   resolveLoraSlotFilterValue,
   normalizeDialogFilterValue,
@@ -1876,6 +1879,10 @@ const setupLoadLorasUi = (node) => {
     let lastFilterQuery = "";
     let lastFilteredIndices = null;
     let activeFilterQuery = "";
+    const currentOptionIndex = resolveComboOptionIndex(
+      slot.loraWidget?.value,
+      options,
+    );
 
     closeDialog();
     const overlay = $el("div", {
@@ -2012,7 +2019,17 @@ const setupLoadLorasUi = (node) => {
         marginBottom: '12px',
       },
     });
-    headerRow.append(trashButton, filterContainer, cancelButton);
+    const headerItems = {
+      filter: filterContainer,
+      cancel: cancelButton,
+      trash: trashButton,
+    };
+    loraDialogHeaderOrder.forEach((key) => {
+      const item = headerItems[key];
+      if (item) {
+        headerRow.append(item);
+      }
+    });
     const list = $el('div', {
       style: getLoraDialogListStyle(),
     });
@@ -2033,10 +2050,34 @@ const setupLoadLorasUi = (node) => {
       markDirty(targetNode);
     };
 
-    const renderLabel = (button, label, query) => {
+    const createSelectedIcon = () => {
+      const svg = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "svg",
+      );
+      svg.setAttribute("viewBox", "0 0 24 24");
+      svg.setAttribute("width", "16");
+      svg.setAttribute("height", "16");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("fill", "none");
+      svg.setAttribute("stroke", "currentColor");
+      svg.setAttribute("stroke-width", "2");
+      svg.setAttribute("stroke-linecap", "round");
+      svg.setAttribute("stroke-linejoin", "round");
+      svg.style.display = "block";
+      const path = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path",
+      );
+      path.setAttribute("d", loraDialogSelectedIconPath);
+      svg.append(path);
+      return svg;
+    };
+
+    const renderLabel = (labelContainer, label, query) => {
       const parts = splitLoraLabel(label);
       const segments = getHighlightSegments(parts.base, query);
-      button.textContent = "";
+      labelContainer.textContent = "";
       segments.forEach((segment) => {
         if (!segment.text) {
           return;
@@ -2047,10 +2088,10 @@ const setupLoadLorasUi = (node) => {
           span.style.color = loraDialogMatchTextColor;
           span.style.fontWeight = loraDialogMatchFontWeight;
         }
-        button.append(span);
+        labelContainer.append(span);
       });
       if (parts.extension) {
-        button.append(document.createTextNode(parts.extension));
+        labelContainer.append(document.createTextNode(parts.extension));
       }
     };
 
@@ -2072,13 +2113,17 @@ const setupLoadLorasUi = (node) => {
     };
 
     const refreshButtonStates = () => {
-      renderedButtons.forEach((entry) => {
-        const isSelected = entry.index === selectedVisibleIndex;
-        const isHovered = entry.index === hoveredVisibleIndex;
+      renderedButtons.forEach((entry, visibleIndex) => {
+        const isSelected = visibleIndex === selectedVisibleIndex;
+        const isHovered = visibleIndex === hoveredVisibleIndex;
         entry.button.style.background = resolveLoraDialogItemBackground(
           isSelected,
           isHovered,
         );
+        if (entry.iconWrap) {
+          entry.iconWrap.style.opacity =
+            entry.optionIndex === currentOptionIndex ? "1" : "0";
+        }
       });
     };
 
@@ -2182,6 +2227,7 @@ const setupLoadLorasUi = (node) => {
       selectedOptionIndex = resolvedSelection.selectedOptionIndex;
       visibleOptions.forEach((entry, index) => {
         const label = entry.label;
+        const optionIndex = entry.index;
         const button = $el("button", {
           style: {
             textAlign: "left",
@@ -2190,12 +2236,35 @@ const setupLoadLorasUi = (node) => {
             border: loraDialogItemBorder,
             background: loraDialogItemBackground,
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
           },
         });
         button.style.color = "#e0e0e0";
         button.style.fontWeight = "400";
-        renderLabel(button, label, activeFilterQuery);
-        renderedButtons.push({ button, index });
+        // 選択移動でラベルの位置が揺れないように幅を固定する
+        const iconWrap = $el("span", {
+          style: {
+            width: "16px",
+            height: "16px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flex: "0 0 auto",
+            opacity: "0",
+          },
+        });
+        iconWrap.append(createSelectedIcon());
+        const labelContainer = $el("span", {
+          style: {
+            flex: "1 1 auto",
+            minWidth: "0",
+          },
+        });
+        renderLabel(labelContainer, label, activeFilterQuery);
+        button.append(iconWrap, labelContainer);
+        renderedButtons.push({ button, optionIndex, iconWrap });
         button.onmouseenter = () => {
           applyHoverSelection(index);
           refreshButtonStates();

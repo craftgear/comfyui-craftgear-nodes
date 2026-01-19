@@ -57,6 +57,7 @@ import {
   tagDialogItemHoverBackground,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
+  loraDialogHeaderOrder,
   selectTriggerButtonHeight,
   getFrequencyLabelStyle,
   getHighlightSegments,
@@ -66,6 +67,7 @@ import {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolveOption,
+  resolveComboOptionIndex,
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
   resolveActiveIndex,
@@ -92,6 +94,14 @@ describe('loadLorasWithTagsUiUtils', () => {
       label: 'b.safetensors',
     });
     assert.deepEqual(resolveOption('missing', options), { index: 0, label: 'missing' });
+    assert.equal(resolveComboOptionIndex(2, options), 2);
+    assert.equal(resolveComboOptionIndex('a.safetensors', options), 1);
+    assert.equal(resolveComboOptionIndex({ name: 'b.safetensors' }, options), 2);
+    assert.equal(resolveComboOptionIndex('missing', options), -1);
+    assert.equal(resolveComboOptionIndex(10, options), -1);
+    assert.equal(resolveComboOptionIndex(null, options), 0);
+    assert.equal(resolveComboOptionIndex(undefined, options), 0);
+    assert.equal(resolveComboOptionIndex(null, ['a', 'b']), -1);
     assert.equal(resolveNoneOptionIndex(options), 0);
     assert.equal(resolveNoneOptionIndex(['a', 'b']), -1);
     assert.equal(resolveNoneOptionIndex(null), -1);
@@ -530,6 +540,7 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(loraDialogItemGap, 0);
     assert.equal(loraDialogItemPaddingY, 4);
     assert.equal(loraDialogItemPaddingX, 8);
+    assert.deepEqual(loraDialogHeaderOrder, ['filter', 'cancel', 'trash']);
     assert.equal(getLoraDialogListStyle().overflowX, 'hidden');
     assert.equal(tagDialogItemBackground, 'transparent');
     assert.equal(tagDialogItemActiveBackground, '#3a3a3a');
