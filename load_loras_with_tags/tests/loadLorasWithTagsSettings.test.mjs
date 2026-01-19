@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_AUTO_SELECT_MISSING_LORA,
+  DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
   DEFAULT_MIN_FREQUENCY,
   normalizeAutoSelectMissingLora,
+  normalizeAutoSelectInfinityWordsOnly,
   normalizeMinFrequency,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsSettings.js';
 
@@ -43,5 +45,26 @@ describe('normalizeAutoSelectMissingLora', () => {
 
   it('returns true when value is boolean true', () => {
     expect(normalizeAutoSelectMissingLora(true)).toBe(true);
+  });
+});
+
+describe('normalizeAutoSelectInfinityWordsOnly', () => {
+  it('returns default when value is not a boolean true', () => {
+    expect(normalizeAutoSelectInfinityWordsOnly(undefined)).toBe(
+      DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+    );
+    expect(normalizeAutoSelectInfinityWordsOnly(null)).toBe(
+      DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+    );
+    expect(normalizeAutoSelectInfinityWordsOnly(false)).toBe(
+      DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+    );
+    expect(normalizeAutoSelectInfinityWordsOnly('true')).toBe(
+      DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+    );
+  });
+
+  it('returns true when value is boolean true', () => {
+    expect(normalizeAutoSelectInfinityWordsOnly(true)).toBe(true);
   });
 });

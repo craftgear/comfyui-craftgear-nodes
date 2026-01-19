@@ -8,6 +8,7 @@ import {
   computeResetButtonRect,
   computeSliderRatio,
   createDebouncedRunner,
+  isRectFullyVisible,
   moveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
@@ -643,6 +644,20 @@ describe('loadLorasWithTagsUiUtils', () => {
       width: 92,
       height: 22,
     });
+    assert.equal(
+      isRectFullyVisible({ top: 0, bottom: 100 }, { top: 10, bottom: 90 }),
+      true,
+    );
+    assert.equal(
+      isRectFullyVisible({ top: 0, bottom: 100 }, { top: -1, bottom: 90 }),
+      false,
+    );
+    assert.equal(
+      isRectFullyVisible({ top: 0, bottom: 100 }, { top: 10, bottom: 101 }),
+      false,
+    );
+    assert.equal(isRectFullyVisible(null, { top: 0, bottom: 10 }), false);
+    assert.equal(isRectFullyVisible({ top: 0, bottom: 10 }, null), false);
 
     assert.deepEqual(computeSplitWidths(120, 2, 1, 6), { first: 76, second: 38 });
     assert.deepEqual(computeSplitWidths(10, 0, 0, 4), { first: 0, second: 0 });

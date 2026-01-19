@@ -478,6 +478,25 @@ const computeButtonRect = (x, y, width, height, padding = 0) => {
   };
 };
 
+const isRectFullyVisible = (containerRect, targetRect) => {
+  if (!containerRect || !targetRect) {
+    return false;
+  }
+  const containerTop = Number(containerRect.top);
+  const containerBottom = Number(containerRect.bottom);
+  const targetTop = Number(targetRect.top);
+  const targetBottom = Number(targetRect.bottom);
+  if (
+    !Number.isFinite(containerTop) ||
+    !Number.isFinite(containerBottom) ||
+    !Number.isFinite(targetTop) ||
+    !Number.isFinite(targetBottom)
+  ) {
+    return false;
+  }
+  return targetTop >= containerTop && targetBottom <= containerBottom;
+};
+
 const computeSplitWidths = (totalWidth, firstRatio, secondRatio, gap = 0) => {
   const safeWidth = Math.max(0, Number(totalWidth) || 0);
   const safeGap = Math.max(0, Number(gap) || 0);
@@ -943,6 +962,7 @@ const focusInputLater = (input, schedule) => {
 export {
   calculateSliderValue,
   computeButtonRect,
+  isRectFullyVisible,
   computeSplitWidths,
   computeResetButtonRect,
   computeSliderRatio,

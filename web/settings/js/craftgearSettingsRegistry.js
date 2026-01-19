@@ -8,7 +8,9 @@ import {
 } from "../../tag_toggle_text/js/tagToggleTextSettings.js";
 import {
   AUTO_SELECT_MISSING_LORA_SETTING_ID,
+  AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   DEFAULT_AUTO_SELECT_MISSING_LORA,
+  DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
   DEFAULT_MIN_FREQUENCY,
   MIN_FREQUENCY_SETTING_ID,
 } from "../../loadLorasWithTags/js/loadLorasWithTagsSettings.js";
@@ -35,6 +37,13 @@ const craftgearSettings = [
     type: 'boolean',
     category: ['craftgear', 'Load Loras With Tags', 'Auto select missing LoRA by name'],
     defaultValue: DEFAULT_AUTO_SELECT_MISSING_LORA,
+  },
+  {
+    id: AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
+    name: 'Auto select ∞ tags only',
+    type: 'boolean',
+    category: ['craftgear', 'Load Loras With Tags', 'Auto select ∞ tags only'],
+    defaultValue: DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
   },
   {
     id: commentableFontSizeSettingId,

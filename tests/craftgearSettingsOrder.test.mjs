@@ -8,6 +8,7 @@ describe('craftgearSettings', () => {
     expect(ids).toEqual([
       'craftgear.loadLorasWithTags.minFrequencyThreshold',
       'craftgear.loadLorasWithTags.autoSelectMissingLora',
+      'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly',
       'craftgear.commentableMultilineText.fontSize',
       'craftgear.tagToggleText.fontSize',
     ]);
@@ -16,6 +17,7 @@ describe('craftgearSettings', () => {
     expect(categories).toEqual([
       ['craftgear', 'Load Loras With Tags', 'Hide tags with frequency at or below n'],
       ['craftgear', 'Load Loras With Tags', 'Auto select missing LoRA by name'],
+      ['craftgear', 'Load Loras With Tags', 'Auto select ∞ tags only'],
       ['craftgear', 'Commentable Multiline Text', 'Font Size'],
       ['craftgear', 'Toggle Tags', 'Font Size'],
     ]);

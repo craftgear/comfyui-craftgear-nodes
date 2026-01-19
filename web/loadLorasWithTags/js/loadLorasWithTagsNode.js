@@ -6,13 +6,19 @@ import {
   getTagVisibility,
   getTopNVisibility,
 } from "./tagFilterUtils.js";
-import { normalizeSelectionValue } from "./selectionValueUtils.js";
+import {
+  normalizeSelectionValue,
+  resolveTagSelection,
+  shouldAutoSelectInfinityTagsOnly,
+} from './selectionValueUtils.js';
 import {
   AUTO_SELECT_MISSING_LORA_SETTING_ID,
+  AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
   normalizeAutoSelectMissingLora,
+  normalizeAutoSelectInfinityWordsOnly,
   normalizeMinFrequency,
-} from "./loadLorasWithTagsSettings.js";
+} from './loadLorasWithTagsSettings.js';
 import { getSavedSlotValues } from "./loadLorasWithTagsSavedValuesUtils.js";
 import {
   computeButtonRect,
@@ -58,6 +64,7 @@ import {
   resolveMissingLoraFilterValue,
   resolveLoraSlotFilterValue,
   normalizeDialogFilterValue,
+  isRectFullyVisible,
   shouldIgnoreLoraDialogKeydownForIme,
   reorderListByMove,
   resolveDragSlotOffset,
@@ -129,6 +136,13 @@ const getAutoSelectMissingLoraEnabled = () => {
     AUTO_SELECT_MISSING_LORA_SETTING_ID,
   );
   return normalizeAutoSelectMissingLora(value);
+};
+
+const getAutoSelectInfinityWordsOnlyEnabled = () => {
+  const value = app?.extensionManager?.setting?.get?.(
+    AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
+  );
+  return normalizeAutoSelectInfinityWordsOnly(value);
 };
 
 const markDirty = (node) => {
@@ -532,21 +546,6 @@ const openStrengthPopup = (slot, event, targetNode) => {
   targetNode.__loadLorasStrengthPopupSlot = slot;
 };
 
-const parseSelection = (selectionText, triggers) => {
-  if (!selectionText) {
-    return new Set(triggers);
-  }
-  try {
-    const parsed = JSON.parse(selectionText);
-    if (!Array.isArray(parsed)) {
-      return new Set(triggers);
-    }
-    return new Set(parsed.map((item) => String(item)));
-  } catch (_error) {
-    return new Set(triggers);
-  }
-};
-
 const openTriggerDialog = async (
   loraName,
   selectionWidget,
@@ -564,7 +563,16 @@ const openTriggerDialog = async (
     return;
   }
   const selectionValue = normalizeSelectionValue(selectionWidget?.value);
-  const selected = parseSelection(selectionValue, triggers);
+  const shouldAutoSelectInfinityWordsOnly = shouldAutoSelectInfinityTagsOnly(
+    getAutoSelectInfinityWordsOnlyEnabled(),
+    resetTopN,
+  );
+  const selected = resolveTagSelection({
+    selectionText: selectionValue,
+    triggers,
+    frequencies,
+    autoSelectInfinityWordsOnly: shouldAutoSelectInfinityWordsOnly,
+  });
 
   closeDialog();
   const overlay = $el("div", {
@@ -1872,6 +1880,7 @@ const setupLoadLorasUi = (node) => {
     let visibleOptions = [];
     let hoveredVisibleIndex = -1;
     let renderedButtons = [];
+    let didAutoScrollToChecked = false;
     let suppressHoverSelection = false;
     let isFilterComposing = false;
     let suppressEnterOnce = false;
@@ -2323,6 +2332,23 @@ const setupLoadLorasUi = (node) => {
       }
       entry.button?.scrollIntoView?.({ block: "nearest" });
     };
+    const scrollCheckedIntoView = () => {
+      if (didAutoScrollToChecked) {
+        return;
+      }
+      didAutoScrollToChecked = true;
+      const entry = renderedButtons.find(
+        (item) => item.optionIndex === currentOptionIndex,
+      );
+      if (!entry?.button) {
+        return;
+      }
+      const listRect = list?.getBoundingClientRect?.();
+      const buttonRect = entry.button?.getBoundingClientRect?.();
+      if (!isRectFullyVisible(listRect, buttonRect)) {
+        entry.button?.scrollIntoView?.({ block: "nearest" });
+      }
+    };
     const moveSelection = (direction) => {
       if (visibleOptions.length === 0) {
         return;
@@ -2402,6 +2428,9 @@ const setupLoadLorasUi = (node) => {
     overlay.__loadLorasCleanup = () => {
       debouncedFilter.cancel();
     };
+    requestAnimationFrame(() => {
+      scrollCheckedIntoView();
+    });
     focusInputLater(filterInput);
   };
 
