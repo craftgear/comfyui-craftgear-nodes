@@ -50,6 +50,18 @@ describe('resolveTagSelection', () => {
     });
     assert.deepEqual([...selected], ['alpha', 'beta']);
   });
+
+  it('returns empty when selection text is empty and emptySelectionAsNone is true', () => {
+    const triggers = ['alpha', 'beta'];
+    const selected = resolveTagSelection({
+      selectionText: '',
+      triggers,
+      frequencies: { alpha: 1, beta: 2 },
+      autoSelectInfinityWordsOnly: false,
+      emptySelectionAsNone: true,
+    });
+    assert.deepEqual([...selected], []);
+  });
 });
 
 describe('shouldAutoSelectInfinityTagsOnly', () => {

@@ -28,6 +28,7 @@ const resolveTagSelection = ({
   triggers,
   frequencies,
   autoSelectInfinityWordsOnly,
+  emptySelectionAsNone = false,
 }) => {
   if (!Array.isArray(triggers)) {
     return new Set();
@@ -39,6 +40,9 @@ const resolveTagSelection = ({
       return value === Infinity;
     });
     return new Set(selected.map((trigger) => String(trigger)));
+  }
+  if (emptySelectionAsNone && !selectionText) {
+    return new Set();
   }
   return parseSelection(selectionText, triggers);
 };

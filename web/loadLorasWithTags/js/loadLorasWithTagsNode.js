@@ -563,8 +563,10 @@ const openTriggerDialog = async (
     return;
   }
   const selectionValue = normalizeSelectionValue(selectionWidget?.value);
+  const autoSelectInfinityTagsOnlyEnabled =
+    getAutoSelectInfinityWordsOnlyEnabled();
   const shouldAutoSelectInfinityWordsOnly = shouldAutoSelectInfinityTagsOnly(
-    getAutoSelectInfinityWordsOnlyEnabled(),
+    autoSelectInfinityTagsOnlyEnabled,
     resetTopN,
   );
   const selected = resolveTagSelection({
@@ -572,7 +574,17 @@ const openTriggerDialog = async (
     triggers,
     frequencies,
     autoSelectInfinityWordsOnly: shouldAutoSelectInfinityWordsOnly,
+    emptySelectionAsNone: autoSelectInfinityTagsOnlyEnabled,
   });
+  if (
+    shouldAutoSelectInfinityWordsOnly ||
+    (autoSelectInfinityTagsOnlyEnabled && !selectionValue)
+  ) {
+    const nextSelectionValue = JSON.stringify([...selected]);
+    if (selectionWidget?.value !== nextSelectionValue) {
+      setWidgetValue(selectionWidget, nextSelectionValue);
+    }
+  }
 
   closeDialog();
   const overlay = $el("div", {
