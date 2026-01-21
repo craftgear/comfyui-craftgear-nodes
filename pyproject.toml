@@ -6,7 +6,7 @@ license = { file = "LICENSE" }
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/YOUR_USERNAME/comfyui-craftgear-nodes"
+Repository = "https://github.com/craftgear/comfyui-craftgear-nodes"
 
 [tool.comfy]
 PublisherId = "craftgear"
