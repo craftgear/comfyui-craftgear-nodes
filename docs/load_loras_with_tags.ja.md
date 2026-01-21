@@ -14,6 +14,8 @@
 
 - LoRA名はファジーマッチでフィルタ可能です。大量のファイルから目的のものを素早く探すことが出来ます。
 - 上下キーまたはマウスクリックでLoRAを選択します。
+- 候補がアクティブになると、同じディレクトリの画像が左側に表示されます。
+- プレビューにホバーすると拡大表示します（倍率は設定で変更可能）。
 ![select lora](./images/load_lora_with_tags_04.png)
 
 
@@ -121,4 +123,3 @@
 ```
 [Load LoRAs With Tags] -> tags -> [Toggle Tags] -> text -> [CLIP Text Encode]
 ```
-

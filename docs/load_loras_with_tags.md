@@ -14,6 +14,8 @@
 
 - LoRA names can be filtered with fuzzy matching. Quickly find the target from a large number of files.
 - Select LoRA using up/down keys or mouse click.
+- When a LoRA is active, an image in the same directory is shown on the left.
+- Hover the preview to zoom (scale configurable in settings).
 ![select lora](./images/load_lora_with_tags_04.png)
 
 

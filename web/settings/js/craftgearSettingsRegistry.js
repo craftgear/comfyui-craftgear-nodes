@@ -11,7 +11,9 @@ import {
   AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   DEFAULT_AUTO_SELECT_MISSING_LORA,
   DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+  DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
   DEFAULT_MIN_FREQUENCY,
+  LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
 } from "../../loadLorasWithTags/js/loadLorasWithTagsSettings.js";
 
@@ -44,6 +46,17 @@ const craftgearSettings = [
     type: 'boolean',
     category: ['craftgear', 'Load Loras With Tags', 'Auto select ∞ tags only'],
     defaultValue: DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+  },
+  {
+    id: LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
+    name: 'Preview zoom scale',
+    type: 'number',
+    category: ['craftgear', 'Load Loras With Tags', 'Preview zoom scale'],
+    attrs: {
+      min: 1,
+      step: 0.1,
+    },
+    defaultValue: DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
   },
   {
     id: commentableFontSizeSettingId,

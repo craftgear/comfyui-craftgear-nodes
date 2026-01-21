@@ -14,9 +14,11 @@ import {
 import {
   AUTO_SELECT_MISSING_LORA_SETTING_ID,
   AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
+  LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
   normalizeAutoSelectMissingLora,
   normalizeAutoSelectInfinityWordsOnly,
+  normalizeLoraPreviewZoomScale,
   normalizeMinFrequency,
 } from './loadLorasWithTagsSettings.js';
 import { getSavedSlotValues } from "./loadLorasWithTagsSavedValuesUtils.js";
@@ -42,6 +44,7 @@ import {
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
   getLoraDialogListStyle,
+  getLoraPreviewPanelStyle,
   loraDialogWidth,
   loraDialogHeaderOrder,
   loraDialogSelectedIconPath,
@@ -61,6 +64,7 @@ import {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolvePreviewVisibleIndex,
+  resolveZoomBackgroundPosition,
   resolveActiveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
@@ -149,6 +153,13 @@ const getAutoSelectInfinityWordsOnlyEnabled = () => {
     AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   );
   return normalizeAutoSelectInfinityWordsOnly(value);
+};
+
+const getLoraPreviewZoomScale = () => {
+  const value = app?.extensionManager?.setting?.get?.(
+    LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
+  );
+  return normalizeLoraPreviewZoomScale(value);
 };
 
 const markDirty = (node) => {
@@ -1941,10 +1952,16 @@ const setupLoadLorasUi = (node) => {
     let previewRequestToken = 0;
     let previewObjectUrl = null;
     let lastPreviewLabel = '';
+    let previewImageNaturalSize = { width: 0, height: 0 };
+    let previewZoomActive = false;
+    let previewZoomRaf = null;
+    let previewZoomPoint = null;
     const currentOptionIndex = resolveComboOptionIndex(
       slot.loraWidget?.value,
       options,
     );
+    const previewZoomScale = getLoraPreviewZoomScale();
+    const isPreviewZoomEnabled = previewZoomScale > 1;
 
     closeDialog();
     const overlay = $el("div", {
@@ -1975,17 +1992,10 @@ const setupLoadLorasUi = (node) => {
       },
     });
     const previewPanel = $el('div', {
-      style: {
-        width: `${LORA_PREVIEW_PANEL_WIDTH}px`,
-        padding: `${LORA_PREVIEW_PANEL_PADDING}px`,
-        background: 'transparent',
-        border: '1px solid #2a2a2a',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      },
+      style: getLoraPreviewPanelStyle(
+        LORA_PREVIEW_PANEL_WIDTH,
+        LORA_PREVIEW_PANEL_PADDING,
+      ),
     });
     const previewImage = $el('img', {
       style: {
@@ -1993,9 +2003,22 @@ const setupLoadLorasUi = (node) => {
         maxHeight: '100%',
         objectFit: 'contain',
         display: 'none',
+        position: 'relative',
+        zIndex: '0',
       },
     });
-    previewPanel.append(previewImage);
+    const previewZoomLayer = $el('div', {
+      style: {
+        position: 'absolute',
+        inset: '0',
+        display: 'none',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: '0 0',
+        pointerEvents: 'none',
+        zIndex: '1',
+      },
+    });
+    previewPanel.append(previewImage, previewZoomLayer);
     const panel = $el("div", {
       style: {
         background: "#1e1e1e",
@@ -2127,19 +2150,169 @@ const setupLoadLorasUi = (node) => {
       style: getLoraDialogListStyle(),
     });
 
+    const resolvePreviewImageLayout = () => {
+      const rect = previewPanel?.getBoundingClientRect?.();
+      const containerWidth = Math.max(0, Number(rect?.width) || 0);
+      const containerHeight = Math.max(0, Number(rect?.height) || 0);
+      if (containerWidth === 0 || containerHeight === 0) {
+        return null;
+      }
+      const naturalWidth = Math.max(0, Number(previewImageNaturalSize.width) || 0);
+      const naturalHeight = Math.max(0, Number(previewImageNaturalSize.height) || 0);
+      if (naturalWidth === 0 || naturalHeight === 0) {
+        return {
+          container: { width: containerWidth, height: containerHeight },
+          content: {
+            width: containerWidth,
+            height: containerHeight,
+            offsetX: 0,
+            offsetY: 0,
+          },
+        };
+      }
+      const scale = Math.min(
+        containerWidth / naturalWidth,
+        containerHeight / naturalHeight,
+      );
+      const contentWidth = naturalWidth * scale;
+      const contentHeight = naturalHeight * scale;
+      return {
+        container: { width: containerWidth, height: containerHeight },
+        content: {
+          width: contentWidth,
+          height: contentHeight,
+          offsetX: (containerWidth - contentWidth) / 2,
+          offsetY: (containerHeight - contentHeight) / 2,
+        },
+      };
+    };
+
+    const applyPreviewZoomPosition = () => {
+      if (!previewZoomActive || !previewZoomPoint) {
+        return;
+      }
+      const layout = resolvePreviewImageLayout();
+      if (!layout) {
+        return;
+      }
+      const { container, content } = layout;
+      const position = resolveZoomBackgroundPosition(
+        previewZoomPoint,
+        container,
+        content,
+        previewZoomScale,
+      );
+      previewZoomLayer.style.backgroundSize = `${content.width * previewZoomScale}px ${content.height * previewZoomScale}px`;
+      previewZoomLayer.style.backgroundPosition = `${position.x}px ${position.y}px`;
+    };
+
+    const schedulePreviewZoomUpdate = () => {
+      if (previewZoomRaf !== null) {
+        return;
+      }
+      previewZoomRaf = requestAnimationFrame(() => {
+        previewZoomRaf = null;
+        applyPreviewZoomPosition();
+      });
+    };
+
+    const setPreviewZoomActive = (nextActive) => {
+      const shouldActivate = Boolean(nextActive);
+      if (previewZoomActive === shouldActivate) {
+        return;
+      }
+      previewZoomActive = shouldActivate;
+      if (!previewZoomActive) {
+        previewZoomLayer.style.display = 'none';
+        previewZoomLayer.style.backgroundPosition = '0 0';
+        previewImage.style.opacity = '1';
+        return;
+      }
+      previewZoomLayer.style.display = 'block';
+      previewImage.style.opacity = '0';
+      schedulePreviewZoomUpdate();
+    };
+
+    const recordPreviewZoomPoint = (event) => {
+      const rect = previewPanel?.getBoundingClientRect?.();
+      if (!rect) {
+        return;
+      }
+      previewZoomPoint = {
+        x: Number(event?.clientX) - rect.left,
+        y: Number(event?.clientY) - rect.top,
+      };
+    };
+
     const setPreviewUrl = (url) => {
       if (previewObjectUrl) {
         URL.revokeObjectURL(previewObjectUrl);
       }
       previewObjectUrl = url;
+      previewImageNaturalSize = { width: 0, height: 0 };
+      setPreviewZoomActive(false);
       if (previewObjectUrl) {
         previewImage.src = previewObjectUrl;
         previewImage.style.display = 'block';
+        previewImage.style.opacity = '1';
+        previewZoomLayer.style.backgroundImage = `url("${previewObjectUrl}")`;
         return;
       }
+      previewZoomLayer.style.backgroundImage = '';
       previewImage.removeAttribute('src');
       previewImage.style.display = 'none';
     };
+
+    const handlePreviewMouseEnter = (event) => {
+      if (!previewObjectUrl) {
+        return;
+      }
+      if (!isPreviewZoomEnabled) {
+        return;
+      }
+      recordPreviewZoomPoint(event);
+      if (previewImageNaturalSize.width > 0 && previewImageNaturalSize.height > 0) {
+        setPreviewZoomActive(true);
+      }
+    };
+
+    const handlePreviewMouseMove = (event) => {
+      if (!previewObjectUrl) {
+        return;
+      }
+      if (!isPreviewZoomEnabled) {
+        return;
+      }
+      recordPreviewZoomPoint(event);
+      if (!previewZoomActive) {
+        if (previewImageNaturalSize.width === 0 || previewImageNaturalSize.height === 0) {
+          return;
+        }
+        setPreviewZoomActive(true);
+      }
+      schedulePreviewZoomUpdate();
+    };
+
+    const handlePreviewMouseLeave = () => {
+      previewZoomPoint = null;
+      setPreviewZoomActive(false);
+    };
+
+    previewPanel.addEventListener('mouseenter', handlePreviewMouseEnter);
+    previewPanel.addEventListener('mousemove', handlePreviewMouseMove);
+    previewPanel.addEventListener('mouseleave', handlePreviewMouseLeave);
+    previewImage.addEventListener('load', () => {
+      if (!previewObjectUrl || previewImage.src !== previewObjectUrl) {
+        return;
+      }
+      previewImageNaturalSize = {
+        width: previewImage.naturalWidth,
+        height: previewImage.naturalHeight,
+      };
+      if (isPreviewZoomEnabled && previewPanel?.matches?.(':hover') && previewZoomPoint) {
+        setPreviewZoomActive(true);
+      }
+    });
 
     const updatePreviewForLabel = async (label) => {
       const normalized = typeof label === 'string' ? label : '';
@@ -2632,6 +2805,11 @@ const setupLoadLorasUi = (node) => {
     overlay.__loadLorasCleanup = () => {
       debouncedFilter.cancel();
       previewRequestToken += 1;
+      if (previewZoomRaf !== null) {
+        cancelAnimationFrame(previewZoomRaf);
+        previewZoomRaf = null;
+      }
+      previewZoomPoint = null;
       setPreviewUrl(null);
     };
     requestAnimationFrame(() => {

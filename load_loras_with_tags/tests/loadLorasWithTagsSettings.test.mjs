@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_AUTO_SELECT_MISSING_LORA,
   DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
+  DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
   DEFAULT_MIN_FREQUENCY,
   normalizeAutoSelectMissingLora,
   normalizeAutoSelectInfinityWordsOnly,
+  normalizeLoraPreviewZoomScale,
   normalizeMinFrequency,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsSettings.js';
 
@@ -66,5 +68,37 @@ describe('normalizeAutoSelectInfinityWordsOnly', () => {
 
   it('returns true when value is boolean true', () => {
     expect(normalizeAutoSelectInfinityWordsOnly(true)).toBe(true);
+  });
+});
+
+describe('normalizeLoraPreviewZoomScale', () => {
+  it('returns default when value is not a finite number', () => {
+    expect(normalizeLoraPreviewZoomScale(undefined)).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+    expect(normalizeLoraPreviewZoomScale(null)).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+    expect(normalizeLoraPreviewZoomScale(Number.NaN)).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+    expect(normalizeLoraPreviewZoomScale('not-a-number')).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+  });
+
+  it('returns default when value is less than 1', () => {
+    expect(normalizeLoraPreviewZoomScale(0)).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+    expect(normalizeLoraPreviewZoomScale(-2)).toBe(
+      DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+    );
+  });
+
+  it('returns the numeric value when valid', () => {
+    expect(normalizeLoraPreviewZoomScale(1)).toBe(1);
+    expect(normalizeLoraPreviewZoomScale(2.5)).toBe(2.5);
+    expect(normalizeLoraPreviewZoomScale('3')).toBe(3);
   });
 });

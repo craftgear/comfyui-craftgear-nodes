@@ -6,7 +6,7 @@ some tiny nodes for better QoL.
 
 See the linked documentation for each node for details.
 
-- [Load LoRAs With Tags](./docs/load_loras_with_tags.md) : Load and select tags from LoRA & JSON files. LoRA selection supports fuzzy matching by name
+- [Load LoRAs With Tags](./docs/load_loras_with_tags.md) : Load and select tags from LoRA & JSON files. LoRA selection supports fuzzy matching by name plus preview images with hover zoom (configurable in settings)
 - [Toggle Tags](./docs/toggle_tags.md) : Toggle tags on/off with clicks from input tag text
 - [Commentable Multiline Text](./docs/commentable_multiline_text.md) : Remove comment lines and output the result
 - [Join Texts](./docs/join_texts.md) : Join multiple text inputs into a single line

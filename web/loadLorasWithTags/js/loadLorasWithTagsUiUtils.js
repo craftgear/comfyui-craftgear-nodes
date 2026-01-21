@@ -551,6 +551,49 @@ const clampNumber = (value, min, max) => {
   return value;
 };
 
+const resolveZoomBackgroundPosition = (
+  cursor,
+  container,
+  content,
+  scale = 2,
+) => {
+  const safeScale = Math.max(1, Number(scale) || 1);
+  const containerWidth = Math.max(0, Number(container?.width) || 0);
+  const containerHeight = Math.max(0, Number(container?.height) || 0);
+  if (containerWidth === 0 || containerHeight === 0) {
+    return { x: 0, y: 0 };
+  }
+  const contentWidth =
+    Math.max(0, Number(content?.width) || 0) || containerWidth;
+  const contentHeight =
+    Math.max(0, Number(content?.height) || 0) || containerHeight;
+  const offsetX = Math.max(0, Number(content?.offsetX) || 0);
+  const offsetY = Math.max(0, Number(content?.offsetY) || 0);
+  const relativeX = clampNumber(
+    Number(cursor?.x) - offsetX,
+    0,
+    contentWidth,
+  );
+  const relativeY = clampNumber(
+    Number(cursor?.y) - offsetY,
+    0,
+    contentHeight,
+  );
+  const zoomWidth = contentWidth * safeScale;
+  const zoomHeight = contentHeight * safeScale;
+  if (zoomWidth === 0 || zoomHeight === 0) {
+    return { x: 0, y: 0 };
+  }
+  const rawX = containerWidth / 2 - relativeX * safeScale;
+  const rawY = containerHeight / 2 - relativeY * safeScale;
+  const minX = containerWidth - zoomWidth;
+  const minY = containerHeight - zoomHeight;
+  return {
+    x: clampNumber(rawX, minX, 0),
+    y: clampNumber(rawY, minY, 0),
+  };
+};
+
 const resolvePopupPosition = (
   anchor,
   popupSize,
@@ -893,6 +936,19 @@ const getLoraDialogListStyle = () => ({
   gap: `${loraDialogItemGap}px`,
 });
 
+const getLoraPreviewPanelStyle = (width, padding) => ({
+  width: `${width}px`,
+  padding: `${padding}px`,
+  background: "transparent",
+  border: "1px solid #2a2a2a",
+  borderRadius: "8px",
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  overflow: "hidden",
+});
+
 const resolveLoraDialogItemBackground = (isSelected, isHovered) => {
   if (isSelected) {
     return loraDialogItemSelectedBackground;
@@ -990,6 +1046,7 @@ export {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolvePreviewVisibleIndex,
+  resolveZoomBackgroundPosition,
   resolveComboLabel,
   resolveComboDisplayLabel,
   resolveComboOptionIndex,
@@ -1031,6 +1088,7 @@ export {
   resolveTagDialogItemBackground,
   splitLoraLabel,
   getHighlightSegments,
+  getLoraPreviewPanelStyle,
   focusInputLater,
   resolveActiveIndex,
   resolveOption,

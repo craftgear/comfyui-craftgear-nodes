@@ -53,6 +53,7 @@ import {
   loraDialogItemPaddingY,
   loraDialogItemPaddingX,
   getLoraDialogListStyle,
+  getLoraPreviewPanelStyle,
   tagDialogItemBackground,
   tagDialogItemActiveBackground,
   tagDialogItemHoverBackground,
@@ -68,6 +69,7 @@ import {
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
   resolvePreviewVisibleIndex,
+  resolveZoomBackgroundPosition,
   resolveOption,
   resolveComboOptionIndex,
   resolveNoneOptionIndex,
@@ -125,6 +127,18 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.deepEqual(normalizeOptions({ a: 'x', b: 'y' }), ['x', 'y']);
     assert.deepEqual(normalizeOptions(null), []);
     assert.equal(loraDialogWidth, '65vw');
+    assert.deepEqual(getLoraPreviewPanelStyle(240, 0), {
+      width: '240px',
+      padding: '0px',
+      background: 'transparent',
+      border: '1px solid #2a2a2a',
+      borderRadius: '8px',
+      position: 'relative',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      overflow: 'hidden',
+    });
     assert.equal(resolveStrengthDefault({ default: 0.7 }), 0.7);
     assert.equal(resolveStrengthDefault({ default: 'oops' }, 0.5), 0.5);
     assert.equal(resolveStrengthDefault(null, 0.5), 0.5);
@@ -670,5 +684,32 @@ describe('loadLorasWithTagsUiUtils', () => {
 
     assert.deepEqual(computeSplitWidths(120, 2, 1, 6), { first: 76, second: 38 });
     assert.deepEqual(computeSplitWidths(10, 0, 0, 4), { first: 0, second: 0 });
+    assert.deepEqual(
+      resolveZoomBackgroundPosition(
+        { x: 50, y: 25 },
+        { width: 100, height: 50 },
+        { width: 100, height: 50, offsetX: 0, offsetY: 0 },
+        2,
+      ),
+      { x: -50, y: -25 },
+    );
+    assert.deepEqual(
+      resolveZoomBackgroundPosition(
+        { x: 0, y: 0 },
+        { width: 100, height: 50 },
+        { width: 100, height: 50, offsetX: 0, offsetY: 0 },
+        2,
+      ),
+      { x: 0, y: 0 },
+    );
+    assert.deepEqual(
+      resolveZoomBackgroundPosition(
+        { x: 100, y: 100 },
+        { width: 200, height: 200 },
+        { width: 200, height: 150, offsetX: 0, offsetY: 25 },
+        2,
+      ),
+      { x: -100, y: -50 },
+    );
   });
 });

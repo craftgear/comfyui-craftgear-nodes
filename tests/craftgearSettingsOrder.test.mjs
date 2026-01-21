@@ -9,6 +9,7 @@ describe('craftgearSettings', () => {
       'craftgear.loadLorasWithTags.minFrequencyThreshold',
       'craftgear.loadLorasWithTags.autoSelectMissingLora',
       'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly',
+      'craftgear.loadLorasWithTags.previewZoomScale',
       'craftgear.commentableMultilineText.fontSize',
       'craftgear.tagToggleText.fontSize',
     ]);
@@ -18,6 +19,7 @@ describe('craftgearSettings', () => {
       ['craftgear', 'Load Loras With Tags', 'Hide tags with frequency at or below n'],
       ['craftgear', 'Load Loras With Tags', 'Auto select missing LoRA by name'],
       ['craftgear', 'Load Loras With Tags', 'Auto select ∞ tags only'],
+      ['craftgear', 'Load Loras With Tags', 'Preview zoom scale'],
       ['craftgear', 'Commentable Multiline Text', 'Font Size'],
       ['craftgear', 'Toggle Tags', 'Font Size'],
     ]);

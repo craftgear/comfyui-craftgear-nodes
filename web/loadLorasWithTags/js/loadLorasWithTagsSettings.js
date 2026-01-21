@@ -7,6 +7,9 @@ export const DEFAULT_AUTO_SELECT_MISSING_LORA = false;
 export const AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID =
   'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly';
 export const DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY = false;
+export const LORA_PREVIEW_ZOOM_SCALE_SETTING_ID =
+  'craftgear.loadLorasWithTags.previewZoomScale';
+export const DEFAULT_LORA_PREVIEW_ZOOM_SCALE = 2;
 
 export const normalizeMinFrequency = (value) => {
   const parsed = Number(value);
@@ -18,3 +21,10 @@ export const normalizeMinFrequency = (value) => {
 
 export const normalizeAutoSelectMissingLora = (value) => value === true;
 export const normalizeAutoSelectInfinityWordsOnly = (value) => value === true;
+export const normalizeLoraPreviewZoomScale = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return DEFAULT_LORA_PREVIEW_ZOOM_SCALE;
+  }
+  return parsed;
+};
