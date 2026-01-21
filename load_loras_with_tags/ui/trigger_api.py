@@ -13,6 +13,7 @@ from ..logic.trigger_words import (
     extract_lora_trigger_frequencies,
     extract_lora_triggers,
 )
+from ..logic.lora_preview import DEFAULT_IMAGE_EXTENSIONS, select_lora_preview_path
 
 
 def _open_folder(path: str) -> bool:
@@ -71,3 +72,21 @@ async def open_lora_folder(request: web.Request) -> web.Response:
         return web.json_response({"ok": False, "error": "invalid_path"})
     opened = _open_folder(folder_path)
     return web.json_response({"ok": opened})
+
+
+@server.PromptServer.instance.routes.post("/my_custom_node/lora_preview")
+async def load_lora_preview(request: web.Request) -> web.StreamResponse:
+    try:
+        data: dict[str, Any] = await request.json()
+    except Exception:
+        data = {}
+    lora_name = data.get("lora_name") if isinstance(data, dict) else ""
+    if not lora_name or lora_name == "None":
+        return web.json_response({"ok": False, "error": "invalid_lora"}, status=400)
+    lora_path = folder_paths.get_full_path("loras", lora_name)
+    if not lora_path or not os.path.exists(lora_path):
+        return web.json_response({"ok": False, "error": "not_found"}, status=404)
+    preview_path = select_lora_preview_path(lora_path, DEFAULT_IMAGE_EXTENSIONS)
+    if not preview_path:
+        return web.json_response({"ok": False, "error": "no_preview"}, status=404)
+    return web.FileResponse(preview_path)

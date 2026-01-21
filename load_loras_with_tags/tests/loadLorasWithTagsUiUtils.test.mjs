@@ -67,6 +67,7 @@ import {
   resolveFilteredSelection,
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
+  resolvePreviewVisibleIndex,
   resolveOption,
   resolveComboOptionIndex,
   resolveNoneOptionIndex,
@@ -420,6 +421,14 @@ describe('loadLorasWithTagsUiUtils', () => {
       selectedVisibleIndex: -1,
       selectedOptionIndex: -1,
     });
+    const previewOptions = [
+      { index: 0, label: 'None' },
+      { index: 2, label: 'b.safetensors' },
+    ];
+    assert.equal(resolvePreviewVisibleIndex(previewOptions, 2), 1);
+    assert.equal(resolvePreviewVisibleIndex(previewOptions, 1), -1);
+    assert.equal(resolvePreviewVisibleIndex(previewOptions, Number.NaN), -1);
+    assert.equal(resolvePreviewVisibleIndex([], 0), -1);
     assert.deepEqual(
       resolveHoverSelection(
         [

@@ -456,6 +456,19 @@ const resolveFilteredSelection = (
   return resolveVisibleSelection(visibleOptions, selectedOptionIndex);
 };
 
+const resolvePreviewVisibleIndex = (visibleOptions, selectedOptionIndex) => {
+  if (!Array.isArray(visibleOptions) || visibleOptions.length === 0) {
+    return -1;
+  }
+  if (!Number.isFinite(selectedOptionIndex) || selectedOptionIndex < 0) {
+    return -1;
+  }
+  const checkedIndex = visibleOptions.findIndex(
+    (entry) => entry?.index === selectedOptionIndex,
+  );
+  return checkedIndex >= 0 ? checkedIndex : -1;
+};
+
 const resolveActiveIndex = (visibleIndices, activeIndex) => {
   if (!Array.isArray(visibleIndices) || visibleIndices.length === 0) {
     return -1;
@@ -976,6 +989,7 @@ export {
   resolveVisibleSelection,
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
+  resolvePreviewVisibleIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
   resolveComboOptionIndex,

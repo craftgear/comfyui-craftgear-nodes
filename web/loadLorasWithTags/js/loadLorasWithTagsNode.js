@@ -60,6 +60,7 @@ import {
   resolveVisibleSelection,
   resolveSelectionByVisibleIndex,
   resolveHoverSelection,
+  resolvePreviewVisibleIndex,
   resolveActiveIndex,
   resolveComboLabel,
   resolveComboDisplayLabel,
@@ -121,6 +122,8 @@ const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
 const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
 const TOP_N_STORAGE_KEY = "craftgear-load-loras-with-tags-trigger-dialog-top-n";
 const LORA_DIALOG_FILTER_DEBOUNCE_MS = 120;
+const LORA_PREVIEW_PANEL_WIDTH = 240;
+const LORA_PREVIEW_PANEL_PADDING = 0;
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
 
@@ -249,6 +252,29 @@ const fetchTriggers = async (loraName) => {
     triggers: data.triggers.map((trigger) => String(trigger)),
     frequencies,
   };
+};
+
+const fetchLoraPreviewUrl = async (loraName) => {
+  if (!loraName || loraName === 'None') {
+    return null;
+  }
+  const response = await api.fetchApi('/my_custom_node/lora_preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lora_name: loraName }),
+  });
+  if (!response.ok) {
+    return null;
+  }
+  const contentType = response.headers.get('Content-Type') || '';
+  if (!contentType.startsWith('image/')) {
+    return null;
+  }
+  const blob = await response.blob();
+  if (!blob || blob.size === 0) {
+    return null;
+  }
+  return URL.createObjectURL(blob);
 };
 
 const openLoraFolder = async (loraName) => {
@@ -1912,6 +1938,9 @@ const setupLoadLorasUi = (node) => {
     let lastFilterQuery = "";
     let lastFilteredIndices = null;
     let activeFilterQuery = "";
+    let previewRequestToken = 0;
+    let previewObjectUrl = null;
+    let lastPreviewLabel = '';
     const currentOptionIndex = resolveComboOptionIndex(
       slot.loraWidget?.value,
       options,
@@ -1936,6 +1965,37 @@ const setupLoadLorasUi = (node) => {
       }
       closeDialog();
     });
+    const dialogShell = $el('div', {
+      style: {
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: '0',
+        height: '70vh',
+        maxWidth: '90vw',
+      },
+    });
+    const previewPanel = $el('div', {
+      style: {
+        width: `${LORA_PREVIEW_PANEL_WIDTH}px`,
+        padding: `${LORA_PREVIEW_PANEL_PADDING}px`,
+        background: 'transparent',
+        border: '1px solid #2a2a2a',
+        borderRadius: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      },
+    });
+    const previewImage = $el('img', {
+      style: {
+        maxWidth: '100%',
+        maxHeight: '100%',
+        objectFit: 'contain',
+        display: 'none',
+      },
+    });
+    previewPanel.append(previewImage);
     const panel = $el("div", {
       style: {
         background: "#1e1e1e",
@@ -1943,7 +2003,7 @@ const setupLoadLorasUi = (node) => {
         padding: "16px",
         borderRadius: "8px",
         width: loraDialogWidth,
-        height: "70vh",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
         fontFamily: "sans-serif",
@@ -2066,6 +2126,53 @@ const setupLoadLorasUi = (node) => {
     const list = $el('div', {
       style: getLoraDialogListStyle(),
     });
+
+    const setPreviewUrl = (url) => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+      }
+      previewObjectUrl = url;
+      if (previewObjectUrl) {
+        previewImage.src = previewObjectUrl;
+        previewImage.style.display = 'block';
+        return;
+      }
+      previewImage.removeAttribute('src');
+      previewImage.style.display = 'none';
+    };
+
+    const updatePreviewForLabel = async (label) => {
+      const normalized = typeof label === 'string' ? label : '';
+      if (!normalized || normalized === 'None') {
+        lastPreviewLabel = '';
+        setPreviewUrl(null);
+        return;
+      }
+      if (normalized === lastPreviewLabel) {
+        return;
+      }
+      lastPreviewLabel = normalized;
+      const requestId = (previewRequestToken += 1);
+      const previewUrl = await fetchLoraPreviewUrl(normalized);
+      if (requestId !== previewRequestToken) {
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+        }
+        return;
+      }
+      setPreviewUrl(previewUrl);
+    };
+
+    const updatePreviewByVisibleIndex = (visibleIndex) => {
+      if (!Number.isFinite(visibleIndex)) {
+        return;
+      }
+      const entry = visibleOptions[visibleIndex];
+      if (!entry?.label) {
+        return;
+      }
+      void updatePreviewForLabel(entry.label);
+    };
 
     const applySelection = (nextLabel) => {
       const prevLabel = resolveComboLabel(slot.loraWidget?.value, options);
@@ -2366,6 +2473,7 @@ const setupLoadLorasUi = (node) => {
         button.onmouseenter = () => {
           applyHoverSelection(index);
           refreshButtonStates();
+          updatePreviewByVisibleIndex(index);
         };
         button.onmouseleave = () => {
           if (hoveredVisibleIndex !== index) {
@@ -2381,6 +2489,11 @@ const setupLoadLorasUi = (node) => {
         list.append(button);
       });
       refreshButtonStates();
+      const previewVisibleIndex = resolvePreviewVisibleIndex(
+        visibleOptions,
+        currentOptionIndex,
+      );
+      updatePreviewByVisibleIndex(previewVisibleIndex);
     };
 
     const clearFilterValue = () => {
@@ -2452,6 +2565,7 @@ const setupLoadLorasUi = (node) => {
       selectedOptionIndex = nextOptionIndex;
       refreshButtonStates();
       scrollSelectedIntoView();
+      updatePreviewByVisibleIndex(selectedVisibleIndex);
     };
 
     const handleDialogKeyDown = (event) => {
@@ -2512,10 +2626,13 @@ const setupLoadLorasUi = (node) => {
 
     renderList();
     panel.append(headerRow, list);
-    overlay.append(panel);
+    dialogShell.append(previewPanel, panel);
+    overlay.append(dialogShell);
     document.body.append(overlay);
     overlay.__loadLorasCleanup = () => {
       debouncedFilter.cancel();
+      previewRequestToken += 1;
+      setPreviewUrl(null);
     };
     requestAnimationFrame(() => {
       scrollCheckedIntoView();
