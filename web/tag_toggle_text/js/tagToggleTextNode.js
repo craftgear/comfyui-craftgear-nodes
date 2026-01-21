@@ -8,6 +8,7 @@ import {
   readPersistedInputText,
   parseExcludedTags,
   serializeExcludedTags,
+  shouldForwardWheelToCanvas,
   splitTags,
   toggleTag,
 } from './tagToggleTextUtils.js';
@@ -271,6 +272,44 @@ const createDisplayDom = (node) => {
       return;
     }
     toggleExcludedTag(node, tag);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  container.addEventListener('wheel', (event) => {
+    if (event?.__tagToggleWheelForwarded) {
+      return;
+    }
+    const shouldForward = shouldForwardWheelToCanvas({
+      deltaY: event?.deltaY,
+      scrollTop: container.scrollTop,
+      scrollHeight: container.scrollHeight,
+      clientHeight: container.clientHeight,
+    });
+    if (!shouldForward) {
+      return;
+    }
+    const canvas = app?.canvas?.canvas;
+    if (!canvas || typeof canvas.dispatchEvent !== 'function') {
+      return;
+    }
+    const forwarded = new WheelEvent(event.type || 'wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaX: event.deltaX,
+      deltaY: event.deltaY,
+      deltaZ: event.deltaZ,
+      deltaMode: event.deltaMode,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      screenX: event.screenX,
+      screenY: event.screenY,
+      ctrlKey: event.ctrlKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+    });
+    forwarded.__tagToggleWheelForwarded = true;
+    canvas.dispatchEvent(forwarded);
     event.preventDefault();
     event.stopPropagation();
   });

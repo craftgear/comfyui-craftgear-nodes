@@ -70,6 +70,7 @@ import {
   resolveHoverSelection,
   resolvePreviewVisibleIndex,
   resolveZoomBackgroundPosition,
+  shouldSelectLoraDialogFilterOnOpen,
   resolveOption,
   resolveComboOptionIndex,
   resolveNoneOptionIndex,
@@ -711,5 +712,11 @@ describe('loadLorasWithTagsUiUtils', () => {
       ),
       { x: -100, y: -50 },
     );
+    assert.equal(shouldSelectLoraDialogFilterOnOpen(undefined), false);
+    assert.equal(shouldSelectLoraDialogFilterOnOpen(null), false);
+    assert.equal(shouldSelectLoraDialogFilterOnOpen(''), false);
+    assert.equal(shouldSelectLoraDialogFilterOnOpen('  '), false);
+    assert.equal(shouldSelectLoraDialogFilterOnOpen('None'), false);
+    assert.equal(shouldSelectLoraDialogFilterOnOpen('lora_name'), true);
   });
 });

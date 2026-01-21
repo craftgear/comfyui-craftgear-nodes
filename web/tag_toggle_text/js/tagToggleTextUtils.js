@@ -134,6 +134,29 @@ const readPersistedInputText = (info) => {
   return typeof value === 'string' ? value : null;
 };
 
+const shouldForwardWheelToCanvas = ({
+  deltaY,
+  scrollTop,
+  scrollHeight,
+  clientHeight,
+}) => {
+  const movement = Number(deltaY) || 0;
+  if (movement === 0) {
+    return false;
+  }
+  const safeScrollHeight = Math.max(0, Number(scrollHeight) || 0);
+  const safeClientHeight = Math.max(0, Number(clientHeight) || 0);
+  if (safeScrollHeight <= safeClientHeight) {
+    return true;
+  }
+  const maxScrollTop = Math.max(0, safeScrollHeight - safeClientHeight);
+  const safeScrollTop = Math.max(0, Number(scrollTop) || 0);
+  if (movement < 0) {
+    return safeScrollTop <= 0;
+  }
+  return safeScrollTop >= maxScrollTop;
+};
+
 export {
   buildTagDisplaySegments,
   computeDisplayHeight,
@@ -145,5 +168,6 @@ export {
   serializeExcludedTags,
   splitTags,
   shouldHandleClick,
+  shouldForwardWheelToCanvas,
   toggleTag,
 };

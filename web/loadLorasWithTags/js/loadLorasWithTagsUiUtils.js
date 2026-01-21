@@ -265,6 +265,17 @@ const resolveLoraDialogFilterValue = (savedFilter, missingFilter) => {
 const resolveLoraSlotFilterValue = (slot, missingFilter) =>
   resolveLoraDialogFilterValue(slot?.__loadLorasLoraFilter, missingFilter);
 
+const shouldSelectLoraDialogFilterOnOpen = (savedFilter) => {
+  if (savedFilter === undefined || savedFilter === null) {
+    return false;
+  }
+  const normalized = normalizeDialogFilterValue(savedFilter);
+  if (!normalized || normalized === 'None') {
+    return false;
+  }
+  return true;
+};
+
 const shouldIgnoreLoraDialogKeydownForIme = (
   event,
   isComposing,
@@ -1052,6 +1063,7 @@ export {
   resolveComboOptionIndex,
   resolveMissingLoraFilterValue,
   resolveLoraDialogFilterValue,
+  shouldSelectLoraDialogFilterOnOpen,
   resolveLoraSlotFilterValue,
   normalizeDialogFilterValue,
   shouldIgnoreLoraDialogKeydownForIme,

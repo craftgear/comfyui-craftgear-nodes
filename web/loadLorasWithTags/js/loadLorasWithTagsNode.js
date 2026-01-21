@@ -71,6 +71,7 @@ import {
   resolveComboOptionIndex,
   resolveMissingLoraFilterValue,
   resolveLoraSlotFilterValue,
+  shouldSelectLoraDialogFilterOnOpen,
   normalizeDialogFilterValue,
   isRectFullyVisible,
   shouldIgnoreLoraDialogKeydownForIme,
@@ -2060,6 +2061,9 @@ const setupLoadLorasUi = (node) => {
       slot,
       missingFilterValue,
     );
+    const shouldSelectFilterOnOpen = shouldSelectLoraDialogFilterOnOpen(
+      slot?.__loadLorasLoraFilter,
+    );
     filterInput.value = initialFilterValue;
     const clearFilterButton = $el("button", {
       textContent: "\u00d7",
@@ -2816,6 +2820,16 @@ const setupLoadLorasUi = (node) => {
       scrollCheckedIntoView();
     });
     focusInputLater(filterInput);
+    if (shouldSelectFilterOnOpen) {
+      requestAnimationFrame(() => {
+        if (document.activeElement !== filterInput) {
+          return;
+        }
+        if (typeof filterInput.select === 'function') {
+          filterInput.select();
+        }
+      });
+    }
   };
 
   const handleMouseDown = (event, pos, targetNode) => {

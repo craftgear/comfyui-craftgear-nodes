@@ -10,6 +10,7 @@ import {
   readPersistedInputText,
   parseExcludedTags,
   shouldHandleClick,
+  shouldForwardWheelToCanvas,
   splitTags,
   toggleTag,
 } from '../../web/tag_toggle_text/js/tagToggleTextUtils.js';
@@ -112,5 +113,53 @@ describe('tagToggleTextUtils', () => {
 
   it('returns null when persisted input is missing', () => {
     assert.equal(readPersistedInputText({}), null);
+  });
+
+  it('decides when to forward wheel events to the canvas', () => {
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: 1,
+        scrollTop: 0,
+        scrollHeight: 100,
+        clientHeight: 100,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: 1,
+        scrollTop: 0,
+        scrollHeight: 200,
+        clientHeight: 100,
+      }),
+      false,
+    );
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: -1,
+        scrollTop: 0,
+        scrollHeight: 200,
+        clientHeight: 100,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: 1,
+        scrollTop: 100,
+        scrollHeight: 200,
+        clientHeight: 100,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: 0,
+        scrollTop: 0,
+        scrollHeight: 100,
+        clientHeight: 100,
+      }),
+      false,
+    );
   });
 });
