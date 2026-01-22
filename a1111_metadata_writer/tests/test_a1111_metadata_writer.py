@@ -484,6 +484,5 @@ class TestA1111MetadataWriter(unittest.TestCase):
                 text_map = logic.read_png_text(file.read())
             self.assertEqual(text_map.get('parameters'), params)
 
-
 if __name__ == '__main__':
     unittest.main()

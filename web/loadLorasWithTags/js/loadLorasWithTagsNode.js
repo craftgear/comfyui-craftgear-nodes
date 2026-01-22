@@ -21,10 +21,13 @@ import {
   AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
+  LORA_STRENGTH_MAX_SETTING_ID,
+  LORA_STRENGTH_MIN_SETTING_ID,
   normalizeAutoSelectMissingLora,
   normalizeAutoSelectInfinityWordsOnly,
   normalizeLoraPreviewZoomScale,
   normalizeMinFrequency,
+  resolveLoraStrengthRange,
 } from './loadLorasWithTagsSettings.js';
 import { getSavedSlotValues } from "./loadLorasWithTagsSavedValuesUtils.js";
 import {
@@ -114,6 +117,10 @@ import {
   strengthRangeThumbSize,
   strengthRangeTrackHeight,
 } from "./loadLorasWithTagsUiUtils.js";
+import {
+  COPY_SOURCE_MISSING_MESSAGE,
+  resolveCopySourceMessage,
+} from './loadLorasWithTagsCopyHelpers.js';
 
 const TARGET_NODE_CLASS = "LoadLorasWithTags";
 const MAX_LORA_STACK = 10;
@@ -177,6 +184,16 @@ const getLoraPreviewZoomScale = () => {
   return normalizeLoraPreviewZoomScale(value);
 };
 
+const getLoraStrengthRange = () => {
+  const minValue = app?.extensionManager?.setting?.get?.(
+    LORA_STRENGTH_MIN_SETTING_ID,
+  );
+  const maxValue = app?.extensionManager?.setting?.get?.(
+    LORA_STRENGTH_MAX_SETTING_ID,
+  );
+  return resolveLoraStrengthRange(minValue, maxValue);
+};
+
 const markDirty = (node) => {
   if (typeof node?.setDirtyCanvas === "function") {
     node.setDirtyCanvas(true, true);
@@ -238,6 +255,44 @@ const setWidgetValue = (widget, value) => {
   if (typeof widget.callback === "function") {
     widget.callback(value);
   }
+};
+
+const clampStrengthValue = (value, options) => {
+  const min = Number(options?.min);
+  const max = Number(options?.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min >= max) {
+    return value;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+  if (numeric < min) {
+    return min;
+  }
+  if (numeric > max) {
+    return max;
+  }
+  return numeric;
+};
+
+const getStrengthOptions = (strengthWidget) => {
+  const base = normalizeStrengthOptions(strengthWidget?.options);
+  const range = getLoraStrengthRange();
+  return { ...base, ...range };
+};
+
+const applyStrengthRangeToWidget = (strengthWidget) => {
+  if (!strengthWidget) {
+    return getStrengthOptions(strengthWidget);
+  }
+  const options = getStrengthOptions(strengthWidget);
+  strengthWidget.options = options;
+  const clamped = clampStrengthValue(strengthWidget.value, options);
+  if (clamped !== strengthWidget.value) {
+    setWidgetValue(strengthWidget, clamped);
+  }
+  return options;
 };
 
 const getComboOptions = (widget) => {
@@ -429,7 +484,7 @@ const updateStrengthPopupValue = (slot) => {
   if (!strengthPopupState || strengthPopupState.slot !== slot) {
     return;
   }
-  const options = normalizeStrengthOptions(slot.strengthWidget?.options);
+  const options = applyStrengthRangeToWidget(slot.strengthWidget);
   const strengthDefault = resolveStrengthDefault(options, 1.0);
   const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
   strengthPopupState.range.value = String(strengthValue);
@@ -475,7 +530,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
   }
   closeStrengthPopup();
   ensureStrengthPopupStyles();
-  const options = normalizeStrengthOptions(slot.strengthWidget?.options);
+  const options = applyStrengthRangeToWidget(slot.strengthWidget);
   const strengthDefault = resolveStrengthDefault(options, 1.0);
   const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
   const min = Number(options?.min ?? 0);
@@ -1513,6 +1568,7 @@ const setupLoadLorasUi = (node) => {
           labelWidth,
           INNER_MARGIN,
         );
+        const labelRect = widget.__toggleLabelRect;
         ctx.save();
         ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
         ctx.textAlign = "left";
@@ -1527,8 +1583,16 @@ const setupLoadLorasUi = (node) => {
           18,
           Math.min(headerAvailableHeight, 20),
         );
+        const buttonGap = INNER_MARGIN * 6;
+        // 視認性を上げるためトグルラベルとの間隔を広げる
+        const preferredX =
+          labelRect.x + labelRect.width + buttonGap;
+        const buttonX = Math.min(
+          preferredX,
+          width - headerMargin - buttonWidth,
+        );
         const buttonRect = {
-          x: width - headerMargin - buttonWidth,
+          x: buttonX,
           y:
             y +
             HEADER_TOP_PADDING +
@@ -1639,12 +1703,11 @@ const setupLoadLorasUi = (node) => {
     ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    const strengthOptions = normalizeStrengthOptions(
-      slot.strengthWidget?.options,
-    );
+    const strengthOptions = getStrengthOptions(slot.strengthWidget);
     const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
-    const strengthValue = Number(
-      slot.strengthWidget?.value ?? strengthDefault,
+    const strengthValue = clampStrengthValue(
+      Number(slot.strengthWidget?.value ?? strengthDefault),
+      strengthOptions,
     );
     const strengthText = formatStrengthValue(strengthValue, strengthOptions);
     const strengthValueWidth = resolveFixedLabelWidth(
@@ -1867,16 +1930,15 @@ const setupLoadLorasUi = (node) => {
         return;
       }
       applyLoraValue(slot.loraWidget, entry.loraValue);
-      const strengthDefault = resolveStrengthDefault(
-        slot.strengthWidget?.options,
-        1.0,
-      );
+      const strengthOptions = applyStrengthRangeToWidget(slot.strengthWidget);
+      const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
       const strengthValue =
         entry.strengthValue !== undefined ? entry.strengthValue : strengthDefault;
-      setWidgetValue(
-        slot.strengthWidget,
+      const clampedStrength = clampStrengthValue(
         Number.isFinite(strengthValue) ? strengthValue : strengthDefault,
+        strengthOptions,
       );
+      setWidgetValue(slot.strengthWidget, clampedStrength);
       const toggleValue = entry.toggleValue ?? true;
       setWidgetValue(slot.toggleWidget, !!toggleValue);
       const selectionValue = entry.stride >= 4 ? entry.selectionValue : "";
@@ -1982,11 +2044,12 @@ const setupLoadLorasUi = (node) => {
     const options = getComboOptions(slot.loraWidget);
     const rawValue = slot.loraWidget?.value;
     const loraValue = resolveComboDisplayLabel(rawValue, options);
-    const strengthDefault = resolveStrengthDefault(
-      slot.strengthWidget?.options,
-      1.0,
+    const strengthOptions = getStrengthOptions(slot.strengthWidget);
+    const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
+    const strengthValue = clampStrengthValue(
+      slot.strengthWidget?.value ?? strengthDefault,
+      strengthOptions,
     );
-    const strengthValue = slot.strengthWidget?.value ?? strengthDefault;
     const toggleValue = slot.toggleWidget?.value ?? true;
     const selectionValue = normalizeSelectionValue(slot.selectionWidget?.value);
     const filterValue = normalizeDialogFilterValue(slot.__loadLorasLoraFilter);
@@ -2003,14 +2066,13 @@ const setupLoadLorasUi = (node) => {
 
   const applySlotEntry = (slot, entry) => {
     applyLoraValue(slot.loraWidget, entry?.loraValue);
-    const strengthDefault = resolveStrengthDefault(
-      slot.strengthWidget?.options,
-      1.0,
-    );
+    const strengthOptions = applyStrengthRangeToWidget(slot.strengthWidget);
+    const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
     const strengthValue = Number.isFinite(entry?.strengthValue)
       ? entry.strengthValue
       : strengthDefault;
-    setWidgetValue(slot.strengthWidget, strengthValue);
+    const clampedStrength = clampStrengthValue(strengthValue, strengthOptions);
+    setWidgetValue(slot.strengthWidget, clampedStrength);
     setWidgetValue(slot.toggleWidget, !!entry?.toggleValue);
     slot.selectionWidget.value = normalizeSelectionValue(entry?.selectionValue);
     slot.selectionWidget.__loadLorasResetTopN = !!entry?.resetTopN;
@@ -2057,18 +2119,21 @@ const setupLoadLorasUi = (node) => {
       ? entries.filter((entry) => entry?.label && entry.label !== "None")
       : [];
     const limited = bounded.slice(0, MAX_LORA_STACK);
-    const defaultStrengths = slots.map((slot) =>
-      resolveStrengthDefault(slot.strengthWidget?.options, 1.0),
-    );
+    const defaultStrengths = slots.map((slot) => {
+      const options = getStrengthOptions(slot.strengthWidget);
+      return resolveStrengthDefault(options, 1.0);
+    });
     slots.forEach((slot, index) => {
       const entry = limited[index];
+      const strengthOptions = applyStrengthRangeToWidget(slot.strengthWidget);
       const strengthDefault = defaultStrengths[index] ?? 1.0;
       if (entry) {
         applyLoraValue(slot.loraWidget, entry.label);
         const strength = Number.isFinite(entry.strength)
           ? entry.strength
           : strengthDefault;
-        setWidgetValue(slot.strengthWidget, strength);
+        const clampedStrength = clampStrengthValue(strength, strengthOptions);
+        setWidgetValue(slot.strengthWidget, clampedStrength);
         setWidgetValue(slot.toggleWidget, entry.enabled !== false);
         slot.selectionWidget.value = normalizeSelectionValue(
           entry.selection ?? "",
@@ -2076,7 +2141,11 @@ const setupLoadLorasUi = (node) => {
         slot.selectionWidget.__loadLorasResetTopN = false;
       } else {
         applyLoraValue(slot.loraWidget, "None");
-        setWidgetValue(slot.strengthWidget, strengthDefault);
+        const clampedStrength = clampStrengthValue(
+          strengthDefault,
+          strengthOptions,
+        );
+        setWidgetValue(slot.strengthWidget, clampedStrength);
         setWidgetValue(slot.toggleWidget, false);
         slot.selectionWidget.value = "";
         slot.selectionWidget.__loadLorasResetTopN = true;
@@ -2106,7 +2175,9 @@ const setupLoadLorasUi = (node) => {
   const openCopyDialog = () => {
     closeCopyDialog();
     const sources = orderCopySources(listCopySourceNodes());
-    if (sources.length === 0) {
+    const message = resolveCopySourceMessage(sources);
+    if (message) {
+      showMessage(message);
       return;
     }
     const handlePick = (source) => {
@@ -3397,6 +3468,7 @@ const setupLoadLorasUi = (node) => {
     if (!slot) {
       continue;
     }
+    applyStrengthRangeToWidget(slot.strengthWidget);
     slot.rowWidget = createRowWidget(slot);
     slot.rowWidget.type = "custom";
     slot.rowWidget.mouse = (event, pos) => handleMouseDown(event, pos, node);
@@ -3491,21 +3563,23 @@ const setupLoadLorasUi = (node) => {
       originalSerialize?.apply(this, arguments);
       const values = [];
       slots.forEach((slot) => {
-        const strengthDefault = resolveStrengthDefault(
-          slot.strengthWidget?.options,
-          1.0,
-        );
+        const strengthOptions = getStrengthOptions(slot.strengthWidget);
+        const strengthDefault = resolveStrengthDefault(strengthOptions, 1.0);
         const rawValue = slot.loraWidget?.value;
         const options = getComboOptions(slot.loraWidget);
         const loraValue = resolveComboDisplayLabel(rawValue, options);
         const rawFilterValue = slot.__loadLorasLoraFilter;
+        const strengthValue = clampStrengthValue(
+          slot.strengthWidget?.value ?? strengthDefault,
+          strengthOptions,
+        );
         const normalizedFilterValue =
           rawFilterValue === undefined || rawFilterValue === null
             ? null
             : normalizeDialogFilterValue(rawFilterValue);
         values.push(
           loraValue,
-          slot.strengthWidget?.value ?? strengthDefault,
+          strengthValue,
           slot.toggleWidget?.value ?? true,
           normalizeSelectionValue(slot.selectionWidget?.value),
           normalizedFilterValue,

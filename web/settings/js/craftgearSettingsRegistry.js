@@ -13,6 +13,10 @@ import {
   DEFAULT_AUTO_SELECT_INFINITY_WORDS_ONLY,
   DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
   DEFAULT_MIN_FREQUENCY,
+  DEFAULT_LORA_STRENGTH_MAX,
+  DEFAULT_LORA_STRENGTH_MIN,
+  LORA_STRENGTH_MAX_SETTING_ID,
+  LORA_STRENGTH_MIN_SETTING_ID,
   LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
 } from "../../loadLorasWithTags/js/loadLorasWithTagsSettings.js";
@@ -61,6 +65,28 @@ const craftgearSettings = [
       step: 0.1,
     },
     defaultValue: DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+  },
+  {
+    id: LORA_STRENGTH_MIN_SETTING_ID,
+    name: "LoRA strength minimum",
+    type: "number",
+    category: ["craftgear", "Load Loras With Tags", "LoRA strength minimum"],
+    attrs: {
+      step: 0.1,
+      min: -10,
+    },
+    defaultValue: DEFAULT_LORA_STRENGTH_MIN,
+  },
+  {
+    id: LORA_STRENGTH_MAX_SETTING_ID,
+    name: "LoRA strength maximum",
+    type: "number",
+    category: ["craftgear", "Load Loras With Tags", "LoRA strength maximum"],
+    attrs: {
+      step: 0.1,
+      min: -10,
+    },
+    defaultValue: DEFAULT_LORA_STRENGTH_MAX,
   },
   {
     id: commentableFontSizeSettingId,

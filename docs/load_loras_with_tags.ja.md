@@ -58,7 +58,7 @@
 | パラメータ | 型 | 説明 |
 |-----------|------|------|
 | lora_name_{n} | DROPDOWN | 適用するLoRAファイル ("None" で無効) |
-| lora_strength_{n} | FLOAT | LoRAの強度 (-2.0〜2.0、デフォルト: 1.0) |
+| lora_strength_{n} | FLOAT | LoRAの強度 (既定の範囲: -2.0〜2.0、デフォルト: 1.0) |
 | lora_on_{n} | BOOLEAN | LoRAの有効/無効 (デフォルト: True) |
 | tag_selection_{n} | STRING | 選択されたタグ (UIで選択) |
 
@@ -79,6 +79,15 @@
 
 
 
+
+## 設定
+
+`Settings > craftgear > Load Loras With Tags` から強度の範囲を変更できます。
+
+- LoRA strength minimum: すべての強度スライダーの下限（初期値: -2.0）
+- LoRA strength maximum: すべての強度スライダーの上限（初期値: 2.0）
+
+設定した範囲を超える値は自動的に境界へ丸められます。
 
 ## 使用例
 

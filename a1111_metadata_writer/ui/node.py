@@ -16,6 +16,7 @@ def _default_image_path() -> str:
 
 
 class A1111MetadataWriter:
+    OUTPUT_NODE: ClassVar[bool] = True
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, dict[str, tuple]]:
         return {
@@ -181,6 +182,8 @@ def _build_pnginfo(
     pnginfo.add_text('prompt', json.dumps(prompt))
     if extra_pnginfo:
         for key, value in extra_pnginfo.items():
+            if key in {'prompt', 'parameters'}:
+                continue
             pnginfo.add_text(str(key), json.dumps(value))
     pnginfo.add_text('parameters', parameters)
     return pnginfo

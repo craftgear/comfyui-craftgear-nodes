@@ -58,7 +58,7 @@ Each slot has the following parameters:
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | lora_name_{n} | DROPDOWN | LoRA file to apply ("None" to disable) |
-| lora_strength_{n} | FLOAT | LoRA strength (-2.0 to 2.0, default: 1.0) |
+| lora_strength_{n} | FLOAT | LoRA strength (default range: -2.0 to 2.0, default: 1.0) |
 | lora_on_{n} | BOOLEAN | Enable/disable LoRA (default: True) |
 | tag_selection_{n} | STRING | Selected tags (selected via UI) |
 
@@ -78,6 +78,15 @@ Each slot has the following parameters:
 | tags | STRING | Text combining input tags and selected LoRA tags |
 
 
+
+## Settings
+
+LoRA strength range can be customized from `Settings > craftgear > Load Loras With Tags`:
+
+- LoRA strength minimum: lower bound for all strength sliders (default: -2.0)
+- LoRA strength maximum: upper bound for all strength sliders (default: 2.0)
+
+Values outside the configured range are clamped to the nearest bound.
 
 ## Usage Examples
 
