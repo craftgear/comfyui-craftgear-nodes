@@ -72,6 +72,11 @@ import {
   resolveMissingLoraFilterValue,
   resolveLoraSlotFilterValue,
   shouldSelectLoraDialogFilterOnOpen,
+  resolveTagDialogFilterValue,
+  shouldSelectTagDialogFilterOnOpen,
+  resolveTagDialogSortValue,
+  resolveTagDialogTopNLabel,
+  sortTagDialogItems,
   normalizeDialogFilterValue,
   isRectFullyVisible,
   shouldIgnoreLoraDialogKeydownForIme,
@@ -126,11 +131,13 @@ const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
 const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
 const TOP_N_STORAGE_KEY = "craftgear-load-loras-with-tags-trigger-dialog-top-n";
+const TOP_N_POPUP_ID = "craftgear-load-loras-with-tags-top-n-popup";
 const LORA_DIALOG_FILTER_DEBOUNCE_MS = 120;
 const LORA_PREVIEW_PANEL_WIDTH = 240;
 const LORA_PREVIEW_PANEL_PADDING = 0;
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
+let topNPopupState = null;
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || "";
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
@@ -312,8 +319,20 @@ const closeStrengthPopup = () => {
   strengthPopupState = null;
 };
 
+const closeTopNPopup = () => {
+  const existing = document.getElementById(TOP_N_POPUP_ID);
+  if (existing) {
+    existing.remove();
+  }
+  if (topNPopupState?.cleanup) {
+    topNPopupState.cleanup();
+  }
+  topNPopupState = null;
+};
+
 const closeDialog = () => {
   closeStrengthPopup();
+  closeTopNPopup();
   const existing = document.getElementById(DIALOG_ID);
   if (existing) {
     const cleanup = existing.__loadLorasCleanup;
@@ -596,6 +615,116 @@ const openStrengthPopup = (slot, event, targetNode) => {
   targetNode.__loadLorasStrengthPopupSlot = slot;
 };
 
+const openTopNPopup = (anchorEl, value, min, max, onInput) => {
+  if (!anchorEl) {
+    return;
+  }
+  if (topNPopupState?.anchor === anchorEl) {
+    closeTopNPopup();
+    return;
+  }
+  closeTopNPopup();
+  ensureStrengthPopupStyles();
+  const resolvedMin = Number.isFinite(min) ? min : 1;
+  const resolvedMax = Number.isFinite(max) ? max : resolvedMin;
+  const resolvedValue = Number.isFinite(value) ? value : resolvedMax;
+  const popup = $el('div', {
+    id: TOP_N_POPUP_ID,
+    style: {
+      position: 'fixed',
+      zIndex: 10001,
+      background: '#1e1e1e',
+      border: '1px solid #3a3a3a',
+      borderRadius: '6px',
+      padding: '8px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '6px',
+      fontFamily: 'sans-serif',
+    },
+  });
+  const range = $el('input', {
+    type: 'range',
+    min: String(resolvedMin),
+    max: String(resolvedMax),
+    step: '1',
+    value: String(resolvedValue),
+    style: { width: '220px' },
+  });
+  range.className = strengthRangeInputClass;
+  updateStrengthRangeBackground(range, resolvedValue, {
+    min: resolvedMin,
+    max: resolvedMax,
+  });
+  range.oninput = () => {
+    const next = Number(range.value);
+    updateStrengthRangeBackground(range, next, {
+      min: resolvedMin,
+      max: resolvedMax,
+    });
+    if (typeof onInput === 'function') {
+      onInput(next);
+    }
+  };
+  const handleRelease = (nextEvent) => {
+    if (!shouldCloseStrengthPopupOnRelease(nextEvent)) {
+      return;
+    }
+    closeTopNPopup();
+  };
+  range.addEventListener('mouseup', handleRelease);
+  range.addEventListener('pointerup', handleRelease);
+  range.addEventListener('touchend', handleRelease);
+  popup.append(range);
+  document.body.append(popup);
+  const popupRect = popup.getBoundingClientRect();
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const anchor = {
+    x: anchorRect.left,
+    y: anchorRect.top,
+    width: anchorRect.width,
+    height: anchorRect.height,
+  };
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  const position = resolveBelowCenteredPopupPosition(
+    anchor,
+    { width: popupRect.width, height: popupRect.height },
+    viewport,
+  );
+  popup.style.left = `${position.left}px`;
+  popup.style.top = `${position.top}px`;
+  const handleOutside = (nextEvent) => {
+    if (!shouldCloseStrengthPopupOnPress(nextEvent)) {
+      return;
+    }
+    if (!shouldCloseStrengthPopupOnInnerClick(nextEvent.target, range, null)) {
+      return;
+    }
+    closeTopNPopup();
+  };
+  const handleKeydown = (nextEvent) => {
+    if (nextEvent.key === 'Escape') {
+      closeTopNPopup();
+    }
+  };
+  document.addEventListener('mousedown', handleOutside, true);
+  document.addEventListener('pointerdown', handleOutside, true);
+  document.addEventListener('touchstart', handleOutside, true);
+  document.addEventListener('keydown', handleKeydown, true);
+  topNPopupState = {
+    anchor: anchorEl,
+    cleanup: () => {
+      range.removeEventListener('mouseup', handleRelease);
+      range.removeEventListener('pointerup', handleRelease);
+      range.removeEventListener('touchend', handleRelease);
+      document.removeEventListener('mousedown', handleOutside, true);
+      document.removeEventListener('pointerdown', handleOutside, true);
+      document.removeEventListener('touchstart', handleOutside, true);
+      document.removeEventListener('keydown', handleKeydown, true);
+    },
+  };
+};
+
 const openTriggerDialog = async (
   loraName,
   selectionWidget,
@@ -681,6 +810,13 @@ const openTriggerDialog = async (
     placeholder: "Filter tags",
     style: { flex: "1 1 auto", paddingRight: "28px" },
   });
+  const initialFilterValue = resolveTagDialogFilterValue(
+    selectionWidget?.__loadLorasTagFilter,
+  );
+  const shouldSelectFilterOnOpen = shouldSelectTagDialogFilterOnOpen(
+    selectionWidget?.__loadLorasTagFilter,
+  );
+  filterInput.value = initialFilterValue;
   const clearFilterButton = $el("button", {
     textContent: "\u00d7",
     style: {
@@ -715,16 +851,10 @@ const openTriggerDialog = async (
     : savedTopN
       ? Math.min(Math.max(1, Number(savedTopN)), triggers.length)
       : triggers.length;
-  const topNSlider = $el("input", {
-    type: "range",
-    min: "1",
-    max: String(triggers.length),
-    value: String(initialTopN),
-    style: { width: "200px" },
-  });
-  const topNLabel = $el("span", {
-    textContent: `Show top ${topNSlider.value} tags`,
-    style: { minWidth: "130px", fontSize: "12px" },
+  let topNValue = initialTopN;
+  const topNButton = $el('button', {
+    textContent: resolveTagDialogTopNLabel(topNValue),
+    title: 'Show top N tags',
   });
   const topNContainer = $el("div", {
     style: {
@@ -734,7 +864,40 @@ const openTriggerDialog = async (
       marginLeft: "12px",
     },
   });
-  topNContainer.append(topNLabel, topNSlider);
+  topNContainer.append(topNButton);
+  const sortSelect = $el('select', {
+    'aria-label': 'Sort tags',
+    style: { minWidth: '140px' },
+  });
+  [
+    { value: 'frequency', label: 'Frequency' },
+    { value: 'name', label: 'Name' },
+    { value: 'checked', label: 'Checked first' },
+  ].forEach((option) => {
+    sortSelect.append(
+      $el('option', {
+        value: option.value,
+        textContent: option.label,
+      }),
+    );
+  });
+  const initialSortValue = resolveTagDialogSortValue(
+    selectionWidget?.__loadLorasTagSort,
+  );
+  sortSelect.value = initialSortValue;
+  const sortLabel = $el('span', {
+    textContent: 'Sort',
+    style: { minWidth: '40px', fontSize: '12px', opacity: 0.8 },
+  });
+  const sortContainer = $el('div', {
+    style: {
+      display: 'flex',
+      gap: '4px',
+      alignItems: 'center',
+      marginLeft: '12px',
+    },
+  });
+  sortContainer.append(sortLabel, sortSelect);
   const list = $el("div", {
     style: {
       overflow: "auto",
@@ -806,7 +969,8 @@ const openTriggerDialog = async (
 
   let activeIndex = -1;
 
-  const items = triggers.map((trigger, index) => {
+  let items = [];
+  items = triggers.map((trigger) => {
     const checkbox = $el("input", { type: "checkbox" });
     checkbox.checked = selected.has(trigger);
     const countLabel = createFrequencyLabel(frequencies?.[trigger]);
@@ -827,12 +991,15 @@ const openTriggerDialog = async (
     const entry = { trigger, checkbox, row: label, label: triggerLabel };
     label.addEventListener("mouseenter", () => {
       entry.__tagDialogHovered = true;
-      activeIndex = index;
+      activeIndex = items.indexOf(entry);
       updateRowStates();
     });
     label.addEventListener("mouseleave", () => {
       entry.__tagDialogHovered = false;
       updateRowStates();
+    });
+    checkbox.addEventListener('change', () => {
+      applyCheckedSortIfNeeded();
     });
     return entry;
   });
@@ -859,6 +1026,25 @@ const openTriggerDialog = async (
   const ensureActiveIndex = () => {
     const visibleIndices = getVisibleIndices();
     activeIndex = resolveActiveIndex(visibleIndices, activeIndex);
+  };
+
+  const applySort = () => {
+    const activeItem = items[activeIndex];
+    items = sortTagDialogItems(items, sortSelect.value, frequencies);
+    list.replaceChildren(...items.map((item) => item.row));
+    if (activeItem) {
+      activeIndex = items.indexOf(activeItem);
+    }
+    ensureActiveIndex();
+    updateRowStates();
+  };
+
+  const applyCheckedSortIfNeeded = () => {
+    if (sortSelect.value !== 'checked') {
+      return false;
+    }
+    applySort();
+    return true;
   };
 
   const scrollActiveIntoView = () => {
@@ -902,7 +1088,9 @@ const openTriggerDialog = async (
       return;
     }
     item.checkbox.checked = !item.checkbox.checked;
-    updateRowStates();
+    if (!applyCheckedSortIfNeeded()) {
+      updateRowStates();
+    }
     scrollActiveIntoView();
   };
 
@@ -952,16 +1140,36 @@ const openTriggerDialog = async (
   };
 
   const updateTopNLabel = (value) => {
-    const topNValue = Number(value) || 1;
-    topNLabel.textContent = `Show top ${topNValue} tags`;
+    topNButton.textContent = resolveTagDialogTopNLabel(value);
+  };
+  const clampTopNValue = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return triggers.length;
+    }
+    return Math.min(Math.max(1, Math.round(numeric)), triggers.length);
   };
 
   const updateVisibility = () => {
     const query = filterInput?.value ?? "";
-    const topNValue = Number(topNSlider?.value) || triggers.length;
-    topNLabel.textContent = `Show top ${topNSlider.value} tags`;
     updateVisibleByFilter(query, topNValue);
     updateTopNLabel(topNValue);
+  };
+  const updateSavedFilter = () => {
+    if (!selectionWidget) {
+      return;
+    }
+    selectionWidget.__loadLorasTagFilter = normalizeDialogFilterValue(
+      filterInput.value,
+    );
+  };
+  const updateSavedSort = () => {
+    if (!selectionWidget) {
+      return;
+    }
+    selectionWidget.__loadLorasTagSort = resolveTagDialogSortValue(
+      sortSelect.value,
+    );
   };
 
   selectAllButton.onclick = () => {
@@ -970,6 +1178,7 @@ const openTriggerDialog = async (
         item.checkbox.checked = true;
       }
     });
+    applyCheckedSortIfNeeded();
   };
   selectNoneButton.onclick = () => {
     items.forEach((item) => {
@@ -977,9 +1186,11 @@ const openTriggerDialog = async (
         item.checkbox.checked = false;
       }
     });
+    applyCheckedSortIfNeeded();
   };
   cancelButton.onclick = closeDialog;
   applyButton.onclick = () => {
+    updateSavedFilter();
     const selectedTriggers = items
       .filter((item) => item.checkbox.checked)
       .map((item) => item.trigger);
@@ -1026,37 +1237,60 @@ const openTriggerDialog = async (
   };
   document.addEventListener("keydown", dialogKeydownHandler, true);
 
+  sortSelect.onchange = () => {
+    updateSavedSort();
+    applySort();
+  };
   filterInput.oninput = () => {
+    updateSavedFilter();
     updateVisibility();
   };
   clearFilterButton.onclick = () => {
     filterInput.value = "";
+    updateSavedFilter();
     updateVisibility();
     focusInputLater(filterInput);
   };
-  topNSlider.oninput = () => {
-    localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
-    updateVisibility();
+  topNButton.onclick = () => {
+    openTopNPopup(topNButton, topNValue, 1, triggers.length, (next) => {
+      const clamped = clampTopNValue(next);
+      topNValue = clamped;
+      localStorage.setItem(TOP_N_STORAGE_KEY, String(clamped));
+      updateVisibility();
+      applyCheckedSortIfNeeded();
+    });
   };
   if (resetTopN) {
-    localStorage.setItem(TOP_N_STORAGE_KEY, topNSlider.value);
+    localStorage.setItem(TOP_N_STORAGE_KEY, String(topNValue));
   }
 
   topControls.append(
     selectAllButton,
     selectNoneButton,
     filterContainer,
+    sortContainer,
     topNContainer,
   );
   rightActions.append(cancelButton, applyButton);
   actions.append(leftActions, rightActions);
 
+  applySort();
   updateVisibility();
 
   panel.append(topControls, list, actions);
   overlay.append(panel);
   document.body.append(overlay);
   focusInputLater(filterInput);
+  if (shouldSelectFilterOnOpen) {
+    requestAnimationFrame(() => {
+      if (document.activeElement !== filterInput) {
+        return;
+      }
+      if (typeof filterInput.select === 'function') {
+        filterInput.select();
+      }
+    });
+  }
 };
 
 const fitText = (ctx, text, maxWidth) => {

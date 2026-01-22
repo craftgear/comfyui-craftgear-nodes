@@ -250,6 +250,94 @@ const resolveMissingLoraFilterValue = (rawValue, options, fallback = 'None') => 
 
 const normalizeDialogFilterValue = (value) => String(value ?? '').trim();
 
+const resolveTagDialogFilterValue = (savedFilter) => {
+  if (savedFilter === undefined || savedFilter === null) {
+    return '';
+  }
+  return normalizeDialogFilterValue(savedFilter);
+};
+
+const shouldSelectTagDialogFilterOnOpen = (savedFilter) =>
+  resolveTagDialogFilterValue(savedFilter) !== '';
+
+const resolveTagDialogSortValue = (value) => {
+  if (value === 'frequency' || value === 'name' || value === 'checked') {
+    return value;
+  }
+  return 'frequency';
+};
+
+const resolveTagDialogTopNLabel = (value) => {
+  const numeric = Number(value);
+  const resolved = Number.isFinite(numeric) ? numeric : 0;
+  return `Show top ${resolved} tags`;
+};
+
+const resolveTagDialogFrequencyValue = (frequencies, trigger) => {
+  if (!frequencies || typeof frequencies !== 'object') {
+    return Number.NEGATIVE_INFINITY;
+  }
+  const raw = frequencies[trigger];
+  const resolved = Number(raw);
+  if (Number.isNaN(resolved)) {
+    return Number.NEGATIVE_INFINITY;
+  }
+  return resolved;
+};
+
+const resolveTagDialogCheckedValue = (entry) => {
+  if (!entry || typeof entry !== 'object') {
+    return false;
+  }
+  if (typeof entry.checked === 'boolean') {
+    return entry.checked;
+  }
+  return !!entry.checkbox?.checked;
+};
+
+const compareTagDialogNumbersDesc = (a, b) => {
+  if (a === b) {
+    return 0;
+  }
+  return a > b ? -1 : 1;
+};
+
+const compareTagDialogNames = (a, b) =>
+  String(a ?? '').localeCompare(String(b ?? ''), undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+
+const sortTagDialogItems = (entries, sortValue, frequencies) => {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  const normalizedSort = resolveTagDialogSortValue(sortValue);
+  const indexed = entries.map((entry, index) => ({ entry, index }));
+  const compareWithFallback = (result, indexA, indexB) =>
+    result === 0 ? indexA - indexB : result;
+
+  indexed.sort((a, b) => {
+    if (normalizedSort === 'name') {
+      const nameResult = compareTagDialogNames(a.entry?.trigger, b.entry?.trigger);
+      return compareWithFallback(nameResult, a.index, b.index);
+    }
+    if (normalizedSort === 'checked') {
+      const checkedResult = compareTagDialogNumbersDesc(
+        Number(resolveTagDialogCheckedValue(a.entry)),
+        Number(resolveTagDialogCheckedValue(b.entry)),
+      );
+      return compareWithFallback(checkedResult, a.index, b.index);
+    }
+    const frequencyResult = compareTagDialogNumbersDesc(
+      resolveTagDialogFrequencyValue(frequencies, a.entry?.trigger),
+      resolveTagDialogFrequencyValue(frequencies, b.entry?.trigger),
+    );
+    return compareWithFallback(frequencyResult, a.index, b.index);
+  });
+  return indexed.map((item) => item.entry);
+};
+
 const resolveLoraDialogFilterValue = (savedFilter, missingFilter) => {
   const normalizedMissing = normalizeDialogFilterValue(missingFilter);
   if (savedFilter === undefined || savedFilter === null) {
@@ -1062,6 +1150,11 @@ export {
   resolveComboDisplayLabel,
   resolveComboOptionIndex,
   resolveMissingLoraFilterValue,
+  resolveTagDialogFilterValue,
+  shouldSelectTagDialogFilterOnOpen,
+  resolveTagDialogSortValue,
+  resolveTagDialogTopNLabel,
+  sortTagDialogItems,
   resolveLoraDialogFilterValue,
   shouldSelectLoraDialogFilterOnOpen,
   resolveLoraSlotFilterValue,
