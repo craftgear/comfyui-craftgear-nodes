@@ -36,6 +36,7 @@ def parse_excluded_tags(value: Any) -> set[str]:
 
 
 class TagToggleTextNode:
+    OUTPUT_NODE: ClassVar[bool] = True
     @classmethod
     def INPUT_TYPES(cls):
         return {
