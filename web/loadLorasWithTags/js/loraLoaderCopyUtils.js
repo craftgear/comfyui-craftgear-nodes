@@ -184,9 +184,6 @@ const collectFromPowerLoraLoader = (node) => {
     }
     const strength = pickStrengthFromObject(value, 1);
     const enabled = isEnabled(value.on ?? value.enabled ?? true);
-    if (!enabled) {
-      return;
-    }
     rows.push({ label, strength, enabled });
   });
   // fallback to pattern-based rows if none were found
@@ -229,9 +226,6 @@ const collectFromLoadLorasWithTags = (node) => {
       continue;
     }
     const enabled = isEnabled(toggleWidget?.value);
-    if (!enabled) {
-      continue;
-    }
     const strength = resolveStrength(strengthWidget, 1);
     const selection = normalizeSelectionValue(selectionWidget?.value);
     output.push({ label, strength, enabled, selection });

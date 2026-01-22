@@ -140,6 +140,7 @@ const SELECT_BUTTON_PADDING = 2;
 const SELECT_TRIGGER_LABEL = "tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
 const COPY_BUTTON_LABEL = "Copy";
+const APPEND_BUTTON_LABEL = "Append";
 const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
 const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
@@ -1583,16 +1584,19 @@ const setupLoadLorasUi = (node) => {
           18,
           Math.min(headerAvailableHeight, 20),
         );
-        const buttonGap = INNER_MARGIN * 6;
-        // 視認性を上げるためトグルラベルとの間隔を広げる
-        const preferredX =
-          labelRect.x + labelRect.width + buttonGap;
-        const buttonX = Math.min(
-          preferredX,
-          width - headerMargin - buttonWidth,
-        );
-        const buttonRect = {
-          x: buttonX,
+        const buttonGap = 8;
+        const minStartX =
+          labelRect.x + labelRect.width + INNER_MARGIN * 6;
+        const maxStartX =
+          width - headerMargin - (buttonWidth * 2 + buttonGap);
+        let startX = Math.max(minStartX, maxStartX);
+        const maxAllowedStart =
+          width - headerMargin - (buttonWidth * 2 + buttonGap);
+        if (startX > maxAllowedStart) {
+          startX = maxAllowedStart;
+        }
+        const copyRect = {
+          x: startX,
           y:
             y +
             HEADER_TOP_PADDING +
@@ -1600,26 +1604,26 @@ const setupLoadLorasUi = (node) => {
           width: buttonWidth,
           height: buttonHeight,
         };
-        widget.__copyButtonRect = buttonRect;
-        ctx.fillStyle = "#2a2a2a";
-        drawRoundedRect(
-          ctx,
-          buttonRect.x,
-          buttonRect.y,
-          buttonRect.width,
-          buttonRect.height,
-          6,
-        );
-        ctx.fill();
-        ctx.strokeStyle = "#3a3a3a";
-        ctx.stroke();
-        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
-        ctx.textAlign = "center";
-        ctx.fillText(
-          COPY_BUTTON_LABEL,
-          buttonRect.x + buttonRect.width / 2,
-          buttonRect.y + buttonRect.height / 2,
-        );
+        const appendRect = {
+          x: copyRect.x + buttonWidth + buttonGap,
+          y: copyRect.y,
+          width: buttonWidth,
+          height: buttonHeight,
+        };
+        widget.__copyButtonRect = copyRect;
+        widget.__appendButtonRect = appendRect;
+        const drawHeaderButton = (rect, label) => {
+          ctx.fillStyle = "#2a2a2a";
+          drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, 6);
+          ctx.fill();
+          ctx.strokeStyle = "#3a3a3a";
+          ctx.stroke();
+          ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+          ctx.textAlign = "center";
+          ctx.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2);
+        };
+        drawHeaderButton(copyRect, COPY_BUTTON_LABEL);
+        drawHeaderButton(appendRect, APPEND_BUTTON_LABEL);
         ctx.textAlign = "right";
         ctx.restore();
       },
@@ -2156,6 +2160,49 @@ const setupLoadLorasUi = (node) => {
     markDirty(node);
   };
 
+  const applyAppendedEntries = (entries) => {
+    const bounded = Array.isArray(entries)
+      ? entries.filter((entry) => entry?.label && entry.label !== "None")
+      : [];
+    if (bounded.length === 0) {
+      return;
+    }
+    const current = slots.map((slot) => buildSlotEntry(slot));
+    let lastFilled = -1;
+    current.forEach((entry, index) => {
+      if (isFilledName(entry?.loraValue)) {
+        lastFilled = index;
+      }
+    });
+    let insertIndex = lastFilled + 1;
+    const applied = current.slice();
+    for (const entry of bounded) {
+      if (insertIndex >= MAX_LORA_STACK) {
+        break;
+      }
+      applied[insertIndex] = {
+        loraValue: entry.label,
+        strengthValue: entry.strength,
+        toggleValue: entry.enabled !== false,
+        selectionValue: normalizeSelectionValue(entry.selection ?? ""),
+        filterValue: "",
+        resetTopN: false,
+      };
+      insertIndex += 1;
+    }
+    applied.forEach((entry, index) => {
+      if (index >= slots.length) {
+        return;
+      }
+      if (!entry) {
+        return;
+      }
+      applySlotEntry(slots[index], entry);
+    });
+    applyRowVisibility();
+    markDirty(node);
+  };
+
   const listCopySourceNodes = () => {
     const candidates = Array.isArray(app?.graph?._nodes) ? app.graph._nodes : [];
     return candidates.filter((entry) => {
@@ -2172,7 +2219,7 @@ const setupLoadLorasUi = (node) => {
     existing?.remove();
   };
 
-  const openCopyDialog = () => {
+  const openCopyDialog = (mode = "copy") => {
     closeCopyDialog();
     const sources = orderCopySources(listCopySourceNodes());
     const message = resolveCopySourceMessage(sources);
@@ -2182,7 +2229,11 @@ const setupLoadLorasUi = (node) => {
     }
     const handlePick = (source) => {
       const entries = collectLoraEntriesFromNode(source) || [];
-      applyCopiedEntries(entries);
+      if (mode === "append") {
+        applyAppendedEntries(entries);
+      } else {
+        applyCopiedEntries(entries);
+      }
       closeCopyDialog();
     };
 
@@ -3376,7 +3427,17 @@ const setupLoadLorasUi = (node) => {
       if (event) {
         event.__loadLorasHandled = true;
       }
-      openCopyDialog();
+      openCopyDialog("copy");
+      return true;
+    }
+    if (
+      headerWidget?.__appendButtonRect &&
+      isPointInRect(pos, headerWidget.__appendButtonRect)
+    ) {
+      if (event) {
+        event.__loadLorasHandled = true;
+      }
+      openCopyDialog("append");
       return true;
     }
     for (const slot of slots) {
