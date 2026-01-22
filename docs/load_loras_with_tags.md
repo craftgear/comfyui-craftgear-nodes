@@ -8,6 +8,9 @@
 - Selected tags are output from the tags handle.
 - LoRA selection can be done with fuzzy matching on filenames.
 - Up to 20 LoRAs can be applied simultaneously.
+- Header has two actions:
+  - **Copy**: import LoRA slots from another node (LoRA Loader, Power LoRA Loader, Load LoRAs With Tags, etc.), replacing current slots.
+  - **Append**: import and append after existing slots without overwriting current ones.
 
 
 ## LoRA Selection Dialog
