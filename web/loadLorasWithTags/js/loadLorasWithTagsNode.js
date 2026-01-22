@@ -123,7 +123,7 @@ import {
 } from './loadLorasWithTagsCopyHelpers.js';
 
 const TARGET_NODE_CLASS = "LoadLorasWithTags";
-const MAX_LORA_STACK = 10;
+const MAX_LORA_STACK = 20;
 const ROW_HEIGHT = 24;
 const ROW_PADDING_Y = 0;
 const HEADER_HEIGHT = 22;
@@ -1534,6 +1534,8 @@ const setupLoadLorasUi = (node) => {
 
   const slots = [];
   let headerWidget = null;
+  const headerHoverState = { copy: false, append: false };
+  const rowHoverState = new Map();
 
   const createHeaderWidget = (getAllToggleState) => {
     const widget = {
@@ -1612,18 +1614,18 @@ const setupLoadLorasUi = (node) => {
         };
         widget.__copyButtonRect = copyRect;
         widget.__appendButtonRect = appendRect;
-        const drawHeaderButton = (rect, label) => {
-          ctx.fillStyle = "#2a2a2a";
+        const drawHeaderButton = (rect, label, hovered) => {
+          ctx.fillStyle = hovered ? "#3a3a3a" : "#2a2a2a";
           drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, 6);
           ctx.fill();
-          ctx.strokeStyle = "#3a3a3a";
+          ctx.strokeStyle = hovered ? "#4a4a4a" : "#3a3a3a";
           ctx.stroke();
           ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
           ctx.textAlign = "center";
           ctx.fillText(label, rect.x + rect.width / 2, rect.y + rect.height / 2);
         };
-        drawHeaderButton(copyRect, COPY_BUTTON_LABEL);
-        drawHeaderButton(appendRect, APPEND_BUTTON_LABEL);
+        drawHeaderButton(copyRect, COPY_BUTTON_LABEL, headerHoverState.copy);
+        drawHeaderButton(appendRect, APPEND_BUTTON_LABEL, headerHoverState.append);
         ctx.textAlign = "right";
         ctx.restore();
       },
@@ -1811,8 +1813,10 @@ const setupLoadLorasUi = (node) => {
     if (!isOverlay) {
       slot.__hitSelectTrigger = buttonRect;
     }
-    ctx.globalAlpha *= isOn ? 0.85 : 0.45;
-    ctx.fillStyle = "#242424";
+    const rowHover = rowHoverState.get(slot.index) || {};
+    const buttonHover = !!rowHover.select;
+    ctx.globalAlpha *= isOn ? 0.9 : 0.55;
+    ctx.fillStyle = buttonHover ? "#3a3a3a" : "#242424";
     drawRoundedRect(
       ctx,
       buttonRect.x,
@@ -1822,7 +1826,7 @@ const setupLoadLorasUi = (node) => {
       6,
     );
     ctx.fill();
-    ctx.strokeStyle = "#3a3a3a";
+    ctx.strokeStyle = buttonHover ? "#4a4a4a" : "#3a3a3a";
     ctx.stroke();
     ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
     ctx.textAlign = "center";
@@ -3524,6 +3528,65 @@ const setupLoadLorasUi = (node) => {
     return false;
   };
 
+  const updateRowHover = (pos, targetNode) => {
+    let changed = false;
+    if (!Array.isArray(pos)) {
+      if (rowHoverState.size > 0) {
+        rowHoverState.clear();
+        markDirty(targetNode);
+      }
+      return;
+    }
+    slots.forEach((slot) => {
+      if (slot.rowWidget?.hidden) {
+        if (rowHoverState.delete(slot.index)) {
+          changed = true;
+        }
+        return;
+      }
+      const hover = {
+        select:
+          slot.__hitSelectTrigger &&
+          isPointInRect(pos, slot.__hitSelectTrigger),
+      };
+      const prev = rowHoverState.get(slot.index);
+      if (!prev || prev.select !== hover.select) {
+        rowHoverState.set(slot.index, hover);
+        changed = true;
+      }
+    });
+    if (changed) {
+      markDirty(targetNode);
+    }
+  };
+
+  const updateHeaderHover = (pos, targetNode) => {
+    if (!headerWidget || !Array.isArray(pos)) {
+      const changed =
+        headerHoverState.copy !== false || headerHoverState.append !== false;
+      headerHoverState.copy = false;
+      headerHoverState.append = false;
+      if (changed) {
+        markDirty(targetNode);
+      }
+      return;
+    }
+    const copyHover =
+      headerWidget.__copyButtonRect &&
+      isPointInRect(pos, headerWidget.__copyButtonRect);
+    const appendHover =
+      headerWidget.__appendButtonRect &&
+      isPointInRect(pos, headerWidget.__appendButtonRect);
+    const changed =
+      copyHover !== headerHoverState.copy ||
+      appendHover !== headerHoverState.append;
+    headerHoverState.copy = copyHover;
+    headerHoverState.append = appendHover;
+    if (changed) {
+      markDirty(targetNode);
+    }
+  };
+
   for (let index = 1; index <= MAX_LORA_STACK; index += 1) {
     const slot = getSlotWidgets(index);
     if (!slot) {
@@ -3579,6 +3642,8 @@ const setupLoadLorasUi = (node) => {
         updateSlotDrag(event, pos);
         return true;
       }
+      updateRowHover(pos, this);
+      updateHeaderHover(pos, this);
       return originalMouseMove?.apply(this, arguments);
     };
     wrappedMouseMove.__loadLorasHandler = true;

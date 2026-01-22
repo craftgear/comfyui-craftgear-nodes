@@ -7,7 +7,7 @@
 - Load and select tags from LoRA's `ss_tag_strings` metadata and `trainedWords` from JSON files in the same directory as the model.
 - Selected tags are output from the tags handle.
 - LoRA selection can be done with fuzzy matching on filenames.
-- Up to 10 LoRAs can be applied simultaneously.
+- Up to 20 LoRAs can be applied simultaneously.
 
 
 ## LoRA Selection Dialog
@@ -51,7 +51,7 @@
 | model | MODEL | Model to apply LoRA to |
 | clip | CLIP | CLIP to apply LoRA to |
 
-### LoRA Slots (1-10)
+### LoRA Slots (1-20)
 
 Each slot has the following parameters:
 

@@ -10,7 +10,7 @@ from ...logic.trigger_words import (
     filter_lora_triggers,
 )
 
-MAX_LORA_STACK = 10
+MAX_LORA_STACK = 20
 
 
 def resolve_lora_name(value: Any, choices: list[str]) -> str:
