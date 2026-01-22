@@ -12,6 +12,11 @@ import {
   shouldAutoSelectInfinityTagsOnly,
 } from './selectionValueUtils.js';
 import {
+  collectLoraEntriesFromNode,
+  isSupportedLoraNodeClass,
+  orderCopySources,
+} from './loraLoaderCopyUtils.js';
+import {
   AUTO_SELECT_MISSING_LORA_SETTING_ID,
   AUTO_SELECT_INFINITY_WORDS_ONLY_SETTING_ID,
   LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
@@ -114,7 +119,7 @@ const TARGET_NODE_CLASS = "LoadLorasWithTags";
 const MAX_LORA_STACK = 10;
 const ROW_HEIGHT = 24;
 const ROW_PADDING_Y = 0;
-const HEADER_HEIGHT = 24;
+const HEADER_HEIGHT = 22;
 const HEADER_TOP_PADDING = 4;
 const MARGIN = 10;
 const INNER_MARGIN = 4;
@@ -127,11 +132,13 @@ const DRAG_START_THRESHOLD = 4;
 const SELECT_BUTTON_PADDING = 2;
 const SELECT_TRIGGER_LABEL = "tags";
 const TOGGLE_LABEL_TEXT = "Toggle All";
+const COPY_BUTTON_LABEL = "Copy";
 const DIALOG_ID = "craftgear-load-loras-with-tags-trigger-dialog";
 const STRENGTH_POPUP_ID = "craftgear-load-loras-with-tags-strength-popup";
 const STRENGTH_POPUP_STYLE_ID = "craftgear-load-loras-with-tags-strength-popup-style";
 const TOP_N_STORAGE_KEY = "craftgear-load-loras-with-tags-trigger-dialog-top-n";
 const TOP_N_POPUP_ID = "craftgear-load-loras-with-tags-top-n-popup";
+const COPY_DIALOG_ID = "craftgear-load-loras-copy-dialog";
 const LORA_DIALOG_FILTER_DEBOUNCE_MS = 120;
 const LORA_PREVIEW_PANEL_WIDTH = 240;
 const LORA_PREVIEW_PANEL_PADDING = 0;
@@ -1515,6 +1522,40 @@ const setupLoadLorasUi = (node) => {
           toggleRect.x + toggleRect.width + INNER_MARGIN,
           midY,
         );
+        const buttonWidth = 70;
+        const buttonHeight = Math.max(
+          18,
+          Math.min(headerAvailableHeight, 20),
+        );
+        const buttonRect = {
+          x: width - headerMargin - buttonWidth,
+          y:
+            y +
+            HEADER_TOP_PADDING +
+            (headerAvailableHeight - buttonHeight) / 2,
+          width: buttonWidth,
+          height: buttonHeight,
+        };
+        widget.__copyButtonRect = buttonRect;
+        ctx.fillStyle = "#2a2a2a";
+        drawRoundedRect(
+          ctx,
+          buttonRect.x,
+          buttonRect.y,
+          buttonRect.width,
+          buttonRect.height,
+          6,
+        );
+        ctx.fill();
+        ctx.strokeStyle = "#3a3a3a";
+        ctx.stroke();
+        ctx.fillStyle = LiteGraph?.WIDGET_TEXT_COLOR ?? "#d0d0d0";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          COPY_BUTTON_LABEL,
+          buttonRect.x + buttonRect.width / 2,
+          buttonRect.y + buttonRect.height / 2,
+        );
         ctx.textAlign = "right";
         ctx.restore();
       },
@@ -2009,6 +2050,170 @@ const setupLoadLorasUi = (node) => {
     });
     applyRowVisibility();
     markDirty(node);
+  };
+
+  const applyCopiedEntries = (entries) => {
+    const bounded = Array.isArray(entries)
+      ? entries.filter((entry) => entry?.label && entry.label !== "None")
+      : [];
+    const limited = bounded.slice(0, MAX_LORA_STACK);
+    const defaultStrengths = slots.map((slot) =>
+      resolveStrengthDefault(slot.strengthWidget?.options, 1.0),
+    );
+    slots.forEach((slot, index) => {
+      const entry = limited[index];
+      const strengthDefault = defaultStrengths[index] ?? 1.0;
+      if (entry) {
+        applyLoraValue(slot.loraWidget, entry.label);
+        const strength = Number.isFinite(entry.strength)
+          ? entry.strength
+          : strengthDefault;
+        setWidgetValue(slot.strengthWidget, strength);
+        setWidgetValue(slot.toggleWidget, entry.enabled !== false);
+        slot.selectionWidget.value = normalizeSelectionValue(
+          entry.selection ?? "",
+        );
+        slot.selectionWidget.__loadLorasResetTopN = false;
+      } else {
+        applyLoraValue(slot.loraWidget, "None");
+        setWidgetValue(slot.strengthWidget, strengthDefault);
+        setWidgetValue(slot.toggleWidget, false);
+        slot.selectionWidget.value = "";
+        slot.selectionWidget.__loadLorasResetTopN = true;
+      }
+      slot.__loadLorasLoraFilter = "";
+    });
+    applyRowVisibility();
+    markDirty(node);
+  };
+
+  const listCopySourceNodes = () => {
+    const candidates = Array.isArray(app?.graph?._nodes) ? app.graph._nodes : [];
+    return candidates.filter((entry) => {
+      if (!entry || entry === node) {
+        return false;
+      }
+      const cls = getNodeClass(entry);
+      return isSupportedLoraNodeClass(cls);
+    });
+  };
+
+  const closeCopyDialog = () => {
+    const existing = document.getElementById(COPY_DIALOG_ID);
+    existing?.remove();
+  };
+
+  const openCopyDialog = () => {
+    closeCopyDialog();
+    const sources = orderCopySources(listCopySourceNodes());
+    if (sources.length === 0) {
+      return;
+    }
+    const handlePick = (source) => {
+      const entries = collectLoraEntriesFromNode(source) || [];
+      applyCopiedEntries(entries);
+      closeCopyDialog();
+    };
+
+    const buttons = sources.map((source, index) => {
+      const label = source?.title || source?.properties?.title;
+      const cls = getNodeClass(source) || "Node";
+      const text = `${index + 1}. ${label || cls} (${cls})`;
+      return $el("button", {
+        textContent: text,
+        style: {
+          padding: "8px 10px",
+          width: "100%",
+          borderRadius: "6px",
+          border: "1px solid #3a3a3a",
+          background: "#2a2a2a",
+          color: "#e0e0e0",
+          textAlign: "left",
+          cursor: "pointer",
+        },
+        onclick: () => handlePick(source),
+      });
+    });
+
+    const panel = $el(
+      "div",
+      {
+        style: {
+          background: "#1f1f1f",
+          padding: "14px",
+          borderRadius: "10px",
+          minWidth: "320px",
+          maxWidth: "520px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+          border: "1px solid #2c2c2c",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        },
+      },
+      [
+        $el("div", {
+          textContent: "Copy LoRA from another node",
+          style: {
+            color: "#ffffff",
+            fontWeight: "600",
+            marginBottom: "10px",
+            fontSize: "14px",
+          },
+        }),
+        $el(
+          "div",
+          {
+            style: {
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+              width: "100%",
+            },
+          },
+          buttons,
+        ),
+        $el(
+          "button",
+          {
+            textContent: "Cancel",
+            style: {
+              padding: "8px 10px",
+              borderRadius: "6px",
+              border: "1px solid #3a3a3a",
+              background: "#2a2a2a",
+              color: "#e0e0e0",
+              width: "100%",
+              cursor: "pointer",
+            },
+            onclick: () => closeCopyDialog(),
+          },
+        ),
+      ],
+    );
+
+    const overlay = $el(
+      "div",
+      {
+        id: COPY_DIALOG_ID,
+        style: {
+          position: "fixed",
+          inset: "0",
+          background: "rgba(0,0,0,0.45)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+        },
+        onclick: (event) => {
+          if (event.target === event.currentTarget) {
+            closeCopyDialog();
+          }
+        },
+      },
+      [panel],
+    );
+    document.body.append(overlay);
   };
 
   const findSlotByPos = (pos) =>
@@ -3091,6 +3296,16 @@ const setupLoadLorasUi = (node) => {
         event.__loadLorasHandled = true;
       }
       markDirty(targetNode);
+      return true;
+    }
+    if (
+      headerWidget?.__copyButtonRect &&
+      isPointInRect(pos, headerWidget.__copyButtonRect)
+    ) {
+      if (event) {
+        event.__loadLorasHandled = true;
+      }
+      openCopyDialog();
       return true;
     }
     for (const slot of slots) {
