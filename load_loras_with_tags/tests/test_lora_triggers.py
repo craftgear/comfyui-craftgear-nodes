@@ -191,6 +191,29 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             self.assertEqual([tag for tag, _count in frequencies], ["gamma", "delta"])
             self.assertTrue(all(math.isinf(count) for _tag, count in frequencies))
 
+    def test_ignores_trained_words_with_metadata_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lora_path = os.path.join(temp_dir, "test.safetensors")
+            write_safetensors_with_metadata(lora_path, {})
+            extra_path = os.path.join(temp_dir, "custom_tags.json")
+            with open(extra_path, "w", encoding="utf-8") as file:
+                json.dump(
+                    {
+                        "trainedWords": [
+                            {"word": "keep_me", "count": 10},
+                            {"word": "ignore_me", "count": 1000, "metadata": True},
+                            {"word": "also_keep", "metadata": False},
+                        ]
+                    },
+                    file,
+                )
+            triggers = logic_triggers.extract_lora_triggers(lora_path)
+            self.assertEqual(triggers, ["keep_me", "also_keep"])
+            frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
+            freq_map = {tag: count for tag, count in frequencies}
+            self.assertSetEqual(set(freq_map.keys()), {"keep_me", "also_keep"})
+            self.assertTrue(all(math.isinf(count) for count in freq_map.values()))
+
     def test_extracts_triggers_from_trained_words_list(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             lora_path = os.path.join(temp_dir, "test.safetensors")

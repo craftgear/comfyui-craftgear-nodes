@@ -124,6 +124,10 @@ const collectRowsByPattern = (widgets) => {
     const strength = resolveStrength(strengthWidget, 1);
     const toggleWidget = toggleBySuffix.get(suffix);
     const enabled = isEnabled(toggleWidget?.value);
+    if (!enabled) {
+      // 無効スロットをコピーすると誤動作を招くため除外する
+      return;
+    }
     rows.push({ label, strength, enabled });
   });
   return rows;
@@ -184,6 +188,10 @@ const collectFromPowerLoraLoader = (node) => {
     }
     const strength = pickStrengthFromObject(value, 1);
     const enabled = isEnabled(value.on ?? value.enabled ?? true);
+    if (!enabled) {
+      // 無効行をコピーすると設定が汚染されるため除外する
+      return;
+    }
     rows.push({ label, strength, enabled });
   });
   // fallback to pattern-based rows if none were found
@@ -226,6 +234,10 @@ const collectFromLoadLorasWithTags = (node) => {
       continue;
     }
     const enabled = isEnabled(toggleWidget?.value);
+    if (!enabled) {
+      // 無効スロットはコピー対象に含めない
+      continue;
+    }
     const strength = resolveStrength(strengthWidget, 1);
     const selection = normalizeSelectionValue(selectionWidget?.value);
     output.push({ label, strength, enabled, selection });

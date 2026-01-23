@@ -329,10 +329,18 @@ const sortTagDialogItems = (entries, sortValue, frequencies) => {
       );
       return compareWithFallback(checkedResult, a.index, b.index);
     }
-    const frequencyResult = compareTagDialogNumbersDesc(
-      resolveTagDialogFrequencyValue(frequencies, a.entry?.trigger),
-      resolveTagDialogFrequencyValue(frequencies, b.entry?.trigger),
-    );
+    const freqA = resolveTagDialogFrequencyValue(frequencies, a.entry?.trigger);
+    const freqB = resolveTagDialogFrequencyValue(frequencies, b.entry?.trigger);
+    const isInfA = freqA === Infinity;
+    const isInfB = freqB === Infinity;
+    if (isInfA && isInfB) {
+      const nameResult = compareTagDialogNames(a.entry?.trigger, b.entry?.trigger);
+      return compareWithFallback(nameResult, a.index, b.index);
+    }
+    if (isInfA !== isInfB) {
+      return isInfA ? -1 : 1;
+    }
+    const frequencyResult = compareTagDialogNumbersDesc(freqA, freqB);
     return compareWithFallback(frequencyResult, a.index, b.index);
   });
   return indexed.map((item) => item.entry);

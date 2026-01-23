@@ -91,23 +91,32 @@ def _parse_trained_word_values(value: Any) -> list[Any]:
     if isinstance(value, (list, tuple)):
         output: list[Any] = []
         for item in value:
-            if isinstance(item, dict) and "word" in item:
-                word = item["word"]
-                if isinstance(word, str):
-                    output.extend(split_text(word))
-                else:
-                    output.append(word)
-            else:
-                if isinstance(item, str):
-                    output.extend(split_text(item))
+            if isinstance(item, dict):
+                if item.get("metadata"):
+                    continue
+                if "word" in item:
+                    word = item["word"]
+                    if isinstance(word, str):
+                        output.extend(split_text(word))
+                    else:
+                        output.append(word)
                 else:
                     output.append(item)
+                continue
+            if isinstance(item, str):
+                output.extend(split_text(item))
+            else:
+                output.append(item)
         return output
-    if isinstance(value, dict) and "word" in value:
-        word = value["word"]
-        if isinstance(word, str):
-            return split_text(word)
-        return [word]
+    if isinstance(value, dict):
+        if value.get("metadata"):
+            return []
+        if "word" in value:
+            word = value["word"]
+            if isinstance(word, str):
+                return split_text(word)
+            return [word]
+        return []
     if isinstance(value, str):
         return split_text(value)
     return []
