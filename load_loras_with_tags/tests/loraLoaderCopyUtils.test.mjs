@@ -93,7 +93,7 @@ describe('collectLoraEntriesFromNode', () => {
     });
   });
 
-  it('collects enabled slots from LoadLorasWithTags in order', () => {
+  it('collects slots from LoadLorasWithTags including disabled ones in order', () => {
     const options = ['None', 'delta.safetensors', 'epsilon.safetensors'];
     const node = buildLoadLorasWithTagsNode(
       [
@@ -109,6 +109,12 @@ describe('collectLoraEntriesFromNode', () => {
         label: 'delta.safetensors',
         strength: 0.7,
         enabled: true,
+        selection: '',
+      },
+      {
+        label: 'epsilon.safetensors',
+        strength: 0.4,
+        enabled: false,
         selection: '',
       },
     ]);

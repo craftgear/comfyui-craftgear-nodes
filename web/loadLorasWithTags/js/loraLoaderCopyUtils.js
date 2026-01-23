@@ -234,12 +234,9 @@ const collectFromLoadLorasWithTags = (node) => {
       continue;
     }
     const enabled = isEnabled(toggleWidget?.value);
-    if (!enabled) {
-      // 無効スロットはコピー対象に含めない
-      continue;
-    }
     const strength = resolveStrength(strengthWidget, 1);
     const selection = normalizeSelectionValue(selectionWidget?.value);
+    // 無効状態も含めないとコピー先で意図した構成を再現できないため保持する
     output.push({ label, strength, enabled, selection });
   }
   return output;
