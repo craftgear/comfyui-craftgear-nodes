@@ -26,5 +26,9 @@ class CommentableMultilineTextNode:
             stripped_leading = line.lstrip()
             if stripped_leading.startswith("#") or stripped_leading.startswith("//"):
                 continue
-            kept.append(line.strip())
+            stripped = line.strip()
+            if stripped == "":
+                # 空行を含めると区切り記号だけが増えてしまうため除外
+                continue
+            kept.append(stripped)
         return (separator.join(kept),)
