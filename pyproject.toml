@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-craftgear-nodes"
 description = "some tiny nodes for better QoL "
-version = "0.6.0"
+version = "0.6.1"
 license = { file = "LICENSE" }
 dependencies = []
 
