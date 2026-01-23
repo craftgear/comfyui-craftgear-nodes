@@ -315,23 +315,8 @@ def _has_sidecar_payload(data: Any) -> bool:
 
 
 def _extract_positive_tag_counts(data: dict[str, Any]) -> tuple[dict[str, float], dict[str, int]]:
-    counts: dict[str, float] = {}
-    order: dict[str, int] = {}
-    images = data.get("images")
-    if not isinstance(images, list):
-        return (counts, order)
-    for image in images:
-        if not isinstance(image, dict):
-            continue
-        positive = image.get("positive")
-        if not isinstance(positive, str):
-            continue
-        tags = _parse_positive_prompt(positive)
-        for tag in tags:
-            if tag not in order:
-                order[tag] = len(order)
-            counts[tag] = counts.get(tag, 0.0) + 1.0
-    return (counts, order)
+    # 画像プロンプト由来のタグはダイアログ汚染を招くため無視する
+    return ({}, {})
 
 
 def _parse_positive_prompt(value: str) -> list[str]:

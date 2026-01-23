@@ -39,7 +39,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta", "meta"])
+            self.assertEqual(triggers, ["meta"])
 
     def test_falls_back_to_rgthree_when_model_info_has_no_tags(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -52,7 +52,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             with open(rgthree_path, "w", encoding="utf-8") as file:
                 json.dump({"images": [{"positive": "alpha, beta"}]}, file)
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta", "meta"])
+            self.assertEqual(triggers, ["meta"])
 
     def test_extracts_triggers_from_model_info_positive_prompts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -70,18 +70,9 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["alpha", "beta", "gamma", "delta", "epsilon", "meta"])
+            self.assertEqual(triggers, ["meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
-            self.assertEqual(
-                frequencies,
-                [
-                    ("alpha", 2.0),
-                    ("beta", 2.0),
-                    ("gamma", 1.0),
-                    ("delta", 1.0),
-                    ("epsilon", 1.0),
-                ],
-            )
+            self.assertEqual(frequencies, [])
 
     def test_trained_words_override_positive_frequency(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -97,11 +88,12 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["beta", "alpha", "meta"])
+            self.assertEqual(triggers, ["beta", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             freq_map = {tag: count for tag, count in frequencies}
+            self.assertSetEqual(set(freq_map.keys()), {"beta", "meta"})
             self.assertTrue(math.isinf(freq_map["beta"]))
-            self.assertEqual(freq_map["alpha"], 1.0)
+            self.assertTrue(math.isinf(freq_map["meta"]))
 
     def test_extracts_triggers_from_model_info_trained_words(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -140,7 +132,7 @@ class LoraTriggerExtractionTest(unittest.TestCase):
                     file,
                 )
             triggers = logic_triggers.extract_lora_triggers(lora_path)
-            self.assertEqual(triggers, ["beta", "alpha"])
+            self.assertEqual(triggers, ["beta"])
 
     def test_keeps_trained_words_string_with_commas(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
