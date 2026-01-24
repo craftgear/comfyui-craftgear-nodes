@@ -45,6 +45,27 @@ class TestTagToggleTextNode(unittest.TestCase):
         result = node.apply(text="foo\\(bar\\), baz", excluded_tags="[]")
         self.assertEqual(result["result"][0], "foo\\(bar\\), baz")
 
+    def test_apply_keeps_weighted_parentheses(self):
+        node = tag_toggle_text_node.TagToggleTextNode()
+        result = node.apply(text="foo(bar), (baz:1.2)", excluded_tags="[]")
+        self.assertEqual(result["result"][0], "foo\\(bar\\), (baz:1.2)")
+
+    def test_apply_keeps_weighted_parentheses_already_escaped(self):
+        node = tag_toggle_text_node.TagToggleTextNode()
+        result = node.apply(text="foo\\(bar\\), \\(baz:1.2\\)", excluded_tags="[]")
+        self.assertEqual(result["result"][0], "foo\\(bar\\), (baz:1.2)")
+
+    def test_apply_escapes_parentheses_inside_weighted_name(self):
+        node = tag_toggle_text_node.TagToggleTextNode()
+        result = node.apply(
+            text="(best quality:1.2),(character (series):1.15),character (series), good quality",
+            excluded_tags="[]",
+        )
+        self.assertEqual(
+            result["result"][0],
+            "(best quality:1.2),(character \\(series\\):1.15),character \\(series\\), good quality",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

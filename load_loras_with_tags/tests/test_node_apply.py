@@ -263,6 +263,102 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.filter_lora_triggers = original_filter
             load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
+    def test_does_not_escape_weighted_parentheses(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['(gamma:1.2)']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+            load_loras_with_tags_node.folder_paths.get_full_path = (
+                lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='(beta:0.8)',
+            )
+
+            self.assertEqual(tags, '(beta:0.8),(gamma:1.2)')
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+
+    def test_does_not_escape_weighted_parentheses_already_escaped(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['\\(gamma:1.2\\)']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+            load_loras_with_tags_node.folder_paths.get_full_path = (
+                lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='\\(beta:0.8\\)',
+            )
+
+            self.assertEqual(tags, '(beta:0.8),(gamma:1.2)')
+
+    def test_weighted_tag_name_parentheses_are_escaped(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['(character (series):1.15)']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+            load_loras_with_tags_node.folder_paths.get_full_path = (
+                lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='(best quality:1.2),character (series), good quality',
+            )
+
+            self.assertEqual(
+                tags,
+                '(best quality:1.2),(character \\(series\\):1.15),character \\(series\\), good quality',
+            )
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+        finally:\n*** End Patch"``` Fresh start. Convert to apply_patch using apply_patch tool. Let's craft correctly.**]*" This is not accepted due to formatting. Need to remove markup.***"{"error":{"message":"Unexpected token"}}
+
 
 if __name__ == '__main__':
     unittest.main()

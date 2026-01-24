@@ -36,6 +36,9 @@ def parse_excluded_tags(value: Any) -> set[str]:
 
 
 def escape_parentheses(text: str) -> str:
+    normalized = text.replace("\\(", "(").replace("\\)", ")")
+    if _is_weighted_tag(normalized, normalized=True):
+        return _escape_weighted_tag(normalized)
     placeholder_left = "__BS_LP__"
     placeholder_right = "__BS_RP__"
     temp = text.replace("\\(", placeholder_left).replace("\\)", placeholder_right)
@@ -45,6 +48,32 @@ def escape_parentheses(text: str) -> str:
 
 def escape_tags(tags: list[str]) -> list[str]:
     return [escape_parentheses(tag) for tag in tags]
+
+
+def _is_weighted_tag(text: str, normalized: bool = False) -> bool:
+    normalized_text = text if normalized else text.replace("\\(", "(").replace("\\)", ")")
+    stripped = normalized_text.strip()
+    if len(stripped) < 4 or not stripped.startswith("(") or not stripped.endswith(")"):
+        return False
+    inner = stripped[1:-1]
+    if ":" not in inner:
+        return False
+    name, weight = inner.split(":", 1)
+    if not name.strip():
+        return False
+    try:
+        float(weight.strip())
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _escape_weighted_tag(text: str) -> str:
+    stripped = text.strip()[1:-1]
+    name, weight = stripped.split(":", 1)
+    name_normalized = name.replace("\\(", "(").replace("\\)", ")").strip()
+    escaped_name = name_normalized.replace("(", "\\(").replace(")", "\\)")
+    return f"({escaped_name}:{weight.strip()})"
 
 
 class TagToggleTextNode:
