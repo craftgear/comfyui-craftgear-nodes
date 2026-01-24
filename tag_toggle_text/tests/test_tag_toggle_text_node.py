@@ -34,6 +34,17 @@ class TestTagToggleTextNode(unittest.TestCase):
         result = node.apply(text="x, y, z", excluded_tags="y")
         self.assertEqual(result["result"][0], "x, z")
 
+    def test_apply_escapes_parentheses(self):
+        node = tag_toggle_text_node.TagToggleTextNode()
+        result = node.apply(text="foo(bar), baz( qux )", excluded_tags="[]")
+        self.assertEqual(result["result"][0], "foo\\(bar\\), baz\\( qux \\)")
+        self.assertEqual(result["ui"]["input_text"][0], "foo(bar), baz( qux )")
+
+    def test_apply_does_not_double_escape(self):
+        node = tag_toggle_text_node.TagToggleTextNode()
+        result = node.apply(text="foo\\(bar\\), baz", excluded_tags="[]")
+        self.assertEqual(result["result"][0], "foo\\(bar\\), baz")
+
 
 if __name__ == "__main__":
     unittest.main()

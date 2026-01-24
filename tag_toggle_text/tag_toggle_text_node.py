@@ -35,6 +35,18 @@ def parse_excluded_tags(value: Any) -> set[str]:
     return {part.strip() for part in stripped.split(",") if part.strip()}
 
 
+def escape_parentheses(text: str) -> str:
+    placeholder_left = "__BS_LP__"
+    placeholder_right = "__BS_RP__"
+    temp = text.replace("\\(", placeholder_left).replace("\\)", placeholder_right)
+    temp = temp.replace("(", "\\(").replace(")", "\\)")
+    return temp.replace(placeholder_left, "\\(").replace(placeholder_right, "\\)")
+
+
+def escape_tags(tags: list[str]) -> list[str]:
+    return [escape_parentheses(tag) for tag in tags]
+
+
 class TagToggleTextNode:
     OUTPUT_NODE: ClassVar[bool] = True
     @classmethod
@@ -56,4 +68,5 @@ class TagToggleTextNode:
         tags = split_tags(raw_text)
         excluded = parse_excluded_tags(excluded_tags)
         kept = [tag for tag in tags if tag not in excluded]
-        return {"ui": {"input_text": (raw_text,)}, "result": (", ".join(kept),)}
+        escaped = escape_tags(kept)
+        return {"ui": {"input_text": (raw_text,)}, "result": (", ".join(escaped),)}

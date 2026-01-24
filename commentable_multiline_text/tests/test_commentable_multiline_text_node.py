@@ -33,6 +33,12 @@ class TestCommentableMultilineTextNode(unittest.TestCase):
         (output,) = node.apply(text, " , ")
         self.assertEqual(output, "a,b,c")
 
+    def test_apply_escapes_parentheses(self):
+        text = "foo(bar)\n#skip\nbaz\\(qux\\)"
+        node = commentable_multiline_text_node.CommentableMultilineTextNode()
+        (output,) = node.apply(text, ",")
+        self.assertEqual(output, "foo\\(bar\\),baz\\(qux\\)")
+
 
 if __name__ == "__main__":
     unittest.main()

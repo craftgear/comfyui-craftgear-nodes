@@ -199,6 +199,70 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.extract_lora_triggers = original_extract
             load_loras_with_tags_node.filter_lora_triggers = original_filter
 
+    def test_escapes_parentheses_in_output(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['gamma(delta)']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+            load_loras_with_tags_node.folder_paths.get_full_path = (
+                lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='alpha(beta)',
+            )
+
+            self.assertEqual(tags, 'alpha\\(beta\\),gamma\\(delta\\)')
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+
+    def test_does_not_double_escape_parentheses(self) -> None:
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+
+        try:
+            load_loras_with_tags_node.extract_lora_triggers = (
+                lambda _path: ['gamma\\(delta\\)']
+            )
+            load_loras_with_tags_node.filter_lora_triggers = (
+                lambda triggers, _selection: triggers
+            )
+            load_loras_with_tags_node.folder_paths.get_full_path = (
+                lambda *_args, **_kwargs: '/tmp/test.safetensors'
+            )
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='a.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                tags='alpha\\(beta\\)',
+            )
+
+            self.assertEqual(tags, 'alpha\\(beta\\),gamma\\(delta\\)')
+        finally:
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+
 
 if __name__ == '__main__':
     unittest.main()

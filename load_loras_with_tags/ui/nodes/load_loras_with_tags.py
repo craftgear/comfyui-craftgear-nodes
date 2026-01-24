@@ -57,6 +57,19 @@ def dedupe_tags(values: list[str]) -> list[str]:
     return output
 
 
+def escape_parentheses(text: str) -> str:
+    placeholder_left = '__BS_LP__'
+    placeholder_right = '__BS_RP__'
+    # 既存のバックスラッシュエスケープを守る
+    temp = text.replace('\\(', placeholder_left).replace('\\)', placeholder_right)
+    temp = temp.replace('(', '\\(').replace(')', '\\)')
+    return temp.replace(placeholder_left, '\\(').replace(placeholder_right, '\\)')
+
+
+def escape_tags(tags: list[str]) -> list[str]:
+    return [escape_parentheses(tag) for tag in tags]
+
+
 class LoadLorasWithTags:
     def __init__(self) -> None:
         self.loaded_loras: dict[str, Any] = {}
@@ -200,5 +213,6 @@ class LoadLorasWithTags:
             lora_strength,
         )
 
-        unique_triggers = dedupe_tags(all_triggers)
-        return (current_model, current_clip, ','.join(input_tags + unique_triggers))
+        escaped_input_tags = escape_tags(input_tags)
+        escaped_triggers = escape_tags(dedupe_tags(all_triggers))
+        return (current_model, current_clip, ','.join(escaped_input_tags + escaped_triggers))
