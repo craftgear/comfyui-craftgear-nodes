@@ -11,7 +11,9 @@ from join_text_node import join_text_node
 class TestJoinTextNode(unittest.TestCase):
     def test_input_types_force_input(self):
         inputs = join_text_node.JoinTextNode.INPUT_TYPES()
-        text_1 = inputs["required"]["text_1"]
+        optional = inputs.get("optional", {})
+        self.assertIn("text_1", optional)
+        text_1 = optional["text_1"]
         self.assertEqual(text_1[1].get("forceInput"), True)
         separator = inputs["required"]["separator"]
         self.assertEqual(separator[1].get("socketless"), True)
@@ -30,6 +32,11 @@ class TestJoinTextNode(unittest.TestCase):
         node = join_text_node.JoinTextNode()
         (output,) = node.apply(text_1="", text_2="", text_3="x", separator=",")
         self.assertEqual(output, "x")
+
+    def test_join_text_allows_missing_text_1(self):
+        node = join_text_node.JoinTextNode()
+        (output,) = node.apply(separator=",", text_2="a")
+        self.assertEqual(output, "a")
 
     def test_join_text_avoids_duplicate_separator(self):
         node = join_text_node.JoinTextNode()

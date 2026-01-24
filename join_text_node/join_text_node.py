@@ -1,7 +1,7 @@
 from typing import ClassVar
 
 
-def extract_text_inputs(text_1: str, **kwargs) -> list[str]:
+def extract_text_inputs(text_1: str | None, **kwargs) -> list[str]:
     inputs = {"text_1": text_1}
     for key, value in kwargs.items():
         if key.startswith("text_"):
@@ -51,12 +51,14 @@ class JoinTextNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "separator": ("STRING", {"default": ",", "socketless": True}),
+            },
+            "optional": {
                 "text_1": (
                     "STRING",
                     {"default": "", "multiline": True, "forceInput": True},
-                ),
-                "separator": ("STRING", {"default": ",", "socketless": True}),
-            }
+                )
+            },
         }
 
     RETURN_TYPES: ClassVar[tuple[str]] = ("STRING",)
@@ -64,7 +66,8 @@ class JoinTextNode:
     FUNCTION: ClassVar[str] = "apply"
     CATEGORY: ClassVar[str] = "craftgear/text"
 
-    def apply(self, text_1: str, separator: str, **kwargs):
+    def apply(self, separator: str, **kwargs):
+        text_1 = kwargs.get("text_1")
         parts = extract_text_inputs(text_1, **kwargs)
         separator_text = str(separator)
         return (join_parts_without_duplicate_separator(parts, separator_text),)

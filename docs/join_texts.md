@@ -7,13 +7,14 @@
 - Combines multiple text inputs into a single text.
 - Input sockets are dynamically added. New inputs are automatically created when connected.
 - Automatically handles duplicate separators.
+- Unconnected inputs are treated as empty and ignored.
 
 
 ## Input Parameters
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| text_1 | STRING | First text input (required, socket input) |
+| text_1 | STRING | First text input (optional, socket input) |
 | separator | STRING | Separator for text joining (default: `,`) |
 | text_2, text_3, ... | STRING | Additional text inputs (dynamically added on connection) |
 
