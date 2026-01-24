@@ -2,9 +2,22 @@ import { app } from '../../../../scripts/app.js';
 
 const TARGET_NODE_CLASS = 'JoinTextNode';
 const INPUT_PREFIX = 'text_';
+const SEPARATOR_WIDGET_NAME = 'separator';
+const SEPARATOR_SPACER_NAME = '__joinTextSeparatorSpacer__';
+const SEPARATOR_SPACER_HEIGHT = 4;
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || '';
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
+
+const markDirty = (node) => {
+    if (typeof node?.setDirtyCanvas === 'function') {
+        node.setDirtyCanvas(true, true);
+        return;
+    }
+    if (app?.graph?.setDirtyCanvas) {
+        app.graph.setDirtyCanvas(true, true);
+    }
+};
 
 const getTextInputs = (node) =>
     (node.inputs || []).filter((input) => input?.name?.startsWith(INPUT_PREFIX));
@@ -42,7 +55,46 @@ const ensureTrailingInput = (node) => {
 const syncInputs = (node) => {
     pruneTrailingInputs(node);
     ensureTrailingInput(node);
-    app.graph.setDirtyCanvas(true, true);
+    markDirty(node);
+};
+
+const createSpacerWidget = (height) => ({
+    name: SEPARATOR_SPACER_NAME,
+    height,
+    computeSize: (width) => [width ?? 0, height],
+});
+
+// separator直前に擬似ウィジェットを挿入して入力ハンドルとの間に見た目の余白を作るため
+const ensureSeparatorSpacer = (node, spacerHeight = SEPARATOR_SPACER_HEIGHT) => {
+    const widgets = node?.widgets;
+    if (!Array.isArray(widgets)) {
+        return false;
+    }
+    let separatorIndex = widgets.findIndex((widget) => widget?.name === SEPARATOR_WIDGET_NAME);
+    if (separatorIndex < 0) {
+        return false;
+    }
+
+    const spacerIndex = widgets.findIndex((widget) => widget?.name === SEPARATOR_SPACER_NAME);
+    const spacer = spacerIndex >= 0 ? widgets[spacerIndex] : createSpacerWidget(spacerHeight);
+    spacer.height = spacerHeight;
+    spacer.computeSize = (width) => [width ?? 0, spacerHeight];
+
+    const alreadyPlaced = spacerIndex >= 0 && spacerIndex === separatorIndex - 1 && spacer.height === spacerHeight;
+    if (alreadyPlaced) {
+        return false;
+    }
+
+    if (spacerIndex >= 0) {
+        widgets.splice(spacerIndex, 1);
+        if (spacerIndex < separatorIndex) {
+            separatorIndex -= 1;
+        }
+    }
+
+    widgets.splice(separatorIndex, 0, spacer);
+    markDirty(node);
+    return true;
 };
 
 const attachDynamicInputs = (node) => {
@@ -59,6 +111,14 @@ const attachDynamicInputs = (node) => {
     syncInputs(node);
 };
 
+const decorateSeparatorSpacing = (node) => {
+    if (node.__joinTextSeparatorDecorated) {
+        return;
+    }
+    node.__joinTextSeparatorDecorated = true;
+    ensureSeparatorSpacer(node);
+};
+
 app.registerExtension({
     name: 'craftgear.joinTextNode',
     nodeCreated: (node) => {
@@ -66,11 +126,15 @@ app.registerExtension({
             return;
         }
         attachDynamicInputs(node);
+        decorateSeparatorSpacing(node);
     },
     loadedGraphNode: (node) => {
         if (!isTargetNode(node)) {
             return;
         }
         attachDynamicInputs(node);
+        decorateSeparatorSpacing(node);
     },
 });
+
+export { ensureSeparatorSpacer, SEPARATOR_SPACER_HEIGHT, SEPARATOR_SPACER_NAME };

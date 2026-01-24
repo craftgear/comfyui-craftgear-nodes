@@ -41,6 +41,15 @@ class TestJoinTextNode(unittest.TestCase):
         (output,) = node.apply(text_1="a,", text_2="b", separator=",")
         self.assertEqual(output, "a,b")
 
+    def test_join_text_ignores_missing_handle_value(self):
+        class Missing:
+            def __str__(self):
+                raise RuntimeError("missing")
+
+        node = join_text_node.JoinTextNode()
+        (output,) = node.apply(text_1="a", text_2=Missing(), separator=",")
+        self.assertEqual(output, "a")
+
 
 if __name__ == "__main__":
     unittest.main()

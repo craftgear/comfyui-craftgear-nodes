@@ -18,7 +18,12 @@ def extract_text_inputs(text_1: str, **kwargs) -> list[str]:
         value = inputs[key]
         if value is None:
             continue
-        for line in str(value).splitlines():
+        try:
+            text_value = str(value)
+        except Exception:
+            # 入力が未接続などで不正値の場合は無視する
+            continue
+        for line in text_value.splitlines():
             if line.strip() == "":
                 continue
             ordered.append(line)
