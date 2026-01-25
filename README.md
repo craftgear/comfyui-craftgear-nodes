@@ -9,6 +9,7 @@ See the linked documentation for each node for details.
 - [Load LoRAs With Tags](./docs/load_loras_with_tags.md) : Load and select tags from LoRA & JSON files. LoRA selection supports fuzzy matching by name plus preview images with hover zoom (configurable in settings)
 - [Toggle Tags](./docs/toggle_tags.md) : Toggle tags on/off with clicks from input tag text
 - [Commentable Multiline Text](./docs/commentable_multiline_text.md) : Remove comment lines and output the result
+- [Checkpoint Selector](./docs/checkpoint_selector.md) : Pick one checkpoint from up to 20 slots with search, preview, hover zoom, and configurable font size
 - [Join Texts](./docs/join_texts.md) : Join multiple text inputs into a single line
 - [Image Batch Loader](./docs/image_batch_loader.md) : Load images from a directory as a batch
 - [Camera Shake](./docs/camera_shake.md) : Add handheld-style shake to image batches
