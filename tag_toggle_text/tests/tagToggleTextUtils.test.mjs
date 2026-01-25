@@ -6,6 +6,7 @@ import {
   computeDisplayHeight,
   defaultDisplayHeight,
   findInputIndex,
+  formatDisabledTagLabel,
   persistInputText,
   readPersistedInputText,
   parseExcludedTags,
@@ -59,6 +60,25 @@ describe('tagToggleTextUtils', () => {
       { type: 'separator', text: ', ' },
       { type: 'tag', text: 'b', excluded: true },
     ]);
+  });
+
+  it('formats disabled tag label only when excluded tags exist in display list', () => {
+    assert.equal(
+      formatDisabledTagLabel({ tags: ['a', 'b'], excluded: [] }),
+      null,
+    );
+    assert.equal(
+      formatDisabledTagLabel({ tags: ['a', 'b'], excluded: ['b'] }),
+      '1 tags are disabled',
+    );
+    assert.equal(
+      formatDisabledTagLabel({ tags: [], excluded: ['x'] }),
+      null,
+    );
+    assert.equal(
+      formatDisabledTagLabel({ tags: ['a', 'a'], excluded: ['a'] }),
+      '1 tags are disabled',
+    );
   });
 
   it('exposes the default display height', () => {

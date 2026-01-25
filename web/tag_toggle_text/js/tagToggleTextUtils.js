@@ -119,6 +119,29 @@ const findInputIndex = (inputs, name) => {
   return inputs.findIndex((input) => input?.name === name);
 };
 
+const formatDisabledTagLabel = ({ tags, excluded }) => {
+  if (!Array.isArray(tags) || tags.length === 0) {
+    return null;
+  }
+  const available = new Set(tags.map((tag) => normalizeTag(tag)).filter(Boolean));
+  if (available.size === 0) {
+    return null;
+  }
+  const excludedSet = new Set(
+    Array.isArray(excluded) ? excluded.map((tag) => normalizeTag(tag)).filter(Boolean) : [],
+  );
+  let count = 0;
+  excludedSet.forEach((tag) => {
+    if (available.has(tag)) {
+      count += 1;
+    }
+  });
+  if (count === 0) {
+    return null;
+  }
+  return `${count} tags are disabled`;
+};
+
 const persistInputText = (target, inputText) => {
   if (!target || typeof inputText !== 'string') {
     return;
@@ -162,6 +185,7 @@ export {
   computeDisplayHeight,
   defaultDisplayHeight,
   findInputIndex,
+  formatDisabledTagLabel,
   persistInputText,
   readPersistedInputText,
   parseExcludedTags,

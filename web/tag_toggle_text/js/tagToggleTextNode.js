@@ -4,6 +4,7 @@ import {
   computeDisplayHeight,
   defaultDisplayHeight,
   findInputIndex,
+  formatDisabledTagLabel,
   persistInputText,
   readPersistedInputText,
   parseExcludedTags,
@@ -243,26 +244,44 @@ const applyFontSize = (node) => {
 
 const createDisplayDom = (node) => {
   const container = document.createElement('div');
+  const displayBox = document.createElement('div');
+  const label = document.createElement('div');
   const content = document.createElement('div');
   const fontSize = getFontSize();
 
   container.style.height = '100%';
   container.style.width = '100%';
-  container.style.overflowY = 'auto';
-  container.style.overflowX = 'hidden';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
   container.style.boxSizing = 'border-box';
-  container.style.padding = `${DISPLAY_PADDING_Y}px ${DISPLAY_PADDING_X}px`;
-  container.style.fontSize = `${fontSize}px`;
-  container.style.lineHeight = `${resolveLineHeight(fontSize)}px`;
-  container.style.fontFamily = 'sans-serif';
-  container.style.whiteSpace = 'normal';
-  container.style.wordBreak = 'break-word';
-  container.style.cursor = 'default';
+
+  displayBox.style.flex = '1';
+  displayBox.style.minHeight = '0';
+  displayBox.style.overflowY = 'auto';
+  displayBox.style.overflowX = 'hidden';
+  displayBox.style.boxSizing = 'border-box';
+  displayBox.style.padding = `${DISPLAY_PADDING_Y}px ${DISPLAY_PADDING_X}px`;
+  displayBox.style.fontSize = `${fontSize}px`;
+  displayBox.style.lineHeight = `${resolveLineHeight(fontSize)}px`;
+  displayBox.style.fontFamily = 'sans-serif';
+  displayBox.style.whiteSpace = 'normal';
+  displayBox.style.wordBreak = 'break-word';
+  displayBox.style.cursor = 'default';
+
+  label.style.display = 'none';
+  label.style.color = '#c0c0c0';
+  label.style.fontSize = '12px';
+  label.style.lineHeight = '16px';
+  label.style.marginTop = '4px';
+  // 理由: 無効タグがある時だけ追加情報を出し、視認性を上げるため
 
   content.style.display = 'block';
-  container.appendChild(content);
+  displayBox.appendChild(content);
 
-  container.addEventListener('click', (event) => {
+  container.appendChild(displayBox);
+  container.appendChild(label);
+
+  displayBox.addEventListener('click', (event) => {
     const target = event?.target;
     const element =
       target && target.nodeType === 3 ? target.parentElement : target;
@@ -275,15 +294,15 @@ const createDisplayDom = (node) => {
     event.preventDefault();
     event.stopPropagation();
   });
-  container.addEventListener('wheel', (event) => {
+  displayBox.addEventListener('wheel', (event) => {
     if (event?.__tagToggleWheelForwarded) {
       return;
     }
     const shouldForward = shouldForwardWheelToCanvas({
       deltaY: event?.deltaY,
-      scrollTop: container.scrollTop,
-      scrollHeight: container.scrollHeight,
-      clientHeight: container.clientHeight,
+      scrollTop: displayBox.scrollTop,
+      scrollHeight: displayBox.scrollHeight,
+      clientHeight: displayBox.clientHeight,
     });
     if (!shouldForward) {
       return;
@@ -314,7 +333,7 @@ const createDisplayDom = (node) => {
     event.stopPropagation();
   });
 
-  return { container, content };
+  return { container, content, label, displayBox };
 };
 
 const renderTagDisplay = (node) => {
@@ -322,15 +341,21 @@ const renderTagDisplay = (node) => {
   if (!display) {
     return;
   }
-  const { content, container } = display;
+  const { content, container, label, displayBox } = display;
   const inputText = getInputText(node);
   const tags = splitTags(inputText);
   const excluded = getExcludedTags(node);
   const segments = buildTagDisplaySegments({ tags, excluded });
   const textColor = LiteGraph?.WIDGET_TEXT_COLOR ?? '#d0d0d0';
+  const disabledLabel = formatDisabledTagLabel({ tags, excluded });
 
-  container.style.color = textColor;
+  displayBox.style.color = textColor;
   content.textContent = '';
+
+  if (label) {
+    label.textContent = disabledLabel ?? '';
+    label.style.display = disabledLabel ? 'block' : 'none';
+  }
 
   segments.forEach((segment) => {
     if (segment.type === 'separator') {
