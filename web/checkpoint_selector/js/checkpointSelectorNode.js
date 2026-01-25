@@ -30,6 +30,7 @@ import {
   resolveCheckpointLabel,
   resolveZoomBackgroundPosition,
   resolveCheckpointFontSizes,
+  resolveSelectedCheckpointLabels,
   CHECKPOINT_ACTIVE_RADIO_COLOR,
   setWidgetHidden,
   updateVisibleSlots,
@@ -397,6 +398,7 @@ const openDialog = (slot, state) => {
   const options = getCheckpointOptions(slot.ckptWidget);
   const currentValue = slot.ckptWidget?.value ?? '';
   const currentOptionIndex = options.findIndex((option) => option === currentValue);
+  const selectedLabels = resolveSelectedCheckpointLabels(state.slots);
   let selectedOptionIndex = currentOptionIndex;
   let selectedVisibleIndex = -1;
   let hoveredVisibleIndex = -1;
@@ -866,8 +868,7 @@ const openDialog = (slot, state) => {
         isSelected,
         isHovered,
       );
-      entry.iconWrap.style.opacity =
-        entry.optionIndex === currentOptionIndex ? '1' : '0';
+      entry.iconWrap.style.opacity = entry.isSelectedLabel ? '1' : '0';
       entry.openIconWrap.style.opacity =
         entry.isOpenable && isActive ? '1' : '0';
       entry.openIconWrap.style.pointerEvents =
@@ -1008,6 +1009,7 @@ const openDialog = (slot, state) => {
         iconWrap,
         openIconWrap,
         isOpenable,
+        isSelectedLabel: selectedLabels.has(entry.displayLabel),
       });
       button.onmouseenter = () => {
         hoveredVisibleIndex = index;

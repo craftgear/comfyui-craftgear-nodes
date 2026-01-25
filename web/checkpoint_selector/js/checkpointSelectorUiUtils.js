@@ -211,6 +211,16 @@ export const resolveCheckpointFontSizes = (value) => {
   return { base: safeBase, heading, small };
 };
 
+export const resolveSelectedCheckpointLabels = (slots) => {
+  if (!Array.isArray(slots)) {
+    return new Set();
+  }
+  const labels = slots
+    .map((slot) => resolveCheckpointLabel(slot?.ckptWidget?.value))
+    .filter((label) => label && label !== 'None');
+  return new Set(labels);
+};
+
 export const isPointInRect = (pos, rect) => {
   if (!rect || !Array.isArray(pos)) {
     return false;
