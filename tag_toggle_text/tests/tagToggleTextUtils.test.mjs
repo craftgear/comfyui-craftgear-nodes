@@ -18,11 +18,14 @@ import {
 describe('tagToggleTextUtils', () => {
   it('splits tags by comma', () => {
     assert.deepEqual(splitTags('a, b, , c'), ['a', 'b', 'c']);
+    assert.deepEqual(splitTags(null), []);
   });
 
   it('parses excluded tags from json or csv', () => {
     assert.deepEqual(parseExcludedTags('["x", "y"]'), ['x', 'y']);
     assert.deepEqual(parseExcludedTags('x, y'), ['x', 'y']);
+    assert.deepEqual(parseExcludedTags([' a ', '']), ['a']);
+    assert.deepEqual(parseExcludedTags('{bad json'), ['{bad json']);
   });
 
   it('toggles tags on and off', () => {
@@ -96,12 +99,16 @@ describe('tagToggleTextUtils', () => {
     const inputs = [{ name: 'a' }, { name: 'excluded_tags' }, { name: 'b' }];
     assert.equal(findInputIndex(inputs, 'excluded_tags'), 1);
     assert.equal(findInputIndex(inputs, 'missing'), -1);
+    assert.equal(findInputIndex(null, 'a'), -1);
   });
 
   it('stores input text in properties', () => {
     const target = {};
     persistInputText(target, 'a, b');
     assert.deepEqual(target.properties, { tagToggleInputText: 'a, b' });
+    const untouched = { properties: {} };
+    persistInputText(untouched, 123);
+    assert.deepEqual(untouched.properties, {});
   });
 
   it('reads input text from properties', () => {
@@ -160,6 +167,15 @@ describe('tagToggleTextUtils', () => {
         clientHeight: 100,
       }),
       false,
+    );
+    assert.equal(
+      shouldForwardWheelToCanvas({
+        deltaY: 5,
+        scrollTop: 50,
+        scrollHeight: 80,
+        clientHeight: 100,
+      }),
+      true,
     );
   });
 });
