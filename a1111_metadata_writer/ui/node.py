@@ -43,12 +43,12 @@ class A1111MetadataWriter:
         suffix: str,
         prompt: dict[str, Any] | None = None,
         extra_pnginfo: dict[str, Any] | None = None,
-    ) -> tuple[str, str]:
+    ) -> dict[str, Any]:
         if prompt is None:
-            return ('', '')
+            return _build_result('', '', None)
         parameters = logic.build_a1111_parameters_from_prompt(prompt)
         if not parameters:
-            return ('', '')
+            return _build_result('', '', None)
         pil_image = _image_to_pil(image)
         if overwrite:
             output_path = _build_overwrite_path(pil_image, prompt)
@@ -56,7 +56,8 @@ class A1111MetadataWriter:
             output_path = _build_output_path(pil_image, suffix)
         pnginfo = _build_pnginfo(prompt, extra_pnginfo, parameters)
         pil_image.save(output_path, pnginfo=pnginfo)
-        return (parameters, output_path)
+        preview = _build_preview_payload(output_path)
+        return _build_result(parameters, output_path, preview)
 
 
 def _build_output_path(pil_image: Any, suffix: str) -> str:
@@ -134,7 +135,7 @@ def _find_latest_output_path(folder: str, filename_with_batch_num: str) -> str:
     if not os.path.isdir(folder):
         return ''
     pattern = re.compile(
-        rf'^{re.escape(filename_with_batch_num)}_(\\d+)_\\.png$',
+        rf'^{re.escape(filename_with_batch_num)}_(\d+)_\.png$',
         re.IGNORECASE,
     )
     latest_name = ''
@@ -187,6 +188,42 @@ def _build_pnginfo(
             pnginfo.add_text(str(key), json.dumps(value))
     pnginfo.add_text('parameters', parameters)
     return pnginfo
+
+
+def _build_preview_payload(output_path: str) -> dict[str, str] | None:
+    if not output_path:
+        return None
+    output_dir = _default_image_path()
+    if not output_dir:
+        return None
+    output_dir_abs = os.path.abspath(output_dir)
+    output_path_abs = os.path.abspath(output_path)
+    try:
+        common_path = os.path.commonpath([output_dir_abs, output_path_abs])
+    except ValueError:
+        return None
+    if common_path != output_dir_abs:
+        return None
+    relative_path = os.path.relpath(output_path_abs, output_dir_abs)
+    if relative_path.startswith(os.pardir):
+        return None
+    relative_path = relative_path.replace(os.path.sep, '/')
+    subfolder, filename = os.path.split(relative_path)
+    if not filename:
+        return None
+    payload: dict[str, str] = {'filename': filename, 'type': 'output'}
+    if subfolder and subfolder != '.':
+        payload['subfolder'] = subfolder
+    return payload
+
+
+def _build_result(
+    parameters: str,
+    output_path: str,
+    preview: dict[str, str] | None,
+):
+    ui_images = [preview] if preview else []
+    return {'ui': {'images': ui_images}, 'result': (parameters, output_path)}
 
 
 def _image_to_pil(image: Any):

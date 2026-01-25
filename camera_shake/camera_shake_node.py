@@ -1,8 +1,9 @@
 import math
-from typing import Tuple
 
 import torch
 import torch.nn.functional as F
+
+from .logic import build_transform_plan
 
 EDGE_MODES = (
     '1_scale',
@@ -31,47 +32,6 @@ def generate_smooth_series(
         values = values / max_abs
 
     return values
-
-
-def compute_orientation_params(width: int, height: int) -> Tuple[float, float, float]:
-    if width > height:
-        return 0.4, 10.0, 6.0
-    return 0.6, 6.0, 10.0
-
-
-def compute_margin(
-    width: int,
-    height: int,
-    strength: float,
-    move_x: float,
-    move_y: float,
-) -> float:
-    if strength <= 0:
-        return 0.0
-
-    base_margin = strength * 10.0
-    move_margin = strength * max(move_x, move_y)
-    min_dim = min(width, height)
-    max_margin = min_dim / 4.0
-    return min(base_margin + move_margin, max_margin)
-
-
-def compute_scale(
-    width: int,
-    height: int,
-    strength: float,
-    move_x: float,
-    move_y: float,
-) -> float:
-    margin = compute_margin(width, height, strength, move_x, move_y)
-
-    if margin <= 0:
-        return 1.0
-
-    width_scale = width / max(width - 2 * margin, 1.0)
-    height_scale = height / max(height - 2 * margin, 1.0)
-
-    return max(1.0, width_scale, height_scale)
 
 
 def build_transform(
@@ -168,11 +128,13 @@ class CameraShakeNode:
         dtype = images.dtype
         images_nchw = images.permute(0, 3, 1, 2)
 
-        rot_base, move_x, move_y = compute_orientation_params(width, height)
-        margin = compute_margin(width, height, float(strength), move_x, move_y)
-        margin_px = int(math.ceil(margin))
+        plan = build_transform_plan(width, height, float(strength), edge_mode)
+        rot_base = float(plan['rot_base'])
+        move_x = float(plan['move_x'])
+        move_y = float(plan['move_y'])
+        margin_px = int(plan['margin_px'])
 
-        if edge_mode == '3_prepad':
+        if plan['use_prepad']:
             padded = pad_images(images_nchw, margin_px)
             padded_height = padded.shape[2]
             padded_width = padded.shape[3]
@@ -207,15 +169,8 @@ class CameraShakeNode:
                 ]
             return (output.permute(0, 2, 3, 1),)
 
-        if edge_mode == '1_scale':
-            scale = compute_scale(width, height, float(strength), move_x, move_y)
-            padding_mode = 'zeros'
-        elif edge_mode == '2_crop':
-            scale = 1.0
-            padding_mode = 'zeros'
-        else:
-            scale = 1.0
-            padding_mode = 'zeros'
+        scale = float(plan['scale'])
+        padding_mode = str(plan['padding_mode'])
 
         theta = build_transform(
             batch,
@@ -237,7 +192,7 @@ class CameraShakeNode:
             padding_mode=padding_mode,
             align_corners=False,
         )
-        if edge_mode == '2_crop':
+        if plan['use_crop']:
             warped = crop_and_resize(warped, margin_px, height, width)
         output = warped.permute(0, 2, 3, 1)
         return (output,)

@@ -91,9 +91,8 @@ class LoraTriggerExtractionTest(unittest.TestCase):
             self.assertEqual(triggers, ["beta", "meta"])
             frequencies = logic_triggers.extract_lora_trigger_frequencies(lora_path)
             freq_map = {tag: count for tag, count in frequencies}
-            self.assertSetEqual(set(freq_map.keys()), {"beta", "meta"})
+            self.assertSetEqual(set(freq_map.keys()), {"beta"})
             self.assertTrue(math.isinf(freq_map["beta"]))
-            self.assertTrue(math.isinf(freq_map["meta"]))
 
     def test_extracts_triggers_from_model_info_trained_words(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

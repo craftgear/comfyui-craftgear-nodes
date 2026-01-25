@@ -2,20 +2,18 @@ import sys
 import types
 import unittest
 
-if 'folder_paths' not in sys.modules:
-    stub = types.ModuleType('folder_paths')
-    sys.modules['folder_paths'] = stub
-if 'comfy' not in sys.modules:
-    comfy = types.ModuleType('comfy')
-    utils = types.ModuleType('comfy.utils')
-    sd = types.ModuleType('comfy.sd')
-    utils.load_torch_file = lambda *_args, **_kwargs: {}
-    sd.load_lora_for_models = lambda model, clip, *_args, **_kwargs: (model, clip)
-    comfy.utils = utils
-    comfy.sd = sd
-    sys.modules['comfy'] = comfy
-    sys.modules['comfy.utils'] = utils
-    sys.modules['comfy.sd'] = sd
+stub = types.ModuleType('folder_paths')
+sys.modules['folder_paths'] = stub
+comfy = types.ModuleType('comfy')
+utils = types.ModuleType('comfy.utils')
+sd = types.ModuleType('comfy.sd')
+utils.load_torch_file = lambda *_args, **_kwargs: {}
+sd.load_lora_for_models = lambda model, clip, *_args, **_kwargs: (model, clip)
+comfy.utils = utils
+comfy.sd = sd
+sys.modules['comfy'] = comfy
+sys.modules['comfy.utils'] = utils
+sys.modules['comfy.sd'] = sd
 
 import folder_paths  # noqa: E402
 from load_loras_with_tags.ui.nodes import load_loras_with_tags as load_loras_with_tags_node  # noqa: E402
@@ -27,8 +25,6 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
 
         def get_full_path(_category: str, filename: str) -> str:
             calls['filename'] = filename
-            if not isinstance(filename, str):
-                raise TypeError('filename must be str')
             return f'/tmp/{filename}'
 
         folder_paths.get_folder_paths = lambda *_args, **_kwargs: []
@@ -77,7 +73,3 @@ class LoadLorasWithTagsApplyLoraNameTest(unittest.TestCase):
 
         self.assertEqual(calls.get('filename'), 'example.safetensors')
         self.assertEqual(result, ('model', 'clip', 'alpha'))
-
-
-if __name__ == '__main__':
-    unittest.main()

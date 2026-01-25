@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import types
 import unittest
@@ -32,6 +33,18 @@ from image_batch_loader.ui import select_directory_api
 
 
 class SelectDirectoryApiTest(unittest.TestCase):
+    def test_run_command(self) -> None:
+        class Result:
+            def __init__(self, returncode: int, stdout: str) -> None:
+                self.returncode = returncode
+                self.stdout = stdout
+
+        with patch('subprocess.run', return_value=Result(0, 'ok')) as run:
+            self.assertEqual(select_directory_api._run_command(['echo', 'ok']), 'ok')
+            run.assert_called_once()
+        with patch('subprocess.run', return_value=Result(1, 'fail')):
+            self.assertEqual(select_directory_api._run_command(['echo', 'fail']), '')
+
     def test_uses_osascript_on_macos_preferred(self) -> None:
         with patch.object(
             select_directory_api,
@@ -115,6 +128,58 @@ class SelectDirectoryApiTest(unittest.TestCase):
             self.assertEqual(result, '/tmp/selected')
             powershell_select.assert_called_once()
             tkinter_select.assert_called_once()
+
+    def test_select_directory_with_osascript_guard(self) -> None:
+        with patch('platform.system', return_value='Darwin'), patch('shutil.which', return_value=None):
+            self.assertEqual(select_directory_api._select_directory_with_osascript(), '')
+
+    def test_select_directory_with_powershell_guard(self) -> None:
+        with patch('platform.system', return_value='Windows'), patch('shutil.which', return_value=None):
+            self.assertEqual(select_directory_api._select_directory_with_powershell(), '')
+
+    def test_select_directory_with_linux_guards(self) -> None:
+        with patch('platform.system', return_value='Linux'), patch('shutil.which', return_value=None):
+            self.assertEqual(select_directory_api._select_directory_with_zenity(), '')
+            self.assertEqual(select_directory_api._select_directory_with_kdialog(), '')
+
+    def test_select_directory_with_tkinter(self) -> None:
+        class DummyRoot:
+            def withdraw(self) -> None:
+                return None
+
+            def attributes(self, *_args, **_kwargs) -> None:
+                return None
+
+            def destroy(self) -> None:
+                return None
+
+        class DummyTk:
+            def Tk(self):
+                return DummyRoot()
+
+        class DummyDialog:
+            @staticmethod
+            def askdirectory():
+                return '/tmp/selected'
+
+        with patch.object(select_directory_api, 'tk', DummyTk()), patch.object(
+            select_directory_api,
+            'filedialog',
+            DummyDialog(),
+        ):
+            self.assertEqual(select_directory_api._select_directory_with_tkinter(), '/tmp/selected')
+
+        with patch.object(select_directory_api, 'tk', None), patch.object(
+            select_directory_api,
+            'filedialog',
+            None,
+        ):
+            self.assertIsNone(select_directory_api._select_directory_with_tkinter())
+
+    def test_select_directory_handler(self) -> None:
+        with patch.object(select_directory_api, 'select_directory_path', return_value=''):
+            result = asyncio.run(select_directory_api.select_directory(object()))
+        self.assertEqual(result, {'path': ''})
 
 
 if __name__ == '__main__':

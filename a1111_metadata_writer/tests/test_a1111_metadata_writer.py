@@ -441,19 +441,23 @@ class TestA1111MetadataWriter(unittest.TestCase):
                 '_get_save_image_path',
                 return_value=(temp_dir, 'ComfyUI_a1111', 0, '', 'ComfyUI_a1111'),
             ):
-                params, output_path = node.apply(
+                result = node.apply(
                     image=image,
                     overwrite=False,
                     suffix='_a1111',
                     prompt=prompt,
                     extra_pnginfo={'workflow': {'id': '1'}},
                 )
+            params, output_path = result['result']
             self.assertTrue(output_path.endswith('_a1111.png'))
             self.assertTrue(os.path.exists(output_path))
             with open(output_path, 'rb') as file:
                 text_map = logic.read_png_text(file.read())
             self.assertEqual(text_map.get('parameters'), params)
             self.assertIn('prompt', text_map)
+            images = result['ui']['images']
+            self.assertEqual(images[0].get('filename'), os.path.basename(output_path))
+            self.assertEqual(images[0].get('type'), 'output')
 
     @unittest.skipIf(torch is None or Image is None, 'torch and PIL are required')
     def test_overwrite_uses_latest_file(self) -> None:
@@ -472,17 +476,21 @@ class TestA1111MetadataWriter(unittest.TestCase):
                 '_get_save_image_path',
                 return_value=(temp_dir, 'ComfyUI', 4, '', 'ComfyUI'),
             ):
-                params, output_path = node.apply(
+                result = node.apply(
                     image=image,
                     overwrite=True,
                     suffix='_a1111',
                     prompt=prompt,
                     extra_pnginfo={'workflow': {'id': '1'}},
                 )
+            params, output_path = result['result']
             self.assertEqual(output_path, newest)
             with open(output_path, 'rb') as file:
                 text_map = logic.read_png_text(file.read())
             self.assertEqual(text_map.get('parameters'), params)
+            images = result['ui']['images']
+            self.assertEqual(images[0].get('filename'), os.path.basename(output_path))
+            self.assertEqual(images[0].get('type'), 'output')
 
 if __name__ == '__main__':
     unittest.main()

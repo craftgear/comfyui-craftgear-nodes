@@ -63,7 +63,7 @@ class TestTagToggleTextNode(unittest.TestCase):
         )
         self.assertEqual(
             result["result"][0],
-            "(best quality:1.2),(character \\(series\\):1.15),character \\(series\\), good quality",
+            "(best quality:1.2), (character \\(series\\):1.15), character \\(series\\), good quality",
         )
 
 

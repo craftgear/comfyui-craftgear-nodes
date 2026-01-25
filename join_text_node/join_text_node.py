@@ -67,7 +67,7 @@ class JoinTextNode:
     CATEGORY: ClassVar[str] = "craftgear/text"
 
     def apply(self, separator: str, **kwargs):
-        text_1 = kwargs.get("text_1")
+        text_1 = kwargs.pop("text_1", None)
         parts = extract_text_inputs(text_1, **kwargs)
         separator_text = str(separator)
         return (join_parts_without_duplicate_separator(parts, separator_text),)
