@@ -20,6 +20,10 @@ import {
   LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
   MIN_FREQUENCY_SETTING_ID,
 } from "../../loadLorasWithTags/js/loadLorasWithTagsSettings.js";
+import {
+  CHECKPOINT_PREVIEW_ZOOM_SCALE_SETTING_ID,
+  DEFAULT_CHECKPOINT_PREVIEW_ZOOM_SCALE,
+} from "../../checkpoint_selector/js/checkpointSelectorSettings.js";
 
 const craftgearSettings = [
   {
@@ -65,6 +69,17 @@ const craftgearSettings = [
       step: 0.1,
     },
     defaultValue: DEFAULT_LORA_PREVIEW_ZOOM_SCALE,
+  },
+  {
+    id: CHECKPOINT_PREVIEW_ZOOM_SCALE_SETTING_ID,
+    name: "Preview hover zoom scale",
+    type: "number",
+    category: ["craftgear", "Checkpoint Selector", "Preview hover zoom scale"],
+    attrs: {
+      min: 1,
+      step: 0.1,
+    },
+    defaultValue: DEFAULT_CHECKPOINT_PREVIEW_ZOOM_SCALE,
   },
   {
     id: LORA_STRENGTH_MIN_SETTING_ID,
