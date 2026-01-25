@@ -3,6 +3,7 @@ import { describe, it } from 'vitest';
 
 import {
   normalizeSelectionValue,
+  parseSelection,
   resolveTagSelection,
   shouldAutoSelectInfinityTagsOnly,
 } from '../../web/loadLorasWithTags/js/selectionValueUtils.js';
@@ -61,6 +62,41 @@ describe('resolveTagSelection', () => {
       emptySelectionAsNone: true,
     });
     assert.deepEqual([...selected], []);
+  });
+
+  it('falls back to all triggers on malformed JSON or non-array', () => {
+    const triggers = ['alpha', 'beta'];
+    const malformed = resolveTagSelection({
+      selectionText: '[invalid',
+      triggers,
+      autoSelectInfinityWordsOnly: false,
+    });
+    assert.deepEqual([...malformed], ['alpha', 'beta']);
+
+    const notArray = resolveTagSelection({
+      selectionText: '{"foo":1}',
+      triggers,
+      autoSelectInfinityWordsOnly: false,
+    });
+    assert.deepEqual([...notArray], ['alpha', 'beta']);
+  });
+
+  it('returns empty set when triggers are not provided', () => {
+    const selected = resolveTagSelection({
+      selectionText: '["a"]',
+      triggers: null,
+      autoSelectInfinityWordsOnly: false,
+    });
+    assert.deepEqual([...selected], []);
+  });
+
+  it('parses selections directly and handles invalid formats', () => {
+    const parsed = parseSelection('["a","b"]', ['a', 'b']);
+    assert.deepEqual([...parsed], ['a', 'b']);
+    const fallback = parseSelection('{"foo":1}', ['a']);
+    assert.deepEqual([...fallback], ['a']);
+    const none = parseSelection('["a"]', null);
+    assert.deepEqual([...none], []);
   });
 });
 

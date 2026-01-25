@@ -16,6 +16,7 @@ describe('stripLoraExtension', () => {
     assert.equal(stripLoraExtension('None'), 'None');
     assert.equal(stripLoraExtension('foo'), 'foo');
     assert.equal(stripLoraExtension('foo.'), 'foo.');
+    assert.equal(stripLoraExtension(null), '');
   });
 });
 
@@ -29,5 +30,6 @@ describe('stripLoraBasename', () => {
     assert.equal(stripLoraBasename('None'), 'None');
     assert.equal(stripLoraBasename('foo'), 'foo');
     assert.equal(stripLoraBasename('foo.'), 'foo.');
+    assert.equal(stripLoraBasename(undefined), '');
   });
 });

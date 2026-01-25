@@ -79,6 +79,30 @@ describe('collectLoraEntriesFromNode', () => {
     expect(entries[0].strength).toBe(1);
   });
 
+  it('returns zero strength when both model and clip are explicitly zero', () => {
+    const node = buildLoraLoaderNode({ name: 'zero.safetensors', strengthModel: 0, strengthClip: 0 });
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries[0].strength).toBe(0);
+  });
+
+  it('returns clip strength even when it is zero and model is missing', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        widget('lora_name', 'epsilon'),
+        widget('strength_clip', 0),
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries[0].strength).toBe(0);
+  });
+
+  it('returns array when strengthModel is non-zero and clip missing', () => {
+    const node = buildLoraLoaderNode({ name: 'delta', strengthModel: 0.7, strengthClip: null });
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries[0].strength).toBe(0.7);
+  });
+
   it('reads strength from LoraLoaderModelOnly', () => {
     const node = buildLoraLoaderModelOnlyNode({
       name: 'gamma.safetensors',
@@ -164,5 +188,203 @@ describe('collectLoraEntriesFromNode', () => {
     ];
     const ordered = orderCopySources(nodes);
     expect(ordered.map((n) => n.title)).toEqual(['alpha', 'beta', 'zeta']);
+  });
+
+  it('sorts copy sources by title then class then id', () => {
+    const nodes = [
+      { comfyClass: 'B', title: 'same', id: 5 },
+      { comfyClass: 'A', title: 'same', id: 1 },
+    ];
+    const ordered = orderCopySources(nodes);
+    expect(ordered.map((n) => n.id)).toEqual([1, 5]);
+  });
+
+  it('handles unsupported node classes gracefully', () => {
+    const entries = collectLoraEntriesFromNode({ comfyClass: 'UnknownNode' });
+    expect(entries).toEqual([]);
+    expect(isSupportedLoraNodeClass('UnknownNode')).toBe(false);
+  });
+
+  it('returns empty when sources are not an array', () => {
+    expect(orderCopySources(null)).toEqual([]);
+  });
+
+  it('collects rows by pattern when power loader rows are absent', () => {
+    const node = {
+      comfyClass: 'Power Lora Loader (rgthree)',
+      widgets: [
+        { name: 'lora_1', value: 'eta.safetensors' },
+        { name: 'strength_1', value: 0.3 },
+        { name: 'on_1', value: true },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([{ label: 'eta.safetensors', strength: 0.3, enabled: true }]);
+  });
+
+  it('skips power loader rows with string off toggle', () => {
+    const node = {
+      comfyClass: 'Power Lora Loader (rgthree)',
+      widgets: [
+        { name: 'lora_1', value: { lora: 'lambda', strength: 0.4, on: 'off' } },
+        { name: 'strength_1', value: 0.4 },
+        { name: 'on_1', value: 'off' },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([]);
+  });
+
+  it('uses fallback strength when object lacks numeric fields', () => {
+    const node = {
+      comfyClass: 'Power Lora Loader (rgthree)',
+      widgets: [{ name: 'lora_1', value: { lora: 'omega', enabled: true } }],
+    };
+    expect(collectLoraEntriesFromNode(node)).toEqual([{ label: 'omega', strength: 1, enabled: true }]);
+  });
+
+  it('preserves unknown option labels', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_1', value: 'custom', options: { values: ['alpha'] } },
+        { name: 'strength_1', value: 0.4 },
+        { name: 'on_1', value: true },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries[0].label).toBe('custom');
+  });
+
+  it('filters out disabled pattern rows', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_1', value: 'theta', options: { values: ['theta'] } },
+        { name: 'strength_1', value: 0.5 },
+        { name: 'on_1', value: false },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([]);
+  });
+
+  it('treats numeric toggles correctly', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_1', value: 'theta', options: { values: ['theta'] } },
+        { name: 'strength_1', value: 0.5 },
+        { name: 'on_1', value: 0 },
+        { name: 'lora_2', value: 'eta', options: { values: ['eta'] } },
+        { name: 'strength_2', value: 0.7 },
+        { name: 'on_2', value: 2 },
+        { name: 'lora_3', value: 'upsilon', options: { values: ['upsilon'] } },
+        { name: 'strength_3', value: 0.9 },
+        { name: 'on_3', value: 'maybe' },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([
+      { label: 'eta', strength: 0.7, enabled: true },
+      { label: 'upsilon', strength: 0.9, enabled: true },
+    ]);
+  });
+
+  it('falls back to pattern rows when name widget is missing on LoraLoader', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_1', value: 'phi' },
+        { name: 'strength_1', value: 0.9 },
+        { name: 'on_1', value: true },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([{ label: 'phi', strength: 0.9, enabled: true }]);
+  });
+
+  it('skips pattern rows when label is None', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_1', value: 'None', options: { values: ['None'] } },
+        { name: 'strength_1', value: 0.5 },
+        { name: 'on_1', value: true },
+      ],
+    };
+    expect(collectLoraEntriesFromNode(node)).toEqual([]);
+  });
+
+  it('returns empty when LoraLoader label is None', () => {
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        widget('lora_name', 'None'),
+        widget('strength_model', 0.3),
+      ],
+    };
+    expect(collectLoraEntriesFromNode(node)).toEqual([]);
+  });
+
+  it('returns empty when widgets are not an array', () => {
+    expect(collectLoraEntriesFromNode({ comfyClass: 'LoraLoader', widgets: null })).toEqual([]);
+  });
+
+  it('ignores power loader entries missing lora names', () => {
+    const node = {
+      comfyClass: 'Power Lora Loader (rgthree)',
+      widgets: [{ name: 'lora_1', value: { strength: 0.4, on: true } }],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([{ label: '[object Object]', strength: 1, enabled: true }]);
+  });
+
+  it('skips power loader rows with label None', () => {
+    const node = {
+      comfyClass: 'Power Lora Loader (rgthree)',
+      widgets: [{ name: 'lora_1', value: { lora: 'None', strength: 0.4, on: true } }],
+    };
+    expect(collectLoraEntriesFromNode(node)).toEqual([
+      { label: '[object Object]', strength: 1, enabled: true },
+    ]);
+  });
+
+  it('returns empty when LoraLoaderModelOnly has empty label', () => {
+    const node = {
+      comfyClass: 'LoraLoaderModelOnly',
+      widgets: [{ name: 'lora_name', value: 'None' }],
+    };
+    expect(collectLoraEntriesFromNode(node)).toEqual([]);
+  });
+
+  it('returns empty when LoraLoaderModelOnly is missing name widget', () => {
+    expect(collectLoraEntriesFromNode({ comfyClass: 'LoraLoaderModelOnly', widgets: [] })).toEqual([]);
+  });
+
+  it('orders sources using id fallback when ids are missing', () => {
+    const nodes = [
+      { comfyClass: 'A', title: 'same' },
+      { comfyClass: 'A', title: 'same', id: 5 },
+    ];
+    const ordered = orderCopySources(nodes);
+    expect(ordered.map((n) => n.id ?? 0)).toEqual([0, 5]);
+  });
+
+  it('interprets truthy and falsy toggle values through isEnabled', () => {
+    expect(isSupportedLoraNodeClass('loraloader')).toBe(true);
+    const node = {
+      comfyClass: 'LoraLoader',
+      widgets: [
+        { name: 'lora_name', value: 'iota' },
+        { name: 'strength_model', value: 0 },
+        { name: 'strength_clip', value: 0.2 },
+        { name: 'lora_on_1', value: 'off' },
+      ],
+    };
+    const entries = collectLoraEntriesFromNode(node);
+    expect(entries).toEqual([
+      { label: 'iota', strength: 0.2, enabled: true },
+    ]);
   });
 });
