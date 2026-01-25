@@ -4,12 +4,10 @@ from .camera_shake.camera_shake_node import CameraShakeNode
 from .commentable_multiline_text.commentable_multiline_text_node import (
     CommentableMultilineTextNode,
 )
-from .checkpoint_selector.ui.node import CheckpointSelector
 from .load_loras_with_tags.ui.nodes.load_loras_with_tags import LoadLorasWithTags
 from .join_text_node.join_text_node import JoinTextNode
 from .tag_toggle_text.tag_toggle_text_node import TagToggleTextNode
 from .load_loras_with_tags.ui import trigger_api
-from .checkpoint_selector.ui import trigger_api as checkpoint_selector_trigger_api
 from .image_batch_loader.ui import select_directory_api
 from .image_batch_loader.ui.node import ImageBatchLoader
 from .a1111_metadata_writer.ui.node import A1111MetadataWriter
@@ -19,7 +17,6 @@ WEB_DIRECTORY: str = "web"
 NODE_CLASS_MAPPINGS: dict[str, Any] = {
     "CameraShakeNode": CameraShakeNode,
     "CommentableMultilineTextNode": CommentableMultilineTextNode,
-    "CheckpointSelector": CheckpointSelector,
     "LoadLorasWithTags": LoadLorasWithTags,
     "ImageBatchLoader": ImageBatchLoader,
     "JoinTextNode": JoinTextNode,
@@ -30,7 +27,6 @@ NODE_CLASS_MAPPINGS: dict[str, Any] = {
 NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "CameraShakeNode": "Camera Shake",
     "CommentableMultilineTextNode": "Commentable Multiline Text",
-    "CheckpointSelector": "Checkpoint Selector",
     "LoadLorasWithTags": "Load LoRAs With Tags",
     "ImageBatchLoader": "Image Batch Loader",
     "JoinTextNode": "Join Texts",
