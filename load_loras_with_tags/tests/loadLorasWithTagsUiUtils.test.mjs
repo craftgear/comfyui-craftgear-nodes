@@ -84,6 +84,7 @@ import {
   reorderListByMove,
   resolveDragSlotOffset,
   compactListByPredicate,
+  resolveLoadLorasFontSizes,
   resetIconPath,
   trashIconPath,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsUiUtils.js';
@@ -128,6 +129,13 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.deepEqual(normalizeOptions({ a: 'x', b: 'y' }), ['x', 'y']);
     assert.deepEqual(normalizeOptions(null), []);
     assert.equal(loraDialogWidth, '65vw');
+    assert.deepEqual(resolveLoadLorasFontSizes(16), { base: 16, heading: 14, small: 12 });
+    assert.deepEqual(resolveLoadLorasFontSizes('not-a-number'), {
+      base: 16,
+      heading: 14,
+      small: 12,
+    });
+    assert.deepEqual(resolveLoadLorasFontSizes(6), { base: 8, heading: 8, small: 8 });
     assert.deepEqual(getLoraPreviewPanelStyle(240, 0), {
       width: '240px',
       padding: '0px',

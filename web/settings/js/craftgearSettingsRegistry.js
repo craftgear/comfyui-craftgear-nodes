@@ -15,6 +15,8 @@ import {
   DEFAULT_MIN_FREQUENCY,
   DEFAULT_LORA_STRENGTH_MAX,
   DEFAULT_LORA_STRENGTH_MIN,
+  DEFAULT_FONT_SIZE,
+  FONT_SIZE_SETTING_ID,
   LORA_STRENGTH_MAX_SETTING_ID,
   LORA_STRENGTH_MIN_SETTING_ID,
   LORA_PREVIEW_ZOOM_SCALE_SETTING_ID,
@@ -23,6 +25,8 @@ import {
 import {
   CHECKPOINT_PREVIEW_ZOOM_SCALE_SETTING_ID,
   DEFAULT_CHECKPOINT_PREVIEW_ZOOM_SCALE,
+  CHECKPOINT_FONT_SIZE_SETTING_ID,
+  DEFAULT_CHECKPOINT_FONT_SIZE,
 } from "../../checkpoint_selector/js/checkpointSelectorSettings.js";
 
 const craftgearSettings = [
@@ -82,6 +86,17 @@ const craftgearSettings = [
     defaultValue: DEFAULT_CHECKPOINT_PREVIEW_ZOOM_SCALE,
   },
   {
+    id: CHECKPOINT_FONT_SIZE_SETTING_ID,
+    name: "Font Size",
+    type: "slider",
+    category: ["craftgear", "Checkpoint Selector", "Font Size"],
+    attrs: {
+      min: 8,
+      max: 36,
+    },
+    defaultValue: DEFAULT_CHECKPOINT_FONT_SIZE,
+  },
+  {
     id: LORA_STRENGTH_MIN_SETTING_ID,
     name: "LoRA strength minimum",
     type: "number",
@@ -102,6 +117,17 @@ const craftgearSettings = [
       min: -10,
     },
     defaultValue: DEFAULT_LORA_STRENGTH_MAX,
+  },
+  {
+    id: FONT_SIZE_SETTING_ID,
+    name: "Font Size",
+    type: "slider",
+    category: ["craftgear", "Load Loras With Tags", "Font Size"],
+    attrs: {
+      min: 8,
+      max: 36,
+    },
+    defaultValue: DEFAULT_FONT_SIZE,
   },
   {
     id: commentableFontSizeSettingId,

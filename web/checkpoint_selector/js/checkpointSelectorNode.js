@@ -3,6 +3,7 @@ import { app } from '../../../../scripts/app.js';
 import { $el } from '../../../../scripts/ui.js';
 import {
   CHECKPOINT_PREVIEW_ZOOM_SCALE_SETTING_ID,
+  CHECKPOINT_FONT_SIZE_SETTING_ID,
   normalizeCheckpointPreviewZoomScale,
 } from './checkpointSelectorSettings.js';
 import {
@@ -28,6 +29,8 @@ import {
   resolveRowBackground,
   resolveCheckpointLabel,
   resolveZoomBackgroundPosition,
+  resolveCheckpointFontSizes,
+  CHECKPOINT_ACTIVE_RADIO_COLOR,
   setWidgetHidden,
   updateVisibleSlots,
 } from './checkpointSelectorUiUtils.js';
@@ -71,6 +74,13 @@ const getCheckpointOptions = (widget) => {
     return raw;
   }
   return [];
+};
+
+const getCheckpointFontSizes = () => {
+  const value = app?.extensionManager?.setting?.get?.(
+    CHECKPOINT_FONT_SIZE_SETTING_ID,
+  );
+  return resolveCheckpointFontSizes(value);
 };
 
 const setWidgetValue = (widget, value) => {
@@ -224,7 +234,7 @@ const drawRadio = (ctx, x, y, active) => {
   ctx.arc(x + RADIO_SIZE / 2, y + RADIO_SIZE / 2, RADIO_SIZE / 2, 0, Math.PI * 2);
   ctx.stroke();
   if (active) {
-    ctx.fillStyle = '#c7d1ec';
+    ctx.fillStyle = CHECKPOINT_ACTIVE_RADIO_COLOR;
     ctx.beginPath();
     ctx.arc(x + RADIO_SIZE / 2, y + RADIO_SIZE / 2, 4, 0, Math.PI * 2);
     ctx.fill();
@@ -246,6 +256,7 @@ const createRowWidget = (slot, state) => {
         active,
         hover: slot.hover,
       });
+      const { base: fontSize } = getCheckpointFontSizes();
       ctx.save();
       ctx.fillStyle = background;
       // 背景塗りつぶしをなくし、親のキャンバス背景をそのまま見せる
@@ -275,7 +286,7 @@ const createRowWidget = (slot, state) => {
       ctx.strokeStyle = '#3a3a3a';
       ctx.stroke();
       ctx.fillStyle = active ? '#eaf0ff' : '#d0d0d0';
-      ctx.font = resolveCheckpointRowLabelFont(active);
+      ctx.font = resolveCheckpointRowLabelFont(active, fontSize);
       ctx.textBaseline = 'middle';
       const label = resolveCheckpointLabel(slot.ckptWidget?.value);
       const textX = labelRect.x + LABEL_TEXT_PADDING_X;
@@ -401,6 +412,7 @@ const openDialog = (slot, state) => {
   let isFilterComposing = false;
   const previewZoomScale = getCheckpointPreviewZoomScale();
   const isPreviewZoomEnabled = previewZoomScale > 1;
+  const fontSizes = getCheckpointFontSizes();
 
   const overlay = $el('div', {
     id: DIALOG_ID,
@@ -467,7 +479,7 @@ const openDialog = (slot, state) => {
   const previewPlaceholder = $el('div', {
     textContent: 'No preview',
     style: {
-      fontSize: '12px',
+      fontSize: `${fontSizes.small}px`,
       opacity: 0.6,
       textAlign: 'center',
     },
@@ -485,6 +497,7 @@ const openDialog = (slot, state) => {
       fontFamily: 'sans-serif',
       width: checkpointDialogWidth,
       height: '100%',
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const header = $el('div', {
@@ -505,6 +518,7 @@ const openDialog = (slot, state) => {
       background: '#121212',
       color: '#f0f0f0',
       boxSizing: 'border-box',
+      fontSize: `${fontSizes.base}px`,
     },
   });
   search.addEventListener('compositionstart', () => {
@@ -523,6 +537,7 @@ const openDialog = (slot, state) => {
       padding: '6px 10px',
       cursor: 'pointer',
       flex: '0 0 auto',
+      fontSize: `${fontSizes.base}px`,
     },
   });
   closeButton.onclick = () => closeDialog();
@@ -538,6 +553,7 @@ const openDialog = (slot, state) => {
       background: '#1f1f1f',
       border: '1px solid #2a2a2a',
       borderRadius: '6px',
+      fontSize: `${fontSizes.base}px`,
     },
   });
   panel.append(header, list);
@@ -909,7 +925,7 @@ const openDialog = (slot, state) => {
       list.append(
         $el('div', {
           textContent: 'No matches.',
-          style: { opacity: 0.7, padding: '8px' },
+          style: { opacity: 0.7, padding: '8px', fontSize: `${fontSizes.base}px` },
         }),
       );
       setPreviewUrl(null);
@@ -936,6 +952,7 @@ const openDialog = (slot, state) => {
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
+          fontSize: `${fontSizes.base}px`,
         },
       });
       button.style.color = '#e0e0e0';

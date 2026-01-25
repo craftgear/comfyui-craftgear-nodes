@@ -23,6 +23,7 @@ import {
   MIN_FREQUENCY_SETTING_ID,
   LORA_STRENGTH_MAX_SETTING_ID,
   LORA_STRENGTH_MIN_SETTING_ID,
+  FONT_SIZE_SETTING_ID,
   normalizeAutoSelectMissingLora,
   normalizeAutoSelectInfinityWordsOnly,
   normalizeLoraPreviewZoomScale,
@@ -37,6 +38,7 @@ import {
   moveIndex,
   normalizeStrengthOptions,
   normalizeOptions,
+  resolveLoadLorasFontSizes,
   filterLoraOptionIndicesFromBase,
   filterLoraOptions,
   loraLabelButtonHeightPadding,
@@ -60,6 +62,7 @@ import {
   loraDialogOpenFolderIconPath,
   loraDialogOpenFolderIconSize,
   tagDialogItemBackground,
+  getTagDialogListStyle,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
   getHighlightSegments,
@@ -193,6 +196,18 @@ const getLoraStrengthRange = () => {
     LORA_STRENGTH_MAX_SETTING_ID,
   );
   return resolveLoraStrengthRange(minValue, maxValue);
+};
+
+const getFontSizes = () => {
+  const value = app?.extensionManager?.setting?.get?.(FONT_SIZE_SETTING_ID);
+  return resolveLoadLorasFontSizes(value);
+};
+
+const applyCanvasFont = (ctx) => {
+  const { base } = getFontSizes();
+  const safeBase = Math.max(8, Number(base) || 16);
+  ctx.font = `${safeBase}px sans-serif`;
+  return safeBase;
 };
 
 const markDirty = (node) => {
@@ -411,6 +426,7 @@ const closeDialog = () => {
 };
 
 const showMessage = (message) => {
+  const fontSizes = getFontSizes();
   closeDialog();
   const overlay = $el("div", {
     id: DIALOG_ID,
@@ -439,6 +455,7 @@ const showMessage = (message) => {
       minWidth: "280px",
       maxWidth: "60vw",
       fontFamily: "sans-serif",
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const body = $el("div", {
@@ -531,6 +548,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
   }
   closeStrengthPopup();
   ensureStrengthPopupStyles();
+  const fontSizes = getFontSizes();
   const options = applyStrengthRangeToWidget(slot.strengthWidget);
   const strengthDefault = resolveStrengthDefault(options, 1.0);
   const strengthValue = Number(slot.strengthWidget?.value ?? strengthDefault);
@@ -550,6 +568,7 @@ const openStrengthPopup = (slot, event, targetNode) => {
       flexDirection: "column",
       gap: "6px",
       fontFamily: "sans-serif",
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const controlRow = $el("div", {
@@ -688,6 +707,7 @@ const openTopNPopup = (anchorEl, value, min, max, onInput) => {
   }
   closeTopNPopup();
   ensureStrengthPopupStyles();
+  const fontSizes = getFontSizes();
   const resolvedMin = Number.isFinite(min) ? min : 1;
   const resolvedMax = Number.isFinite(max) ? max : resolvedMin;
   const resolvedValue = Number.isFinite(value) ? value : resolvedMax;
@@ -704,6 +724,7 @@ const openTopNPopup = (anchorEl, value, min, max, onInput) => {
       flexDirection: 'column',
       gap: '6px',
       fontFamily: 'sans-serif',
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const range = $el('input', {
@@ -827,6 +848,7 @@ const openTriggerDialog = async (
       setWidgetValue(selectionWidget, nextSelectionValue);
     }
   }
+  const fontSizes = getFontSizes();
 
   closeDialog();
   const overlay = $el("div", {
@@ -858,6 +880,7 @@ const openTriggerDialog = async (
       display: "flex",
       flexDirection: "column",
       fontFamily: "sans-serif",
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const topControls = $el("div", {
@@ -866,12 +889,13 @@ const openTriggerDialog = async (
       gap: "12px",
       alignItems: "center",
       marginBottom: "12px",
+      fontSize: `${fontSizes.base}px`,
     },
   });
   const filterInput = $el("input", {
     type: "text",
     placeholder: "Filter tags",
-    style: { flex: "1 1 auto", paddingRight: "28px" },
+    style: { flex: "1 1 auto", paddingRight: "28px", fontSize: `${fontSizes.base}px` },
   });
   const initialFilterValue = resolveTagDialogFilterValue(
     selectionWidget?.__loadLorasTagFilter,
@@ -890,7 +914,7 @@ const openTriggerDialog = async (
       padding: "0",
       width: "20px",
       height: "20px",
-      fontSize: "16px",
+      fontSize: `${fontSizes.base}px`,
       lineHeight: "1",
       border: "none",
       background: "transparent",
@@ -918,6 +942,7 @@ const openTriggerDialog = async (
   const topNButton = $el('button', {
     textContent: resolveTagDialogTopNLabel(topNValue),
     title: 'Show top N tags',
+    style: { fontSize: `${fontSizes.base}px` },
   });
   const topNContainer = $el("div", {
     style: {
@@ -930,7 +955,7 @@ const openTriggerDialog = async (
   topNContainer.append(topNButton);
   const sortSelect = $el('select', {
     'aria-label': 'Sort tags',
-    style: { minWidth: '140px' },
+    style: { minWidth: '140px', fontSize: `${fontSizes.base}px` },
   });
   [
     { value: 'frequency', label: 'Frequency' },
@@ -950,7 +975,7 @@ const openTriggerDialog = async (
   sortSelect.value = initialSortValue;
   const sortLabel = $el('span', {
     textContent: 'Sort',
-    style: { minWidth: '40px', fontSize: '12px', opacity: 0.8 },
+    style: { minWidth: '40px', fontSize: `${fontSizes.small}px`, opacity: 0.8 },
   });
   const sortContainer = $el('div', {
     style: {
@@ -968,6 +993,7 @@ const openTriggerDialog = async (
       background: "#2a2a2a",
       borderRadius: "6px",
       flex: "1 1 auto",
+      fontSize: `${fontSizes.base}px`,
     },
   });
 
@@ -994,7 +1020,7 @@ const openTriggerDialog = async (
 
   const createFrequencyLabel = (value) => {
     const label = $el("span", {
-      style: getFrequencyLabelStyle(),
+      style: { ...getFrequencyLabelStyle(), fontSize: `${fontSizes.small}px` },
     });
     if (value === null || value === undefined || value === "") {
       return label;
@@ -1036,6 +1062,9 @@ const openTriggerDialog = async (
   items = triggers.map((trigger) => {
     const checkbox = $el("input", { type: "checkbox" });
     checkbox.checked = selected.has(trigger);
+    const scale = Math.max(0.5, Math.min(2.5, fontSizes.base / 16));
+    checkbox.style.transform = `scale(${scale})`;
+    checkbox.style.transformOrigin = "left center";
     const countLabel = createFrequencyLabel(frequencies?.[trigger]);
     const triggerLabel = $el("span");
     renderTriggerLabel(triggerLabel, trigger, filterInput.value);
@@ -1047,6 +1076,7 @@ const openTriggerDialog = async (
         padding: "4px 0",
         background: tagDialogItemBackground,
         borderRadius: "4px",
+        fontSize: `${fontSizes.base}px`,
       },
     });
     label.append(checkbox, countLabel, triggerLabel);
@@ -1545,6 +1575,7 @@ const setupLoadLorasUi = (node) => {
       serialize: false,
       computeSize: (width) => [width ?? 0, HEADER_HEIGHT],
       draw(ctx, _node, width, y, height) {
+        const baseFontSize = applyCanvasFont(ctx);
         const rowHeight = height ?? HEADER_HEIGHT;
         const headerMargin = MARGIN + CONTENT_SIDE_INSET;
         const headerToggleSize = resolveToggleSize(rowHeight);
@@ -1636,6 +1667,7 @@ const setupLoadLorasUi = (node) => {
   };
 
   const drawRowContent = (slot, ctx, width, y, isOverlay = false) => {
+    const fontSize = applyCanvasFont(ctx);
     const rowHeight = ROW_HEIGHT;
     const rowMargin = MARGIN;
     const contentMargin = rowMargin + CONTENT_SIDE_INSET;
@@ -1643,7 +1675,12 @@ const setupLoadLorasUi = (node) => {
     const contentWidth = width - rowMargin * 2;
     const contentTop = y + ROW_PADDING_Y;
     const availableHeight = rowHeight - ROW_PADDING_Y * 2;
-    const lineHeight = resolveRowLineHeight(rowHeight, ROW_PADDING_Y, 16, -6);
+    const lineHeight = resolveRowLineHeight(
+      rowHeight,
+      ROW_PADDING_Y,
+      fontSize,
+      -4,
+    );
     const rowRect = {
       x: rowMargin,
       y,
@@ -2231,6 +2268,7 @@ const setupLoadLorasUi = (node) => {
       showMessage(message);
       return;
     }
+    const fontSizes = getFontSizes();
     const handlePick = (source) => {
       const entries = collectLoraEntriesFromNode(source) || [];
       if (mode === "append") {
@@ -2275,6 +2313,7 @@ const setupLoadLorasUi = (node) => {
           display: "flex",
           flexDirection: "column",
           gap: "10px",
+          fontSize: `${fontSizes.base}px`,
         },
       },
       [
@@ -2284,7 +2323,7 @@ const setupLoadLorasUi = (node) => {
             color: "#ffffff",
             fontWeight: "600",
             marginBottom: "10px",
-            fontSize: "14px",
+            fontSize: `${fontSizes.heading}px`,
           },
         }),
         $el(
@@ -2528,6 +2567,7 @@ const setupLoadLorasUi = (node) => {
     );
     const previewZoomScale = getLoraPreviewZoomScale();
     const isPreviewZoomEnabled = previewZoomScale > 1;
+    const fontSizes = getFontSizes();
 
     closeDialog();
     const overlay = $el("div", {
@@ -2596,13 +2636,14 @@ const setupLoadLorasUi = (node) => {
         display: "flex",
         flexDirection: "column",
         fontFamily: "sans-serif",
+        fontSize: `${fontSizes.base}px`,
       },
     });
     const title = null;
     const filterInput = $el('input', {
       type: 'text',
       placeholder: 'Filter LoRAs',
-      style: { flex: '1 1 auto', paddingRight: '28px' },
+      style: { flex: '1 1 auto', paddingRight: '28px', fontSize: `${fontSizes.base}px` },
     });
     // IME確定のEnterで選択が走らないように抑制するため
     filterInput.addEventListener('compositionstart', () => {
@@ -2636,16 +2677,16 @@ const setupLoadLorasUi = (node) => {
         position: "absolute",
         right: "4px",
         top: "50%",
-        transform: "translateY(-50%)",
-        padding: "0",
-        width: "20px",
-        height: "20px",
-        fontSize: "16px",
-        lineHeight: "1",
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        opacity: "0.7",
+      transform: "translateY(-50%)",
+      padding: "0",
+      width: "20px",
+      height: "20px",
+      fontSize: `${fontSizes.base}px`,
+      lineHeight: "1",
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      opacity: "0.7",
       },
     });
     const filterContainer = $el('div', {
@@ -2672,6 +2713,7 @@ const setupLoadLorasUi = (node) => {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
+        fontSize: `${fontSizes.base}px`,
       },
     });
     const trashIcon = document.createElementNS(
@@ -2691,7 +2733,10 @@ const setupLoadLorasUi = (node) => {
     trashPath.setAttribute('fill', '#fff');
     trashIcon.append(trashPath);
     trashButton.append(trashIcon);
-    const cancelButton = $el('button', { textContent: 'Cancel' });
+    const cancelButton = $el('button', {
+      textContent: 'Cancel',
+      style: { fontSize: `${fontSizes.base}px` },
+    });
     const debouncedFilter = createDebouncedRunner(() => {
       slot.__loadLorasLoraFilter = normalizeDialogFilterValue(filterInput.value);
       renderList(true);
@@ -2716,7 +2761,7 @@ const setupLoadLorasUi = (node) => {
       }
     });
     const list = $el('div', {
-      style: getLoraDialogListStyle(),
+      style: { ...getLoraDialogListStyle(), fontSize: `${fontSizes.base}px` },
     });
 
     const resolvePreviewImageLayout = () => {
@@ -3154,6 +3199,7 @@ const setupLoadLorasUi = (node) => {
             display: "flex",
             alignItems: "center",
             gap: "6px",
+            fontSize: `${fontSizes.base}px`,
           },
         });
         button.style.color = "#e0e0e0";

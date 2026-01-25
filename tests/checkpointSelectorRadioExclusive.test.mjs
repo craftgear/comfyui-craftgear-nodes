@@ -8,6 +8,8 @@ import {
   resolveCheckpointDialogItemBackground,
   getCheckpointHighlightSegments,
   normalizeCheckpointDialogFilterValue,
+  resolveCheckpointFontSizes,
+  CHECKPOINT_ACTIVE_RADIO_COLOR,
 } from '../web/checkpoint_selector/js/checkpointSelectorUiUtils.js';
 
 describe('CheckpointSelector radio behavior', () => {
@@ -38,8 +40,17 @@ describe('CheckpointSelector row styling', () => {
   });
 
   it('uses bold font when active', () => {
-    expect(resolveCheckpointRowLabelFont(true)).toContain('bold');
-    expect(resolveCheckpointRowLabelFont(false)).not.toContain('bold');
+    expect(resolveCheckpointRowLabelFont(true)).toContain('normal');
+    expect(resolveCheckpointRowLabelFont(false)).toContain('normal');
+  });
+
+  it('resolves font sizes with minimum clamp', () => {
+    expect(resolveCheckpointFontSizes(16)).toEqual({ base: 16, heading: 14, small: 12 });
+    expect(resolveCheckpointFontSizes('not-a-number')).toEqual({ base: 16, heading: 14, small: 12 });
+  });
+
+  it('uses white radio color', () => {
+    expect(CHECKPOINT_ACTIVE_RADIO_COLOR).toBe('#ffffff');
   });
 });
 

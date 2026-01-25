@@ -11,8 +11,10 @@ describe('craftgearSettings', () => {
       'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly',
       'craftgear.loadLorasWithTags.previewZoomScale',
       'craftgear.checkpointSelector.previewZoomScale',
+      'craftgear.checkpointSelector.fontSize',
       'craftgear.loadLorasWithTags.loraStrengthMin',
       'craftgear.loadLorasWithTags.loraStrengthMax',
+      'craftgear.loadLorasWithTags.fontSize',
       'craftgear.commentableMultilineText.fontSize',
       'craftgear.tagToggleText.fontSize',
     ]);
@@ -24,8 +26,10 @@ describe('craftgearSettings', () => {
       ['craftgear', 'Load Loras With Tags', 'Auto select ∞ tags only'],
       ['craftgear', 'Load Loras With Tags', 'Preview hover zoom scale'],
       ['craftgear', 'Checkpoint Selector', 'Preview hover zoom scale'],
+      ['craftgear', 'Checkpoint Selector', 'Font Size'],
       ['craftgear', 'Load Loras With Tags', 'LoRA strength minimum'],
       ['craftgear', 'Load Loras With Tags', 'LoRA strength maximum'],
+      ['craftgear', 'Load Loras With Tags', 'Font Size'],
       ['craftgear', 'Commentable Multiline Text', 'Font Size'],
       ['craftgear', 'Toggle Tags', 'Font Size'],
     ]);

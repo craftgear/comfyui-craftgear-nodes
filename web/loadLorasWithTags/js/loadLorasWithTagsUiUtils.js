@@ -1,5 +1,6 @@
 import { stripLoraBasename, stripLoraExtension } from "./loraNameUtils.js";
 import { matchFuzzyPositions, rankFuzzyIndices } from "./loraFuzzyMatch.js";
+import { normalizeFontSize } from "./loadLorasWithTagsSettings.js";
 
 const normalizeOptions = (options) => {
   if (Array.isArray(options)) {
@@ -1003,6 +1004,13 @@ const computeSliderRatio = (value, options) => {
   return clampNumber(ratio, 0, 1);
 };
 
+const resolveLoadLorasFontSizes = (value) => {
+  const base = Math.max(8, Math.round(normalizeFontSize(value)));
+  const heading = Math.max(8, Math.round(base * 0.875));
+  const small = Math.max(8, Math.round(base * 0.75));
+  return { base, heading, small };
+};
+
 const loraLabelTextPadding = 8;
 const loraLabelButtonHeightPadding = loraLabelTextPadding;
 const loraDialogItemBackground = "transparent";
@@ -1030,6 +1038,18 @@ const getFrequencyLabelStyle = () => ({
   justifyContent: "center",
   alignItems: "center",
 });
+
+const getTagDialogListStyle = (fontSize) => {
+  const base = Math.max(8, Math.round(Number(fontSize) || 0));
+  return {
+    overflow: "auto",
+    padding: "8px",
+    background: "#2a2a2a",
+    borderRadius: "6px",
+    flex: "1 1 auto",
+    fontSize: `${base}px`,
+  };
+};
 
 const getLoraDialogListStyle = () => ({
   overflow: "auto",
@@ -1174,6 +1194,7 @@ export {
   shouldPreserveUnknownOption,
   normalizeStrengthOptions,
   normalizeOptions,
+  resolveLoadLorasFontSizes,
   filterLoraOptionIndices,
   filterLoraOptionIndicesFromBase,
   filterLoraOptions,
@@ -1197,6 +1218,7 @@ export {
   tagDialogItemHoverBackground,
   selectTriggerButtonHeight,
   getFrequencyLabelStyle,
+  getTagDialogListStyle,
   resolveLoraDialogItemBackground,
   resolveTagDialogItemBackground,
   splitLoraLabel,

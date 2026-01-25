@@ -16,6 +16,8 @@ export const LORA_STRENGTH_MAX_SETTING_ID =
   'craftgear.loadLorasWithTags.loraStrengthMax';
 export const DEFAULT_LORA_STRENGTH_MIN = -2;
 export const DEFAULT_LORA_STRENGTH_MAX = 2;
+export const FONT_SIZE_SETTING_ID = 'craftgear.loadLorasWithTags.fontSize';
+export const DEFAULT_FONT_SIZE = 16;
 
 export const normalizeMinFrequency = (value) => {
   const parsed = Number(value);
@@ -31,6 +33,14 @@ export const normalizeLoraPreviewZoomScale = (value) => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 1) {
     return DEFAULT_LORA_PREVIEW_ZOOM_SCALE;
+  }
+  return parsed;
+};
+
+export const normalizeFontSize = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_FONT_SIZE;
   }
   return parsed;
 };

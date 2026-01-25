@@ -25,6 +25,12 @@ vi.mock('../../../../scripts/ui.js', () => ({
   },
 }), { virtual: true });
 
+vi.mock('../../../../scripts/api.js', () => ({
+  api: {
+    fetchApi: vi.fn(),
+  },
+}), { virtual: true });
+
 const getWidget = (node, name) => node.widgets.find((w) => w.name === name);
 
 const createNode = () => {

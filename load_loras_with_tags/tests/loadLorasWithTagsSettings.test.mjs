@@ -7,10 +7,12 @@ import {
   DEFAULT_MIN_FREQUENCY,
   DEFAULT_LORA_STRENGTH_MIN,
   DEFAULT_LORA_STRENGTH_MAX,
+  DEFAULT_FONT_SIZE,
   normalizeAutoSelectMissingLora,
   normalizeAutoSelectInfinityWordsOnly,
   normalizeLoraPreviewZoomScale,
   normalizeMinFrequency,
+  normalizeFontSize,
   resolveLoraStrengthRange,
 } from '../../web/loadLorasWithTags/js/loadLorasWithTagsSettings.js';
 
@@ -29,6 +31,22 @@ describe('normalizeMinFrequency', () => {
   it('returns a floored non-negative value', () => {
     expect(normalizeMinFrequency(3.7)).toBe(3);
     expect(normalizeMinFrequency('5')).toBe(5);
+  });
+});
+
+describe('normalizeFontSize', () => {
+  it('returns default when value is not a positive finite number', () => {
+    expect(normalizeFontSize(undefined)).toBe(DEFAULT_FONT_SIZE);
+    expect(normalizeFontSize(null)).toBe(DEFAULT_FONT_SIZE);
+    expect(normalizeFontSize(Number.NaN)).toBe(DEFAULT_FONT_SIZE);
+    expect(normalizeFontSize('abc')).toBe(DEFAULT_FONT_SIZE);
+    expect(normalizeFontSize(0)).toBe(DEFAULT_FONT_SIZE);
+    expect(normalizeFontSize(-4)).toBe(DEFAULT_FONT_SIZE);
+  });
+
+  it('returns the numeric value when valid', () => {
+    expect(normalizeFontSize(18)).toBe(18);
+    expect(normalizeFontSize('20')).toBe(20);
   });
 });
 

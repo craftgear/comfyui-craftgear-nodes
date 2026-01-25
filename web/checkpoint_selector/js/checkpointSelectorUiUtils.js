@@ -1,3 +1,5 @@
+import { normalizeCheckpointFontSize } from './checkpointSelectorSettings.js';
+
 const ACTIVE_ROW_BACKGROUND = '#2f4363';
 const HOVER_ROW_BACKGROUND = '#2b2b2b';
 const DEFAULT_ROW_BACKGROUND = '#1f1f1f';
@@ -6,6 +8,8 @@ const CHECKPOINT_DIALOG_ITEM_HOVER_BACKGROUND = '#2a2a2a';
 const CHECKPOINT_DIALOG_ITEM_SELECTED_BACKGROUND = '#424242';
 const CHECKPOINT_DIALOG_MATCH_TEXT_COLOR = '#f2d28b';
 const CHECKPOINT_DIALOG_MATCH_FONT_WEIGHT = '600';
+const CHECKPOINT_MIN_FONT_SIZE = 8;
+export const CHECKPOINT_ACTIVE_RADIO_COLOR = '#ffffff';
 const checkpointDialogSelectedIconPath =
   'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M9 12l2 2l4 -4';
 const checkpointDialogSelectedIconSize = 19.2;
@@ -74,9 +78,9 @@ export const resolveRowBackground = ({ active, hover }) => {
   return DEFAULT_ROW_BACKGROUND;
 };
 
-export const resolveCheckpointRowLabelFont = (active) => {
-  const weight = active ? 'bold' : 'normal';
-  return `${weight} 12px "Inter", system-ui, sans-serif`;
+export const resolveCheckpointRowLabelFont = (_active, baseSize = 12) => {
+  const safeSize = Math.max(CHECKPOINT_MIN_FONT_SIZE, Number(baseSize) || 12);
+  return `normal ${safeSize}px "Inter", system-ui, sans-serif`;
 };
 
 export const resolveCheckpointDialogItemBackground = (isSelected, isHovered) => {
@@ -197,6 +201,14 @@ export const resolveCheckpointLabel = (raw) => {
     return 'None';
   }
   return text;
+};
+
+export const resolveCheckpointFontSizes = (value) => {
+  const normalized = normalizeCheckpointFontSize(value);
+  const safeBase = Math.max(CHECKPOINT_MIN_FONT_SIZE, Math.round(normalized));
+  const heading = Math.max(CHECKPOINT_MIN_FONT_SIZE, Math.round(safeBase * 0.875));
+  const small = Math.max(CHECKPOINT_MIN_FONT_SIZE, Math.round(safeBase * 0.75));
+  return { base: safeBase, heading, small };
 };
 
 export const isPointInRect = (pos, rect) => {
