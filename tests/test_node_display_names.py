@@ -39,6 +39,14 @@ class TestNodeDisplayNames(unittest.TestCase):
             "Toggle Tags",
         )
 
+    def test_a1111_metadata_reader_display_name(self):
+        module_path = ROOT / "__init__.py"
+        mapping = load_display_name_mapping(module_path)
+        self.assertEqual(
+            mapping["A1111WebpMetadataReader"],
+            "A1111 Metadata Reader",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

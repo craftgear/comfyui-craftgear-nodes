@@ -13,6 +13,7 @@ from .load_loras_with_tags.ui import trigger_api
 from .image_batch_loader.ui import select_directory_api
 from .image_batch_loader.ui.node import ImageBatchLoader
 from .a1111_metadata_writer.ui.node import A1111MetadataWriter
+from .a1111_webp_metadata_reader.ui.node import A1111WebpMetadataReader
 
 WEB_DIRECTORY: str = "web"
 
@@ -25,6 +26,7 @@ NODE_CLASS_MAPPINGS: dict[str, Any] = {
     "JoinTextNode": JoinTextNode,
     "TagToggleTextNode": TagToggleTextNode,
     "A1111MetadataWriter": A1111MetadataWriter,
+    "A1111WebpMetadataReader": A1111WebpMetadataReader,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
@@ -36,4 +38,5 @@ NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "JoinTextNode": "Join Texts",
     "TagToggleTextNode": "Toggle Tags",
     "A1111MetadataWriter": "A1111 Metadata Writer",
+    "A1111WebpMetadataReader": "A1111 Metadata Reader",
 }
