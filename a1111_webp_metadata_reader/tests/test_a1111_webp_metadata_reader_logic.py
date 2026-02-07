@@ -5,6 +5,13 @@ import unittest
 
 from a1111_webp_metadata_reader.logic import metadata_parser as logic
 
+try:
+    from PIL import Image
+    from PIL import PngImagePlugin
+except Exception:
+    Image = None
+    PngImagePlugin = None
+
 
 class TestA1111WebpMetadataReaderLogic(unittest.TestCase):
     def test_read_metadata_text_extracts_webp_user_comment(self) -> None:
@@ -20,6 +27,43 @@ class TestA1111WebpMetadataReaderLogic(unittest.TestCase):
             text = logic.read_metadata_text(tmp.name)
         self.assertIn('Negative prompt:', text)
         self.assertIn('Steps:', text)
+
+    def test_read_metadata_text_extracts_png_parameters(self) -> None:
+        if Image is None or PngImagePlugin is None:
+            self.skipTest('Pillow is required')
+        parameters = (
+            'best quality, 1girl\n'
+            'Negative prompt: low quality\n'
+            'Steps: 20, Sampler: Euler, CFG scale: 7, Seed: 123, Size: 512x768, Clip skip: 2'
+        )
+        pnginfo = PngImagePlugin.PngInfo()
+        pnginfo.add_text('parameters', parameters)
+
+        with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
+            image = Image.new('RGB', (1, 1), (255, 255, 255))
+            image.save(tmp.name, pnginfo=pnginfo)
+            text = logic.read_metadata_text(tmp.name)
+
+        self.assertEqual(text, parameters)
+
+    def test_read_metadata_text_extracts_jpg_exif_user_comment(self) -> None:
+        if Image is None:
+            self.skipTest('Pillow is required')
+        parameters = (
+            'best quality, 1girl\n'
+            'Negative prompt: low quality\n'
+            'Steps: 20, Sampler: Euler, CFG scale: 7, Seed: 123, Size: 512x768, Clip skip: 2'
+        )
+        user_comment = b'ASCII\x00\x00\x00' + parameters.encode('utf-8')
+        exif = Image.Exif()
+        exif[37510] = user_comment
+
+        with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+            image = Image.new('RGB', (1, 1), (255, 255, 255))
+            image.save(tmp.name, exif=exif)
+            text = logic.read_metadata_text(tmp.name)
+
+        self.assertEqual(text, parameters)
 
     def test_parse_parameters_extracts_target_fields(self) -> None:
         resources = [

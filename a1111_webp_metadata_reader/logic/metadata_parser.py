@@ -272,6 +272,9 @@ def parse_a1111_parameters(parameters: str) -> dict[str, Any]:
 
 def _decode_user_comment(value: Any) -> str:
     if isinstance(value, bytes):
+        exif_decoded = _decode_exif_user_comment(value)
+        if exif_decoded:
+            return exif_decoded
         try:
             return value.decode('utf-16le').strip('\x00').strip()
         except Exception:
