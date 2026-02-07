@@ -75,6 +75,9 @@ import {
   resolveComboOptionIndex,
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
+  parseLorasJsonNames,
+  resolveAutoLoraLabels,
+  shouldApplyAutoLoraFill,
   resolveActiveIndex,
   resolveMissingLoraFilterValue,
   resolveLoraDialogFilterValue,
@@ -117,6 +120,36 @@ describe('loadLorasWithTagsUiUtils', () => {
     assert.equal(resolveSameNameLoraIndex('None', options), -1);
     assert.equal(resolveSameNameLoraIndex('', options), -1);
     assert.equal(resolveSameNameLoraIndex('b.safetensors', null), -1);
+    assert.deepEqual(
+      parseLorasJsonNames('[{"name":"foo"},{"modelName":"bar"},{"model":"baz"}]'),
+      ['foo', 'bar', 'baz'],
+    );
+    assert.deepEqual(
+      parseLorasJsonNames('{"loras":[{"name":"foo"},{"name":"foo"},{"name":"bar"}]}'),
+      ['foo', 'bar'],
+    );
+    assert.deepEqual(parseLorasJsonNames('not-json'), []);
+    assert.deepEqual(parseLorasJsonNames(null), []);
+    assert.deepEqual(parseLorasJsonNames(['[{"name":"foo"},{"name":"bar"}]']), ['foo', 'bar']);
+    assert.deepEqual(
+      resolveAutoLoraLabels(
+        ['models/foo', 'bar'],
+        ['None', 'foo.safetensors', 'bar.safetensors'],
+        20,
+      ),
+      ['foo.safetensors', 'bar.safetensors'],
+    );
+    assert.deepEqual(
+      resolveAutoLoraLabels(
+        ['foo', 'foo', 'missing'],
+        ['None', 'foo.safetensors', 'bar.safetensors'],
+        20,
+      ),
+      ['foo.safetensors'],
+    );
+    assert.equal(shouldApplyAutoLoraFill([], []), true);
+    assert.equal(shouldApplyAutoLoraFill(['foo.safetensors'], ['foo.safetensors']), true);
+    assert.equal(shouldApplyAutoLoraFill(['foo.safetensors'], ['bar.safetensors']), false);
 
     assert.equal(moveIndex(0, 1, 3), 1);
     assert.equal(moveIndex(2, 1, 3), 0);

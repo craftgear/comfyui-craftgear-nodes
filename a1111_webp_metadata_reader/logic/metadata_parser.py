@@ -2,6 +2,7 @@ import json
 import os
 import re
 import struct
+import zlib
 from typing import Any
 
 try:
@@ -192,21 +193,104 @@ def _extract_model_hash(parameters: str) -> str:
 
 
 def _extract_lora_hash_map(parameters: str) -> dict[str, str]:
-    text = _extract_segment(parameters, 'Lora hashes:')
-    if not text:
-        return {}
     output: dict[str, str] = {}
-    parts = [part.strip() for part in text.split(',') if part.strip()]
-    for part in parts:
-        if ':' not in part:
-            continue
-        name, hash_value = part.rsplit(':', 1)
-        normalized_name = name.strip()
-        normalized_hash = hash_value.strip()
-        if not normalized_name:
-            continue
-        output[normalized_name.casefold()] = normalized_hash
+
+    text = _extract_segment(parameters, 'Lora hashes:')
+    if text:
+        parts = [part.strip() for part in text.split(',') if part.strip()]
+        for part in parts:
+            if ':' not in part:
+                continue
+            name, hash_value = part.rsplit(':', 1)
+            normalized_name = name.strip()
+            normalized_hash = hash_value.strip()
+            if not normalized_name:
+                continue
+            output[normalized_name.casefold()] = normalized_hash
+
+    hashes_json = _extract_hashes_json(parameters)
+    for key, value in hashes_json.items():
+        output[key] = value
     return output
+
+
+def _extract_hashes_json(parameters: str) -> dict[str, str]:
+    decoded = _extract_json_object_after_label(parameters, 'Hashes:')
+    if not decoded:
+        return {}
+
+    output: dict[str, str] = {}
+    for raw_key, raw_value in decoded.items():
+        key = str(raw_key).strip()
+        if not key.lower().startswith('lora:'):
+            continue
+        normalized_key = key[5:].strip().casefold()
+        if not normalized_key:
+            continue
+        output[normalized_key] = str(raw_value).strip()
+    return output
+
+
+def _extract_json_object_after_label(parameters: str, label: str) -> dict[str, Any]:
+    marker = label.lower()
+    lower_text = parameters.lower()
+    index = lower_text.find(marker)
+    if index < 0:
+        return {}
+    brace_start = parameters.find('{', index + len(label))
+    if brace_start < 0:
+        return {}
+
+    depth = 0
+    in_string = False
+    escape = False
+    for position in range(brace_start, len(parameters)):
+        char = parameters[position]
+        if in_string:
+            if escape:
+                escape = False
+            elif char == '\\':
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+            continue
+        if char == '{':
+            depth += 1
+            continue
+        if char != '}':
+            continue
+        depth -= 1
+        if depth != 0:
+            continue
+        payload = parameters[brace_start : position + 1]
+        try:
+            decoded = json.loads(payload)
+        except Exception:
+            return {}
+        if isinstance(decoded, dict):
+            return decoded
+        return {}
+    return {}
+
+
+def _extract_lora_names_from_prompt(parameters: str) -> list[str]:
+    if not parameters:
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for match in re.finditer(r'<lora:([^:>]+)(?::[^>]+)?>', parameters, flags=re.IGNORECASE):
+        name = str(match.group(1)).strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(name)
+    return names
 
 
 def _extract_loras(parameters: str, resources: list[dict[str, Any]]) -> str:
@@ -230,6 +314,16 @@ def _extract_loras(parameters: str, resources: list[dict[str, Any]]) -> str:
                 'modelVersionId': _extract_resource_model_version_id(item),
             }
         )
+    if values:
+        return json.dumps(values, ensure_ascii=False)
+
+    prompt_loras = _extract_lora_names_from_prompt(parameters)
+    for name in prompt_loras:
+        key = name.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        values.append({'name': name, 'hash': hash_map.get(key, ''), 'modelVersionId': ''})
     if values:
         return json.dumps(values, ensure_ascii=False)
 
@@ -465,6 +559,191 @@ def _read_webp_user_comment_from_binary(image_path: str) -> str:
     return ''
 
 
+def _read_png_text_from_binary(image_path: str) -> str:
+    try:
+        with open(image_path, 'rb') as file_obj:
+            data = file_obj.read()
+    except Exception:
+        return ''
+
+    text_map = _extract_png_text_map(data)
+    if not text_map:
+        return ''
+    return _resolve_parameters_text_from_map(text_map)
+
+
+def _extract_png_text_map(data: bytes) -> dict[str, str]:
+    signature = b'\x89PNG\r\n\x1a\n'
+    if len(data) < 8 or data[:8] != signature:
+        return {}
+
+    output: dict[str, str] = {}
+    offset = 8
+    data_length = len(data)
+    while offset + 8 <= data_length:
+        try:
+            length = struct.unpack('>I', data[offset : offset + 4])[0]
+        except Exception:
+            return output
+        chunk_type = data[offset + 4 : offset + 8]
+        chunk_start = offset + 8
+        chunk_end = chunk_start + length
+        crc_end = chunk_end + 4
+        if chunk_end > data_length or crc_end > data_length:
+            return output
+
+        chunk_data = data[chunk_start:chunk_end]
+        key, value = _decode_png_text_chunk(chunk_type, chunk_data)
+        normalized_key = key.strip()
+        if normalized_key and value and normalized_key not in output:
+            output[normalized_key] = value
+
+        offset = crc_end
+        if chunk_type == b'IEND':
+            break
+    return output
+
+
+def _decode_png_text_chunk(chunk_type: bytes, chunk_data: bytes) -> tuple[str, str]:
+    if chunk_type == b'tEXt':
+        return _decode_png_text_payload(chunk_data)
+    if chunk_type == b'zTXt':
+        return _decode_png_ztxt_payload(chunk_data)
+    if chunk_type == b'iTXt':
+        return _decode_png_itxt_payload(chunk_data)
+    return '', ''
+
+
+def _decode_png_text_payload(chunk_data: bytes) -> tuple[str, str]:
+    separator = chunk_data.find(b'\x00')
+    if separator <= 0:
+        return '', ''
+    key = chunk_data[:separator].decode('latin-1', errors='ignore').strip()
+    value = _decode_png_text_value(chunk_data[separator + 1 :])
+    return key, value
+
+
+def _decode_png_ztxt_payload(chunk_data: bytes) -> tuple[str, str]:
+    separator = chunk_data.find(b'\x00')
+    if separator <= 0 or separator + 2 > len(chunk_data):
+        return '', ''
+    key = chunk_data[:separator].decode('latin-1', errors='ignore').strip()
+    compression_method = chunk_data[separator + 1]
+    if compression_method != 0:
+        return key, ''
+    compressed = chunk_data[separator + 2 :]
+    try:
+        value_bytes = zlib.decompress(compressed)
+    except Exception:
+        return key, ''
+    return key, _decode_png_text_value(value_bytes)
+
+
+def _decode_png_itxt_payload(chunk_data: bytes) -> tuple[str, str]:
+    separator = chunk_data.find(b'\x00')
+    if separator <= 0:
+        return '', ''
+    key = chunk_data[:separator].decode('latin-1', errors='ignore').strip()
+    cursor = separator + 1
+    if cursor + 2 > len(chunk_data):
+        return key, ''
+
+    compression_flag = chunk_data[cursor]
+    compression_method = chunk_data[cursor + 1]
+    cursor += 2
+
+    language_end = chunk_data.find(b'\x00', cursor)
+    if language_end < 0:
+        return key, ''
+    cursor = language_end + 1
+
+    translated_end = chunk_data.find(b'\x00', cursor)
+    if translated_end < 0:
+        return key, ''
+    cursor = translated_end + 1
+
+    value_bytes = chunk_data[cursor:]
+    if compression_flag == 1:
+        if compression_method != 0:
+            return key, ''
+        try:
+            value_bytes = zlib.decompress(value_bytes)
+        except Exception:
+            return key, ''
+    return key, _decode_png_text_value(value_bytes)
+
+
+def _decode_png_text_value(value_bytes: bytes) -> str:
+    if not value_bytes:
+        return ''
+    for encoding in ('utf-8', 'utf-16le', 'latin-1'):
+        try:
+            text = value_bytes.decode(encoding, errors='ignore').strip('\x00').strip()
+            if text:
+                return text
+        except Exception:
+            continue
+    return ''
+
+
+def _read_jpeg_user_comment_from_binary(image_path: str) -> str:
+    try:
+        with open(image_path, 'rb') as file_obj:
+            data = file_obj.read()
+    except Exception:
+        return ''
+
+    exif_tiff = _extract_jpeg_exif_tiff(data)
+    if not exif_tiff:
+        return ''
+    return _extract_user_comment_from_tiff(exif_tiff)
+
+
+def _extract_jpeg_exif_tiff(data: bytes) -> bytes:
+    if len(data) < 4 or data[:2] != b'\xFF\xD8':
+        return b''
+
+    offset = 2
+    data_length = len(data)
+    while offset + 4 <= data_length:
+        if data[offset] != 0xFF:
+            offset += 1
+            continue
+        marker = data[offset + 1]
+        offset += 2
+
+        if marker in (0xD8, 0xD9):  # SOI / EOI
+            continue
+        if marker == 0xDA:  # SOS
+            break
+        if marker == 0x01 or (0xD0 <= marker <= 0xD7):
+            continue
+        if offset + 2 > data_length:
+            break
+
+        segment_size = struct.unpack('>H', data[offset : offset + 2])[0]
+        offset += 2
+        if segment_size < 2:
+            break
+        segment_end = offset + (segment_size - 2)
+        if segment_end > data_length:
+            break
+
+        segment = data[offset:segment_end]
+        if marker == 0xE1 and segment.startswith(b'Exif\x00\x00'):
+            return segment[6:]
+        offset = segment_end
+    return b''
+
+
+def _resolve_parameters_text_from_map(value_map: dict[str, Any]) -> str:
+    for key in ('parameters', 'Parameters', 'Extparameters', 'ExtParameters', 'extparameters'):
+        value = value_map.get(key)
+        if value:
+            return _decode_user_comment(value)
+    return ''
+
+
 def read_metadata_text(image_path: str) -> str:
     if not image_path:
         return ''
@@ -494,6 +773,14 @@ def read_metadata_text(image_path: str) -> str:
     if webp_comment:
         return webp_comment
 
+    png_comment = _read_png_text_from_binary(candidate_path)
+    if png_comment:
+        return png_comment
+
+    jpeg_comment = _read_jpeg_user_comment_from_binary(candidate_path)
+    if jpeg_comment:
+        return jpeg_comment
+
     if Image is None:
         return ''
     try:
@@ -504,10 +791,9 @@ def read_metadata_text(image_path: str) -> str:
                 if user_comment:
                     return user_comment
             info = getattr(image, 'info', {}) or {}
-            for key in ('parameters', 'Parameters'):
-                value = info.get(key)
-                if value:
-                    return _decode_user_comment(value)
+            info_comment = _resolve_parameters_text_from_map(info)
+            if info_comment:
+                return info_comment
     except Exception:
         return ''
     return ''

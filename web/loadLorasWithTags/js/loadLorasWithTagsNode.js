@@ -9,7 +9,7 @@ import {
 import {
   normalizeSelectionValue,
   resolveTagSelection,
-  shouldAutoSelectInfinityTagsOnly,
+  shouldAutoSelectInfinityTagsOnly
 } from './selectionValueUtils.js';
 import {
   collectLoraEntriesFromNode,
@@ -98,6 +98,8 @@ import {
   resolveOption,
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
+  parseLorasJsonNames,
+  resolveAutoLoraLabels,
   resolveBelowCenteredPopupPosition,
   resolveInlineControlLayout,
   resolveFixedLabelWidth,
@@ -153,9 +155,194 @@ const COPY_DIALOG_ID = "craftgear-load-loras-copy-dialog";
 const LORA_DIALOG_FILTER_DEBOUNCE_MS = 120;
 const LORA_PREVIEW_PANEL_WIDTH = 360;
 const LORA_PREVIEW_PANEL_PADDING = 0;
+const LORAS_JSON_INPUT_NAME = 'loras_json';
+const TAGS_INPUT_NAME = 'tags';
+const autoFillTargetNodes = new Set();
+let autoFillApiEventHooked = false;
 let dialogKeydownHandler = null;
 let strengthPopupState = null;
 let topNPopupState = null;
+
+const normalizeNodeId = (value) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value);
+};
+
+const resolveGraphLinkIdCandidates = (linkId) => {
+  if (linkId === undefined || linkId === null) {
+    return [];
+  }
+  const values = [];
+  const seen = new Set();
+  const push = (value) => {
+    const key = String(value);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    values.push(value);
+  };
+
+  if (typeof linkId === 'number' && Number.isFinite(linkId) && linkId >= 0) {
+    const normalized = Math.trunc(linkId);
+    push(normalized);
+    push(String(normalized));
+    return values;
+  }
+  if (typeof linkId === 'string') {
+    const text = linkId.trim();
+    if (!text) {
+      return [];
+    }
+    push(text);
+    const parsed = Number(text);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      const normalized = Math.trunc(parsed);
+      push(normalized);
+      push(String(normalized));
+    }
+    return values;
+  }
+  return [];
+};
+
+const getGraphLink = (linkId) => {
+  const links = app?.graph?.links;
+  if (!links) {
+    return null;
+  }
+  const candidates = resolveGraphLinkIdCandidates(linkId);
+  if (candidates.length === 0) {
+    return null;
+  }
+  for (const candidate of candidates) {
+    const resolved = links[candidate];
+    if (resolved !== undefined && resolved !== null) {
+      return resolved;
+    }
+  }
+  return null;
+};
+
+const resolveNodeOutputStore = () => app?.nodeOutputs || app?.graph?.nodeOutputs || null;
+
+const resolveLorasJsonFromExecutionOutput = (output, originSlot = null) => {
+  if (output === undefined || output === null) {
+    return null;
+  }
+  const candidates = [];
+  if (Array.isArray(output)) {
+    if (Number.isFinite(originSlot)) {
+      candidates.push(output[Math.trunc(originSlot)]);
+    }
+    candidates.push(output[0]);
+  } else if (output && typeof output === 'object') {
+    if (Number.isFinite(originSlot)) {
+      const slotKey = String(Math.trunc(originSlot));
+      if (slotKey in output) {
+        candidates.push(output[slotKey]);
+      }
+    }
+    for (const key of ['loras_json', 'loras json', 'lorasJson', 'text']) {
+      if (key in output) {
+        candidates.push(output[key]);
+      }
+    }
+    if (Array.isArray(output.result)) {
+      if (Number.isFinite(originSlot)) {
+        candidates.push(output.result[Math.trunc(originSlot)]);
+      }
+      candidates.push(output.result[0]);
+    }
+  } else {
+    candidates.push(output);
+  }
+
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) {
+      continue;
+    }
+    if (parseLorasJsonNames(candidate).length > 0) {
+      return candidate;
+    }
+  }
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+    if (candidate.trim().startsWith('[')) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+const ensureAutoFillApiEventHook = () => {
+  if (autoFillApiEventHooked) {
+    return;
+  }
+  if (typeof api?.addEventListener !== 'function') {
+    return;
+  }
+  autoFillApiEventHooked = true;
+
+  const dispatchOutput = (sourceNodeId, output) => {
+    const normalizedSourceId = normalizeNodeId(sourceNodeId);
+    if (!normalizedSourceId) {
+      return;
+    }
+    autoFillTargetNodes.forEach((targetNode) => {
+      if (!targetNode) {
+        return;
+      }
+      const sourceInfo = targetNode.__loadLorasResolveLorasJsonSource?.();
+      if (!sourceInfo) {
+        return;
+      }
+      if (normalizeNodeId(sourceInfo.nodeId) !== normalizedSourceId) {
+        return;
+      }
+      targetNode.__loadLorasSyncAutoFromOutput?.(output, sourceInfo.slot);
+    });
+  };
+
+  api.addEventListener('executed', (event) => {
+    const detail = event?.detail ?? {};
+    const sourceNodeId = detail?.node ?? detail?.display_node;
+    dispatchOutput(sourceNodeId, detail?.output);
+  });
+
+  api.addEventListener('execution_cached', (event) => {
+    const detail = event?.detail ?? {};
+    const cachedNodes = Array.isArray(detail?.nodes)
+      ? detail.nodes.map((nodeId) => normalizeNodeId(nodeId))
+      : [];
+    if (cachedNodes.length === 0) {
+      return;
+    }
+    const outputs = resolveNodeOutputStore();
+    if (!outputs || typeof outputs !== 'object') {
+      return;
+    }
+    autoFillTargetNodes.forEach((targetNode) => {
+      if (!targetNode) {
+        return;
+      }
+      const sourceInfo = targetNode.__loadLorasResolveLorasJsonSource?.();
+      const sourceNodeId = normalizeNodeId(sourceInfo?.nodeId);
+      if (!sourceNodeId || !cachedNodes.includes(sourceNodeId)) {
+        return;
+      }
+      const output = outputs[sourceNodeId] ?? outputs[Number(sourceNodeId)];
+      if (output === undefined || output === null) {
+        return;
+      }
+      targetNode.__loadLorasSyncAutoFromOutput?.(output, sourceInfo.slot);
+    });
+  });
+};
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || "";
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
@@ -1566,6 +1753,7 @@ const setupLoadLorasUi = (node) => {
   let headerWidget = null;
   const headerHoverState = { copy: false, append: false };
   const rowHoverState = new Map();
+  let lastAutoLoraLabels = [];
 
   const createHeaderWidget = (getAllToggleState) => {
     const widget = {
@@ -2042,6 +2230,150 @@ const setupLoadLorasUi = (node) => {
     });
     resizeNodeToContent(node, true);
     markDirty(node);
+  };
+
+  const resolveConnectedInputData = (inputName) => {
+    const inputs = Array.isArray(node?.inputs) ? node.inputs : [];
+    const inputIndex = inputs.findIndex((input) => input?.name === inputName);
+    if (inputIndex < 0) {
+      return null;
+    }
+    if (typeof node?.getInputData === 'function') {
+      try {
+        const inputData = node.getInputData(inputIndex);
+        if (inputData !== undefined && inputData !== null) {
+          return inputData;
+        }
+      } catch {
+        // getInputData未対応ノードとの互換用にリンク参照へフォールバック
+      }
+    }
+    const target = inputs[inputIndex];
+    const linkId = target?.link;
+    const link = getGraphLink(linkId);
+    if (!link || !('data' in link)) {
+      return null;
+    }
+    return link.data;
+  };
+
+  const resolveConnectedSourceInfo = (inputName) => {
+    const inputs = Array.isArray(node?.inputs) ? node.inputs : [];
+    const target = inputs.find((input) => input?.name === inputName);
+    if (!target) {
+      return null;
+    }
+    const link = getGraphLink(target?.link);
+    if (!link) {
+      return null;
+    }
+    const nodeId = normalizeNodeId(link.origin_id);
+    if (!nodeId) {
+      return null;
+    }
+    const slot = Number.isFinite(link.origin_slot) ? Math.trunc(link.origin_slot) : null;
+    return { nodeId, slot };
+  };
+
+  const resolveAutoLorasSourceInfo = () => {
+    const primary = resolveConnectedSourceInfo(LORAS_JSON_INPUT_NAME);
+    if (primary) {
+      return primary;
+    }
+    return resolveConnectedSourceInfo(TAGS_INPUT_NAME);
+  };
+
+  const getFilledSlotLabels = () => {
+    const labels = [];
+    slots.forEach((slot) => {
+      const options = getComboOptions(slot.loraWidget);
+      const label = resolveComboDisplayLabel(slot.loraWidget?.value, options);
+      if (!isFilledName(label)) {
+        return;
+      }
+      labels.push(label);
+    });
+    return labels;
+  };
+
+  const applyAutoLoraLabels = (labels) => {
+    if (!Array.isArray(labels) || labels.length === 0) {
+      return false;
+    }
+    let changed = false;
+    slots.forEach((slot, index) => {
+      const targetLabel = labels[index] ?? 'None';
+      const options = getComboOptions(slot.loraWidget);
+      const currentLabel = resolveComboDisplayLabel(slot.loraWidget?.value, options);
+      if (targetLabel === currentLabel) {
+        return;
+      }
+      applyLoraValue(slot.loraWidget, targetLabel);
+      if (targetLabel === 'None') {
+        setWidgetValue(slot.toggleWidget, false);
+        slot.selectionWidget.value = '';
+        slot.selectionWidget.__loadLorasResetTopN = true;
+        slot.__loadLorasLoraFilter = '';
+      } else {
+        setWidgetValue(slot.toggleWidget, true);
+      }
+      changed = true;
+    });
+    if (!changed) {
+      return false;
+    }
+    lastAutoLoraLabels = labels.slice();
+    applyRowVisibility();
+    return true;
+  };
+
+  const syncAutoLorasFromRawInput = (rawInput) => {
+    const rawNames = parseLorasJsonNames(rawInput);
+    if (rawNames.length === 0) {
+      return false;
+    }
+    const options = getComboOptions(slots[0]?.loraWidget);
+    const maxLabels = Math.max(0, Math.trunc(slots.length || 0));
+    const labels = [];
+    const seen = new Set();
+    rawNames.forEach((rawName) => {
+      if (labels.length >= maxLabels) {
+        return;
+      }
+      const matchedLabel = resolveAutoLoraLabels([rawName], options, 1)[0] ?? '';
+      const fallbackLabel = String(rawName ?? '').trim();
+      const resolvedLabel = matchedLabel || fallbackLabel;
+      if (!isFilledName(resolvedLabel)) {
+        return;
+      }
+      const key = resolvedLabel.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      labels.push(resolvedLabel);
+    });
+    if (labels.length === 0) {
+      return false;
+    }
+    return applyAutoLoraLabels(labels);
+  };
+
+  const syncAutoLorasFromConnectedInput = () => {
+    const primaryInput = resolveConnectedInputData(LORAS_JSON_INPUT_NAME);
+    if (syncAutoLorasFromRawInput(primaryInput)) {
+      return true;
+    }
+    const fallbackInput = resolveConnectedInputData(TAGS_INPUT_NAME);
+    return syncAutoLorasFromRawInput(fallbackInput);
+  };
+
+  const syncAutoLorasFromExecutionOutput = (output, originSlot = null) => {
+    const rawInput = resolveLorasJsonFromExecutionOutput(output, originSlot);
+    if (rawInput === undefined || rawInput === null) {
+      return false;
+    }
+    return syncAutoLorasFromRawInput(rawInput);
   };
 
   const normalizeLoraWidgetValues = () => {
@@ -3773,13 +4105,50 @@ const setupLoadLorasUi = (node) => {
       const result = originalConfigure?.apply(this, arguments);
       queueMicrotask(() => {
         applyRowVisibility();
+        syncAutoLorasFromConnectedInput();
       });
       return result;
     };
   }
 
+  if (!node.__loadLorasExecutedHooked) {
+    node.__loadLorasExecutedHooked = true;
+    const originalOnExecuted = node.onExecuted;
+    node.onExecuted = function (output) {
+      const result = originalOnExecuted?.apply(this, arguments);
+      syncAutoLorasFromConnectedInput();
+      return result;
+    };
+  }
+
+  if (!node.__loadLorasConnectionsHooked) {
+    node.__loadLorasConnectionsHooked = true;
+    const originalConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function () {
+      const result = originalConnectionsChange?.apply(this, arguments);
+      syncAutoLorasFromConnectedInput();
+      return result;
+    };
+  }
+
+  node.__loadLorasResolveLorasJsonSource = () => resolveAutoLorasSourceInfo();
+  node.__loadLorasSyncAutoFromOutput = (output, originSlot = null) =>
+    syncAutoLorasFromExecutionOutput(output, originSlot);
+  autoFillTargetNodes.add(node);
+  ensureAutoFillApiEventHook();
+
+  if (!node.__loadLorasRemovedHooked) {
+    node.__loadLorasRemovedHooked = true;
+    const originalOnRemoved = node.onRemoved;
+    node.onRemoved = function () {
+      autoFillTargetNodes.delete(node);
+      return originalOnRemoved?.apply(this, arguments);
+    };
+  }
+
   normalizeLoraWidgetValues();
   applyRowVisibility();
+  syncAutoLorasFromConnectedInput();
 };
 
 app.registerExtension({

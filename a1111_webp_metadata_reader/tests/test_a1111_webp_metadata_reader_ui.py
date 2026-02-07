@@ -43,19 +43,25 @@ class TestA1111WebpMetadataReaderUi(unittest.TestCase):
 
         self.assertEqual(
             result,
-            (
-                'pos',
-                'neg',
-                '{"name":"model","hash":"abcd1234","modelVersionId":"12345"}',
-                '[{"name":"a","hash":"ffff0000","modelVersionId":"9876"}]',
-                20,
-                'Euler',
-                7.0,
-                123,
-                '512x512',
-                2,
-                'raw',
-            ),
+            {
+                'ui': {
+                    'model_json': ['{"name":"model","hash":"abcd1234","modelVersionId":"12345"}'],
+                    'loras_json': ['[{"name":"a","hash":"ffff0000","modelVersionId":"9876"}]'],
+                },
+                'result': (
+                    'pos',
+                    'neg',
+                    '{"name":"model","hash":"abcd1234","modelVersionId":"12345"}',
+                    '[{"name":"a","hash":"ffff0000","modelVersionId":"9876"}]',
+                    20,
+                    'Euler',
+                    7.0,
+                    123,
+                    '512x512',
+                    2,
+                    'raw',
+                ),
+            },
         )
 
 

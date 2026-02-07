@@ -11,8 +11,14 @@ import {
 const TARGET_NODE_CLASS = 'A1111WebpMetadataReader';
 const PATH_WIDGET_NAME = 'image_path';
 const PATH_WIDGET_WRAP_KEY = '__a1111WebpPathWidgetWrapped';
+const PATH_WIDGET_ENTER_WRAP_KEY = '__a1111WebpPathInputEnterWrapped';
+const PREVIEW_IMAGE_LOAD_WRAP_KEY = '__a1111WebpPreviewImageLoadWrapped';
+const PREVIEW_DROP_WRAP_KEY = '__a1111WebpPreviewDropWrapped';
 const PREVIEW_WIDGET_NAME = 'image_preview';
 const PREVIEW_WIDGET_HEIGHT = 220;
+const METADATA_ENDPOINT = '/my_custom_node/a1111_reader_metadata';
+const EMPTY_MODEL_JSON = '{"name":"","hash":"","modelVersionId":""}';
+const EMPTY_LORAS_JSON = '[]';
 const OUTPUT_TYPES = [
     'STRING',
     'STRING',
@@ -112,6 +118,34 @@ const uploadDroppedFile = async (file) => {
     return `${subfolder}/${data.name}`;
 };
 
+const handleDroppedInput = (node, event) => {
+    const file = getDroppedFile(event);
+    if (file) {
+        setPathWidget(node, resolveDroppedPath(file));
+        (async () => {
+            try {
+                const uploadedPath = await uploadDroppedFile(file);
+                if (uploadedPath) {
+                    setPathWidget(node, uploadedPath);
+                }
+            } catch (_error) {
+                // アップロード失敗時でも入力済みパスを維持して作業を継続させる
+            }
+            markDirty(node);
+        })();
+        markDirty(node);
+        return true;
+    }
+
+    const droppedPath = getDroppedPathFromText(event);
+    if (droppedPath) {
+        setPathWidget(node, droppedPath);
+        markDirty(node);
+        return true;
+    }
+    return false;
+};
+
 const createPreviewDom = () => {
     if (typeof document?.createElement !== 'function') {
         return null;
@@ -193,6 +227,74 @@ const resizeNodeToContent = (node) => {
     }
 };
 
+const fetchMetadataByImagePath = async (imagePath) => {
+    const path = String(imagePath || '').trim();
+    if (!path) {
+        return {
+            modelJson: EMPTY_MODEL_JSON,
+            lorasJson: EMPTY_LORAS_JSON,
+        };
+    }
+    const response = await api.fetchApi(METADATA_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_path: path }),
+    });
+    if (!response?.ok) {
+        return {
+            modelJson: EMPTY_MODEL_JSON,
+            lorasJson: EMPTY_LORAS_JSON,
+        };
+    }
+    const data = await response.json();
+    return {
+        modelJson: String(data?.model_json || EMPTY_MODEL_JSON),
+        lorasJson: String(data?.loras_json || EMPTY_LORAS_JSON),
+    };
+};
+
+const buildApiEvent = (name, detail) => {
+    if (typeof CustomEvent === 'function') {
+        return new CustomEvent(name, { detail });
+    }
+    return { type: name, detail };
+};
+
+const dispatchMetadataOutput = (node, metadata) => {
+    if (typeof api?.dispatchEvent !== 'function') {
+        return;
+    }
+    api.dispatchEvent(
+        buildApiEvent('executed', {
+            node: String(node?.id),
+            output: {
+                model_json: [String(metadata?.modelJson || EMPTY_MODEL_JSON)],
+                loras_json: [String(metadata?.lorasJson || EMPTY_LORAS_JSON)],
+            },
+        })
+    );
+};
+
+const syncMetadataOutputFromPath = async (node, imagePath) => {
+    const token = (Number(node?.__a1111WebpMetadataToken || 0) || 0) + 1;
+    node.__a1111WebpMetadataToken = token;
+    try {
+        const metadata = await fetchMetadataByImagePath(imagePath);
+        if (node?.__a1111WebpMetadataToken !== token) {
+            return;
+        }
+        dispatchMetadataOutput(node, metadata);
+    } catch (_error) {
+        if (node?.__a1111WebpMetadataToken !== token) {
+            return;
+        }
+        dispatchMetadataOutput(node, {
+            modelJson: EMPTY_MODEL_JSON,
+            lorasJson: EMPTY_LORAS_JSON,
+        });
+    }
+};
+
 const ensurePreviewWidget = (node) => {
     if (node.__a1111WebpPreview) {
         return node.__a1111WebpPreview;
@@ -217,6 +319,22 @@ const ensurePreviewWidget = (node) => {
     return node.__a1111WebpPreview;
 };
 
+const attachPreviewLoadSync = (node) => {
+    const preview = ensurePreviewWidget(node);
+    const image = preview?.image;
+    if (!image || image[PREVIEW_IMAGE_LOAD_WRAP_KEY]) {
+        return;
+    }
+
+    const previousOnLoad = typeof image.onload === 'function' ? image.onload : null;
+    image.onload = (event) => {
+        previousOnLoad?.call(image, event);
+        const pathWidget = getWidget(node, PATH_WIDGET_NAME);
+        void syncMetadataOutputFromPath(node, pathWidget?.value);
+    };
+    image[PREVIEW_IMAGE_LOAD_WRAP_KEY] = true;
+};
+
 const attachPathWidgetSync = (node) => {
     const widget = getWidget(node, PATH_WIDGET_NAME);
     if (!widget) {
@@ -225,7 +343,52 @@ const attachPathWidgetSync = (node) => {
     wrapWidgetCallback(widget, PATH_WIDGET_WRAP_KEY, (value) => {
         setPreviewFromPath(node, value);
         markDirty(node);
+        void syncMetadataOutputFromPath(node, value);
     });
+
+    const inputEl = widget.inputEl;
+    if (
+        inputEl &&
+        typeof inputEl.addEventListener === 'function' &&
+        !inputEl[PATH_WIDGET_ENTER_WRAP_KEY]
+    ) {
+        inputEl.addEventListener('keydown', (event) => {
+            const key = event?.key;
+            if (key !== 'Enter') {
+                return;
+            }
+            if (event?.isComposing || key === 'Process' || event?.keyCode === 229) {
+                return;
+            }
+            event?.preventDefault?.();
+            applyWidgetValue(widget, String(inputEl.value ?? ''));
+        });
+        inputEl[PATH_WIDGET_ENTER_WRAP_KEY] = true;
+    }
+};
+
+const attachPreviewDropHandler = (node) => {
+    const preview = ensurePreviewWidget(node);
+    const container = preview?.container;
+    if (!container || container[PREVIEW_DROP_WRAP_KEY] || typeof container.addEventListener !== 'function') {
+        return;
+    }
+
+    container.addEventListener('dragover', (event) => {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        if (event?.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+        }
+    });
+
+    container.addEventListener('drop', (event) => {
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        handleDroppedInput(node, event);
+    });
+
+    container[PREVIEW_DROP_WRAP_KEY] = true;
 };
 
 const syncOutputSlotTypes = (node) => {
@@ -256,28 +419,7 @@ const attachDropHandler = (node) => {
 
     const originalDragDrop = node.onDragDrop;
     node.onDragDrop = function (event) {
-        const file = getDroppedFile(event);
-        if (file) {
-            setPathWidget(this, resolveDroppedPath(file));
-            (async () => {
-                try {
-                    const uploadedPath = await uploadDroppedFile(file);
-                    if (uploadedPath) {
-                        setPathWidget(this, uploadedPath);
-                    }
-                } catch (_error) {
-                    // アップロード失敗時でも入力済みパスを維持して作業を継続させる
-                }
-                markDirty(this);
-            })();
-            markDirty(this);
-            return true;
-        }
-
-        const droppedPath = getDroppedPathFromText(event);
-        if (droppedPath) {
-            setPathWidget(this, droppedPath);
-            markDirty(this);
+        if (handleDroppedInput(this, event)) {
             return true;
         }
         return originalDragDrop?.apply(this, arguments);
@@ -308,10 +450,13 @@ const attachDropHandler = (node) => {
 const setupNode = (node) => {
     syncOutputSlotTypes(node);
     ensurePreviewWidget(node);
+    attachPreviewLoadSync(node);
+    attachPreviewDropHandler(node);
     attachPathWidgetSync(node);
     attachDropHandler(node);
     const pathWidget = getWidget(node, PATH_WIDGET_NAME);
     setPreviewFromPath(node, pathWidget?.value);
+    void syncMetadataOutputFromPath(node, pathWidget?.value);
 };
 
 app.registerExtension({

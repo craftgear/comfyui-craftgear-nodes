@@ -41,18 +41,35 @@ class A1111WebpMetadataReader:
     FUNCTION: ClassVar[str] = 'read'
     CATEGORY: ClassVar[str] = 'craftgear/image'
 
-    def read(self, image_path: str) -> tuple[Any, ...]:
+    def read(self, image_path: str) -> dict[str, Any]:
         parsed = logic.read_and_parse_metadata(image_path)
-        return (
-            str(parsed.get('positive_prompt', '')),
-            str(parsed.get('negative_prompt', '')),
-            str(parsed.get('model', '{"name":"","hash":"","modelVersionId":""}')),
-            str(parsed.get('loras', '[]')),
-            int(parsed.get('steps', 0) or 0),
-            str(parsed.get('sampler', '')),
-            float(parsed.get('cfg_scale', 0.0) or 0.0),
-            int(parsed.get('seed', 0) or 0),
-            str(parsed.get('size', '')),
-            int(parsed.get('clip_skip', 0) or 0),
-            str(parsed.get('raw_parameters', '')),
-        )
+        positive_prompt = str(parsed.get('positive_prompt', ''))
+        negative_prompt = str(parsed.get('negative_prompt', ''))
+        model_json = str(parsed.get('model', '{"name":"","hash":"","modelVersionId":""}'))
+        loras_json = str(parsed.get('loras', '[]'))
+        steps = int(parsed.get('steps', 0) or 0)
+        sampler = str(parsed.get('sampler', ''))
+        cfg_scale = float(parsed.get('cfg_scale', 0.0) or 0.0)
+        seed = int(parsed.get('seed', 0) or 0)
+        size = str(parsed.get('size', ''))
+        clip_skip = int(parsed.get('clip_skip', 0) or 0)
+        raw_parameters = str(parsed.get('raw_parameters', ''))
+        return {
+            'ui': {
+                'model_json': [model_json],
+                'loras_json': [loras_json],
+            },
+            'result': (
+                positive_prompt,
+                negative_prompt,
+                model_json,
+                loras_json,
+                steps,
+                sampler,
+                cfg_scale,
+                seed,
+                size,
+                clip_skip,
+                raw_parameters,
+            ),
+        }

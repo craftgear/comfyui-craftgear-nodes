@@ -2,6 +2,7 @@ import json
 import struct
 import tempfile
 import unittest
+import zlib
 
 from a1111_webp_metadata_reader.logic import metadata_parser as logic
 
@@ -46,6 +47,24 @@ class TestA1111WebpMetadataReaderLogic(unittest.TestCase):
 
         self.assertEqual(text, parameters)
 
+    def test_read_metadata_text_extracts_png_extparameters(self) -> None:
+        if Image is None or PngImagePlugin is None:
+            self.skipTest('Pillow is required')
+        parameters = (
+            'best quality, 1girl, <lora:foo:1>\n'
+            'Negative prompt: low quality\n'
+            'Steps: 20, Sampler: Euler, CFG scale: 7, Seed: 123, Size: 512x768, Clip skip: 2'
+        )
+        pnginfo = PngImagePlugin.PngInfo()
+        pnginfo.add_text('Extparameters', parameters)
+
+        with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
+            image = Image.new('RGB', (1, 1), (255, 255, 255))
+            image.save(tmp.name, pnginfo=pnginfo)
+            text = logic.read_metadata_text(tmp.name)
+
+        self.assertEqual(text, parameters)
+
     def test_read_metadata_text_extracts_jpg_exif_user_comment(self) -> None:
         if Image is None:
             self.skipTest('Pillow is required')
@@ -62,6 +81,43 @@ class TestA1111WebpMetadataReaderLogic(unittest.TestCase):
             image = Image.new('RGB', (1, 1), (255, 255, 255))
             image.save(tmp.name, exif=exif)
             text = logic.read_metadata_text(tmp.name)
+
+        self.assertEqual(text, parameters)
+
+    def test_read_metadata_text_extracts_png_parameters_without_pillow(self) -> None:
+        parameters = (
+            'best quality, 1girl, <lora:test:1>\n'
+            'Negative prompt: low quality\n'
+            'Steps: 20, Sampler: Euler, CFG scale: 7, Seed: 123, Size: 512x768, Clip skip: 2'
+        )
+        original_image = logic.Image
+        logic.Image = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.png') as tmp:
+                tmp.write(_build_png_with_text_chunk('parameters', parameters))
+                tmp.flush()
+                text = logic.read_metadata_text(tmp.name)
+        finally:
+            logic.Image = original_image
+
+        self.assertEqual(text, parameters)
+
+    def test_read_metadata_text_extracts_jpg_exif_without_pillow(self) -> None:
+        parameters = (
+            'best quality, 1girl\n'
+            'Negative prompt: low quality\n'
+            'Steps: 28, Sampler: Euler, CFG scale: 6, Seed: 999, Size: 512x512, Clip skip: 2'
+        )
+        user_comment = b'ASCII\x00\x00\x00' + parameters.encode('utf-8')
+        original_image = logic.Image
+        logic.Image = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.jpg') as tmp:
+                tmp.write(_build_jpeg_with_exif_user_comment(user_comment))
+                tmp.flush()
+                text = logic.read_metadata_text(tmp.name)
+        finally:
+            logic.Image = original_image
 
         self.assertEqual(text, parameters)
 
@@ -146,6 +202,24 @@ class TestA1111WebpMetadataReaderLogic(unittest.TestCase):
             json.dumps([{'name': 'Only Name LoRA', 'hash': '', 'modelVersionId': '33333'}]),
         )
 
+    def test_parse_parameters_extracts_loras_from_tags_and_hashes(self) -> None:
+        parameters = (
+            'best quality, 1girl, <lora:foo-bar:1>, <lora:baz_qux:0.6>\n'
+            'Negative prompt: low quality\n'
+            'Steps: 24, Sampler: Euler a SDE, CFG scale: 6, Seed: 511288647974664, Size: 640x1024, '
+            'Scheduler: beta, Hashes: {"lora:foo-bar": "aabbccdd", "lora:baz_qux": "eeff0011"}'
+        )
+        parsed = logic.parse_a1111_parameters(parameters)
+        self.assertEqual(
+            parsed['loras'],
+            json.dumps(
+                [
+                    {'name': 'foo-bar', 'hash': 'aabbccdd', 'modelVersionId': ''},
+                    {'name': 'baz_qux', 'hash': 'eeff0011', 'modelVersionId': ''},
+                ]
+            ),
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
@@ -203,3 +277,33 @@ def _riff_chunk(fourcc: bytes, payload: bytes) -> bytes:
     if len(payload) % 2 == 1:
         chunk.extend(b'\x00')
     return bytes(chunk)
+
+
+def _build_png_with_text_chunk(keyword: str, text: str) -> bytes:
+    signature = b'\x89PNG\r\n\x1a\n'
+    ihdr = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
+    idat = zlib.compress(b'\x00\x00\x00\x00')
+    text_payload = keyword.encode('latin-1') + b'\x00' + text.encode('utf-8')
+    chunks = (
+        _png_chunk(b'IHDR', ihdr),
+        _png_chunk(b'tEXt', text_payload),
+        _png_chunk(b'IDAT', idat),
+        _png_chunk(b'IEND', b''),
+    )
+    return signature + b''.join(chunks)
+
+
+def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    return (
+        struct.pack('>I', len(data))
+        + chunk_type
+        + data
+        + struct.pack('>I', zlib.crc32(chunk_type + data) & 0xFFFFFFFF)
+    )
+
+
+def _build_jpeg_with_exif_user_comment(comment_payload: bytes) -> bytes:
+    tiff = _build_tiff_with_user_comment(comment_payload)
+    exif_payload = b'Exif\x00\x00' + tiff
+    app1_length = len(exif_payload) + 2
+    return b'\xFF\xD8' + b'\xFF\xE1' + struct.pack('>H', app1_length) + exif_payload + b'\xFF\xD9'

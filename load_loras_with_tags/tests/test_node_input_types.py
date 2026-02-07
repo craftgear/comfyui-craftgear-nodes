@@ -42,6 +42,10 @@ class LoadLorasWithTagsInputTypesTest(unittest.TestCase):
         tags = optional['tags']
         self.assertEqual(tags[0], 'STRING')
         self.assertTrue(tags[1].get('forceInput'))
+        self.assertIn('loras_json', optional)
+        loras_json = optional['loras_json']
+        self.assertEqual(loras_json[0], 'STRING')
+        self.assertTrue(loras_json[1].get('forceInput'))
 
     def test_strength_slider_metadata(self) -> None:
         inputs = load_loras_with_tags_node.LoadLorasWithTags.INPUT_TYPES()

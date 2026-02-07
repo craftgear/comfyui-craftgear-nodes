@@ -143,6 +143,194 @@ class LoadLorasWithTagsApplyTest(unittest.TestCase):
             load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
             load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
 
+    def test_applies_loras_json_when_manual_slots_are_empty(self) -> None:
+        calls = {'load': 0, 'apply': 0, 'paths': []}
+
+        def load_torch_file(*_args, **_kwargs):
+            calls['load'] += 1
+            return {'lora': True}
+
+        def load_lora_for_models(model, clip, *_args, **_kwargs):
+            calls['apply'] += 1
+            return (f'{model}_lora', f'{clip}_lora')
+
+        def get_full_path(_category: str, filename: str) -> str:
+            calls['paths'].append(filename)
+            return f'/tmp/{filename}'
+
+        original_load = load_loras_with_tags_node.comfy.utils.load_torch_file
+        original_apply = load_loras_with_tags_node.comfy.sd.load_lora_for_models
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+        original_collect = load_loras_with_tags_node.collect_lora_names
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.comfy.utils.load_torch_file = load_torch_file
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = load_lora_for_models
+            load_loras_with_tags_node.folder_paths.get_full_path = get_full_path
+            load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: [
+                'foo.safetensors',
+                'bar.safetensors',
+            ]
+            load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+            load_loras_with_tags_node.filter_lora_triggers = lambda triggers, _selection: triggers
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            model, clip, tags = node.apply(
+                'model',
+                'clip',
+                loras_json='[{"name":"foo"},{"name":"bar"}]',
+                tags='alpha',
+            )
+
+            self.assertEqual((model, clip), ('model_lora_lora', 'clip_lora_lora'))
+            self.assertEqual(tags, 'alpha')
+            self.assertEqual(calls['load'], 2)
+            self.assertEqual(calls['apply'], 2)
+            self.assertEqual(calls['paths'], ['foo.safetensors', 'bar.safetensors'])
+        finally:
+            load_loras_with_tags_node.comfy.utils.load_torch_file = original_load
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.collect_lora_names = original_collect
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
+    def test_applies_loras_json_wrapped_array_when_manual_slots_are_empty(self) -> None:
+        calls = {'load': 0, 'apply': 0, 'paths': []}
+
+        def load_torch_file(*_args, **_kwargs):
+            calls['load'] += 1
+            return {'lora': True}
+
+        def load_lora_for_models(model, clip, *_args, **_kwargs):
+            calls['apply'] += 1
+            return (f'{model}_lora', f'{clip}_lora')
+
+        def get_full_path(_category: str, filename: str) -> str:
+            calls['paths'].append(filename)
+            return f'/tmp/{filename}'
+
+        original_load = load_loras_with_tags_node.comfy.utils.load_torch_file
+        original_apply = load_loras_with_tags_node.comfy.sd.load_lora_for_models
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+        original_collect = load_loras_with_tags_node.collect_lora_names
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.comfy.utils.load_torch_file = load_torch_file
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = load_lora_for_models
+            load_loras_with_tags_node.folder_paths.get_full_path = get_full_path
+            load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: [
+                'foo.safetensors',
+                'bar.safetensors',
+            ]
+            load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+            load_loras_with_tags_node.filter_lora_triggers = lambda triggers, _selection: triggers
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            model, clip, tags = node.apply(
+                'model',
+                'clip',
+                loras_json=['[{"name":"foo"},{"name":"bar"}]'],
+                tags='alpha',
+            )
+
+            self.assertEqual((model, clip), ('model_lora_lora', 'clip_lora_lora'))
+            self.assertEqual(tags, 'alpha')
+            self.assertEqual(calls['load'], 2)
+            self.assertEqual(calls['apply'], 2)
+            self.assertEqual(calls['paths'], ['foo.safetensors', 'bar.safetensors'])
+        finally:
+            load_loras_with_tags_node.comfy.utils.load_torch_file = original_load
+            load_loras_with_tags_node.comfy.sd.load_lora_for_models = original_apply
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.collect_lora_names = original_collect
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
+    def test_prioritizes_loras_json_when_manual_slot_is_set(self) -> None:
+        calls: list[str] = []
+
+        def get_full_path(_category: str, filename: str) -> str:
+            calls.append(filename)
+            return f'/tmp/{filename}'
+
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+        original_collect = load_loras_with_tags_node.collect_lora_names
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.folder_paths.get_full_path = get_full_path
+            load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: [
+                'manual.safetensors',
+                'json.safetensors',
+            ]
+            load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+            load_loras_with_tags_node.filter_lora_triggers = lambda triggers, _selection: triggers
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='manual.safetensors',
+                lora_strength_1=0,
+                lora_on_1=True,
+                loras_json='[{"name":"json"}]',
+                tags='alpha',
+            )
+
+            self.assertEqual(tags, 'alpha')
+            self.assertEqual(calls, ['json.safetensors'])
+        finally:
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.collect_lora_names = original_collect
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
+    def test_prioritizes_loras_json_when_manual_slot_is_disabled_with_name(self) -> None:
+        calls: list[str] = []
+
+        def get_full_path(_category: str, filename: str) -> str:
+            calls.append(filename)
+            return f'/tmp/{filename}'
+
+        original_full_path = load_loras_with_tags_node.folder_paths.get_full_path
+        original_collect = load_loras_with_tags_node.collect_lora_names
+        original_extract = load_loras_with_tags_node.extract_lora_triggers
+        original_filter = load_loras_with_tags_node.filter_lora_triggers
+
+        try:
+            load_loras_with_tags_node.folder_paths.get_full_path = get_full_path
+            load_loras_with_tags_node.collect_lora_names = lambda *_args, **_kwargs: [
+                'manual.safetensors',
+                'json.safetensors',
+            ]
+            load_loras_with_tags_node.extract_lora_triggers = lambda *_args, **_kwargs: []
+            load_loras_with_tags_node.filter_lora_triggers = lambda triggers, _selection: triggers
+
+            node = load_loras_with_tags_node.LoadLorasWithTags()
+            _model, _clip, tags = node.apply(
+                'model',
+                'clip',
+                lora_name_1='manual.safetensors',
+                lora_strength_1=0,
+                lora_on_1=False,
+                loras_json='[{"name":"json"}]',
+                tags='alpha',
+            )
+
+            self.assertEqual(tags, 'alpha')
+            self.assertEqual(calls, ['json.safetensors'])
+        finally:
+            load_loras_with_tags_node.folder_paths.get_full_path = original_full_path
+            load_loras_with_tags_node.collect_lora_names = original_collect
+            load_loras_with_tags_node.extract_lora_triggers = original_extract
+            load_loras_with_tags_node.filter_lora_triggers = original_filter
+
     def test_dedupes_extracted_triggers(self) -> None:
         original_extract = load_loras_with_tags_node.extract_lora_triggers
         original_filter = load_loras_with_tags_node.filter_lora_triggers

@@ -1,3 +1,5 @@
+import json
+import os
 from typing import Any, ClassVar
 
 import comfy.sd
@@ -33,6 +35,110 @@ def resolve_lora_name(value: Any, choices: list[str]) -> str:
             return 'None'
         return text
     return 'None'
+
+
+def _normalize_lora_basename(value: Any) -> str:
+    text = '' if value is None else str(value).strip()
+    if not text:
+        return ''
+    normalized = text.replace('\\', '/')
+    return os.path.basename(normalized).strip()
+
+
+def _normalize_lora_stem(value: Any) -> str:
+    basename = _normalize_lora_basename(value)
+    if not basename:
+        return ''
+    stem, _ext = os.path.splitext(basename)
+    return (stem or basename).casefold()
+
+
+def resolve_lora_name_from_metadata(value: Any, choices: list[str]) -> str:
+    text = '' if value is None else str(value).strip()
+    if not text:
+        return ''
+    if text in choices:
+        return text
+
+    target_basename = _normalize_lora_basename(text).casefold()
+    target_stem = _normalize_lora_stem(text)
+    if not target_basename:
+        return ''
+
+    for choice in choices:
+        if choice == 'None':
+            continue
+        if _normalize_lora_basename(choice).casefold() == target_basename:
+            return choice
+
+    for choice in choices:
+        if choice == 'None':
+            continue
+        if _normalize_lora_stem(choice) == target_stem:
+            return choice
+    return ''
+
+
+def parse_loras_json(value: Any) -> list[str]:
+    if value is None:
+        return []
+
+    names: list[str] = []
+    seen: set[str] = set()
+    queue: list[Any] = [value]
+    while queue:
+        item = queue.pop(0)
+        if item is None:
+            continue
+        if isinstance(item, list):
+            queue[0:0] = item
+            continue
+        if isinstance(item, str):
+            text = item.strip()
+            if not text:
+                continue
+            if text.startswith('{') or text.startswith('['):
+                try:
+                    decoded = json.loads(text)
+                except json.JSONDecodeError:
+                    decoded = None
+                if decoded is not None:
+                    if isinstance(decoded, list):
+                        queue[0:0] = decoded
+                    else:
+                        queue.insert(0, decoded)
+                    continue
+            normalized = text.casefold()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            names.append(text)
+            continue
+
+        name = ''
+        if isinstance(item, dict):
+            nested = item.get('loras')
+            if isinstance(nested, list):
+                queue[0:0] = nested
+                continue
+            for key in ('name', 'modelName', 'model'):
+                raw = item.get(key)
+                if raw is None:
+                    continue
+                text = str(raw).strip()
+                if text:
+                    name = text
+                    break
+        else:
+            name = str(item).strip()
+        if not name:
+            continue
+        normalized = name.casefold()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        names.append(name)
+    return names
 
 
 def split_tags(value: Any) -> list[str]:
@@ -116,6 +222,7 @@ class LoadLorasWithTags:
         }
         optional: dict[str, Any] = {
             'tags': ('STRING', {'default': '', 'forceInput': True}),
+            'loras_json': ('STRING', {'default': '[]', 'forceInput': True}),
         }
         for index in range(1, MAX_LORA_STACK + 1):
             required[f'lora_name_{index}'] = (lora_choices,)
@@ -211,17 +318,30 @@ class LoadLorasWithTags:
             folder_paths.supported_pt_extensions,
         )
         lora_choices = ['None'] + lora_choices
+        metadata_jobs: list[tuple[str, Any, str]] = []
+        for raw_name in parse_loras_json(kwargs.get('loras_json', '')):
+            resolved_name = resolve_lora_name_from_metadata(raw_name, lora_choices)
+            if not resolved_name or resolved_name == 'None':
+                continue
+            metadata_jobs.append((resolved_name, 1.0, ''))
 
-        for index in range(1, MAX_LORA_STACK + 1):
-            raw_lora_name = kwargs.get(f'lora_name_{index}', 'None')
-            lora_name = resolve_lora_name(raw_lora_name, lora_choices)
-            lora_strength = kwargs.get(f'lora_strength_{index}', 1.0)
-            lora_on = kwargs.get(f'lora_on_{index}', True)
-            tag_selection = kwargs.get(f'tag_selection_{index}', '')
-            if not lora_on:
-                continue
-            if not lora_name or lora_name == 'None':
-                continue
+        lora_jobs: list[tuple[str, Any, str]] = []
+        if metadata_jobs:
+            lora_jobs = metadata_jobs
+        else:
+            for index in range(1, MAX_LORA_STACK + 1):
+                raw_lora_name = kwargs.get(f'lora_name_{index}', 'None')
+                lora_name = resolve_lora_name(raw_lora_name, lora_choices)
+                lora_strength = kwargs.get(f'lora_strength_{index}', 1.0)
+                lora_on = kwargs.get(f'lora_on_{index}', True)
+                tag_selection = kwargs.get(f'tag_selection_{index}', '')
+                if not lora_on:
+                    continue
+                if not lora_name or lora_name == 'None':
+                    continue
+                lora_jobs.append((lora_name, lora_strength, tag_selection))
+
+        for lora_name, lora_strength, tag_selection in lora_jobs:
             lora_path = folder_paths.get_full_path('loras', lora_name)
             if not lora_path:
                 continue

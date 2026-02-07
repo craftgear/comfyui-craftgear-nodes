@@ -182,6 +182,169 @@ const resolveSameNameLoraIndex = (rawValue, options, fallback = 'None') => {
   return list.findIndex((entry) => extractBasename(entry) === target);
 };
 
+const parseLorasJsonNames = (value) => {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  let parsed = value;
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (!text) {
+      return [];
+    }
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return [];
+    }
+  }
+  const queue = [parsed];
+  const names = [];
+  const seen = new Set();
+  while (queue.length > 0) {
+    const entry = queue.shift();
+    if (entry === undefined || entry === null) {
+      continue;
+    }
+    if (Array.isArray(entry)) {
+      queue.unshift(...entry);
+      continue;
+    }
+    if (typeof entry === 'string') {
+      const text = entry.trim();
+      if (!text) {
+        continue;
+      }
+      if (text.startsWith('{') || text.startsWith('[')) {
+        try {
+          const decoded = JSON.parse(text);
+          if (Array.isArray(decoded)) {
+            queue.unshift(...decoded);
+          } else {
+            queue.unshift(decoded);
+          }
+          continue;
+        } catch {
+          // JSONとして解釈できない文字列は通常の名前として扱う
+        }
+      }
+      const key = text.toLowerCase();
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      names.push(text);
+      continue;
+    }
+
+    let rawName = '';
+    if (entry && typeof entry === 'object') {
+      const nested = entry.loras;
+      if (Array.isArray(nested)) {
+        queue.unshift(...nested);
+        continue;
+      }
+      for (const field of ['name', 'modelName', 'model']) {
+        const candidate = entry[field];
+        if (candidate === undefined || candidate === null) {
+          continue;
+        }
+        const text = String(candidate).trim();
+        if (!text) {
+          continue;
+        }
+        rawName = text;
+        break;
+      }
+    } else {
+      rawName = String(entry).trim();
+    }
+    if (!rawName) {
+      continue;
+    }
+    const key = rawName.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    names.push(rawName);
+  }
+  return names;
+};
+
+const resolveAutoLoraLabels = (rawNames, options, maxCount) => {
+  const list = normalizeOptions(options);
+  if (!Array.isArray(rawNames) || rawNames.length === 0 || list.length === 0) {
+    return [];
+  }
+  const max = Number.isFinite(maxCount) ? Math.max(0, Math.trunc(maxCount)) : list.length;
+  if (max === 0) {
+    return [];
+  }
+  const labels = [];
+  const seen = new Set();
+  const resolveByStem = (rawName) => {
+    const text = String(rawName ?? '').trim();
+    if (!text) {
+      return -1;
+    }
+    const normalized = text.replace(/\\/g, '/');
+    const basename = normalized.includes('/')
+      ? normalized.slice(normalized.lastIndexOf('/') + 1)
+      : normalized;
+    const stem = basename.includes('.') ? basename.slice(0, basename.lastIndexOf('.')) : basename;
+    if (!stem) {
+      return -1;
+    }
+    return list.findIndex((entry) => {
+      const optionText = String(entry ?? '');
+      if (!optionText || optionText === 'None') {
+        return false;
+      }
+      const optionStem = optionText.includes('.')
+        ? optionText.slice(0, optionText.lastIndexOf('.'))
+        : optionText;
+      return optionStem === stem;
+    });
+  };
+  rawNames.forEach((rawName) => {
+    if (labels.length >= max) {
+      return;
+    }
+    let index = resolveSameNameLoraIndex(rawName, list);
+    if (!Number.isFinite(index) || index < 0 || index >= list.length) {
+      index = resolveByStem(rawName);
+    }
+    if (!Number.isFinite(index) || index < 0 || index >= list.length) {
+      return;
+    }
+    const label = String(list[index] ?? '');
+    if (!label || label === 'None') {
+      return;
+    }
+    const key = label.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    labels.push(label);
+  });
+  return labels;
+};
+
+const shouldApplyAutoLoraFill = (currentFilledLabels, previousAutoLabels) => {
+  if (!Array.isArray(currentFilledLabels) || currentFilledLabels.length === 0) {
+    return true;
+  }
+  if (!Array.isArray(previousAutoLabels)) {
+    return false;
+  }
+  if (currentFilledLabels.length !== previousAutoLabels.length) {
+    return false;
+  }
+  return currentFilledLabels.every((label, index) => label === previousAutoLabels[index]);
+};
+
 const resolveComboLabel = (rawValue, options, fallback = "None") => {
   const list = normalizeOptions(options);
   if (list.length === 0) {
@@ -1229,6 +1392,9 @@ export {
   resolveOption,
   resolveNoneOptionIndex,
   resolveSameNameLoraIndex,
+  parseLorasJsonNames,
+  resolveAutoLoraLabels,
+  shouldApplyAutoLoraFill,
   loraDialogSelectedIconPath,
   loraDialogSelectedIconSize,
   loraDialogOpenFolderIconPath,
