@@ -13,6 +13,19 @@ const PATH_WIDGET_NAME = 'image_path';
 const PATH_WIDGET_WRAP_KEY = '__a1111WebpPathWidgetWrapped';
 const PREVIEW_WIDGET_NAME = 'image_preview';
 const PREVIEW_WIDGET_HEIGHT = 220;
+const OUTPUT_TYPES = [
+    'STRING',
+    'STRING',
+    'STRING',
+    'STRING',
+    'INT',
+    'STRING',
+    'FLOAT',
+    'INT',
+    'STRING',
+    'INT',
+    'STRING',
+];
 
 const getNodeClass = (node) => node?.comfyClass || node?.type || '';
 const isTargetNode = (node) => getNodeClass(node) === TARGET_NODE_CLASS;
@@ -215,6 +228,17 @@ const attachPathWidgetSync = (node) => {
     });
 };
 
+const syncOutputSlotTypes = (node) => {
+    const outputs = Array.isArray(node?.outputs) ? node.outputs : [];
+    outputs.forEach((output, index) => {
+        const expectedType = OUTPUT_TYPES[index];
+        if (!expectedType || !output) {
+            return;
+        }
+        output.type = expectedType;
+    });
+};
+
 const attachDropHandler = (node) => {
     if (node.__a1111WebpDropHandlerAttached) {
         return;
@@ -282,6 +306,7 @@ const attachDropHandler = (node) => {
 };
 
 const setupNode = (node) => {
+    syncOutputSlotTypes(node);
     ensurePreviewWidget(node);
     attachPathWidgetSync(node);
     attachDropHandler(node);

@@ -53,7 +53,9 @@ class RootInitTest(unittest.TestCase):
         spec.loader.exec_module(module)
 
         self.assertIn('A1111MetadataWriter', module.NODE_CLASS_MAPPINGS)
+        self.assertIn('A1111WebpMetadataReader', module.NODE_CLASS_MAPPINGS)
         self.assertIn('A1111MetadataWriter', module.NODE_DISPLAY_NAME_MAPPINGS)
+        self.assertIn('A1111WebpMetadataReader', module.NODE_DISPLAY_NAME_MAPPINGS)
 
     def test_run_root_init(self) -> None:
         sys.modules['server'] = types.SimpleNamespace(

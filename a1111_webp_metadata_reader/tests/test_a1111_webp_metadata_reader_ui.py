@@ -5,6 +5,24 @@ from a1111_webp_metadata_reader.ui.node import A1111WebpMetadataReader
 
 
 class TestA1111WebpMetadataReaderUi(unittest.TestCase):
+    def test_return_names_use_json_suffix(self) -> None:
+        self.assertEqual(
+            A1111WebpMetadataReader.RETURN_NAMES,
+            (
+                'positive_prompt',
+                'negative_prompt',
+                'model json',
+                'loras json',
+                'steps',
+                'sampler',
+                'cfg_scale',
+                'seed',
+                'size',
+                'clip_skip',
+                'raw_parameters',
+            ),
+        )
+
     def test_read_returns_parsed_values(self) -> None:
         reader = A1111WebpMetadataReader()
         payload = {

@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "lint": "oxlint .",
+    "lint": "oxlint . --ignore-pattern node_modules",
     "format": "prettier -w ."
   },
   "devDependencies": {

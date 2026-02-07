@@ -28,8 +28,8 @@ class A1111WebpMetadataReader:
     RETURN_NAMES: ClassVar[tuple[str, ...]] = (
         'positive_prompt',
         'negative_prompt',
-        'model',
-        'loras',
+        'model json',
+        'loras json',
         'steps',
         'sampler',
         'cfg_scale',

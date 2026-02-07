@@ -40,6 +40,19 @@ const createNode = () => {
   return {
     comfyClass: 'A1111WebpMetadataReader',
     widgets: [pathWidget],
+    outputs: [
+      { name: 'positive_prompt', type: '*' },
+      { name: 'negative_prompt', type: '*' },
+      { name: 'model', type: '*' },
+      { name: 'loras', type: '*' },
+      { name: 'steps', type: '*' },
+      { name: 'sampler', type: '*' },
+      { name: 'cfg_scale', type: '*' },
+      { name: 'seed', type: '*' },
+      { name: 'size', type: '*' },
+      { name: 'clip_skip', type: '*' },
+      { name: 'raw_parameters', type: '*' },
+    ],
     domWidgets,
     size: [280, 120],
     computeSize: () => [280, 300],
@@ -101,5 +114,25 @@ describe('A1111WebpMetadataReader node', () => {
     expect(previewImage.src).toContain('filename=sample.webp');
     expect(previewImage.src).toContain('subfolder=input');
     expect(previewImage.src).toContain('type=input');
+  });
+
+  it('出力スロット型をRETURN_TYPESに同期する', async () => {
+    const extension = await loadExtension();
+    const node = createNode();
+    extension.nodeCreated(node);
+
+    expect(node.outputs.map((output) => output.type)).toEqual([
+      'STRING',
+      'STRING',
+      'STRING',
+      'STRING',
+      'INT',
+      'STRING',
+      'FLOAT',
+      'INT',
+      'STRING',
+      'INT',
+      'STRING',
+    ]);
   });
 });
