@@ -11,6 +11,8 @@ import {
   checkpointDialogPreviewWidth,
   checkpointDialogWidth,
   getCheckpointHighlightSegments,
+  isMissingCheckpointOption,
+  missingCheckpointLabelColor,
   resolveZoomBackgroundPosition,
   resolveCheckpointDialogItemBackground,
 } from '../web/checkpoint_selector/js/checkpointSelectorUiUtils.js';
@@ -49,6 +51,24 @@ describe('CheckpointSelector dialog row styling', () => {
 
   it('uses transparent background by default', () => {
     expect(resolveCheckpointDialogItemBackground(false, false)).toBe('transparent');
+  });
+});
+
+describe('CheckpointSelector missing label style', () => {
+  it('detects missing checkpoint when option list does not include current value', () => {
+    expect(
+      isMissingCheckpointOption('missing-model.safetensors', ['', 'modelA.safetensors']),
+    ).toBe(true);
+  });
+
+  it('does not detect missing checkpoint when value exists in options', () => {
+    expect(
+      isMissingCheckpointOption('modelA.safetensors', ['', 'modelA.safetensors']),
+    ).toBe(false);
+  });
+
+  it('exposes missing checkpoint label color', () => {
+    expect(missingCheckpointLabelColor).toBe('#ff4d4d');
   });
 });
 

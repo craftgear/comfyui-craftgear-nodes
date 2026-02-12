@@ -1,6 +1,7 @@
 import sys
 import types
 import unittest
+import json
 
 # Stub external modules used by the node
 folder_paths = types.SimpleNamespace(
@@ -69,6 +70,23 @@ class CheckpointSelectorNodeTest(unittest.TestCase):
         result = CheckpointSelector.VALIDATE_INPUTS(ckpt_name_1='', slot_active_1=True)
         self.assertIsInstance(result, str)
         self.assertIn('Checkpoint not selected', result)
+
+    def test_input_types_has_model_json_optional(self) -> None:
+        input_types = CheckpointSelector.INPUT_TYPES()
+        optional = input_types.get('optional', {})
+        self.assertIn('model_json', optional)
+        model_json = optional['model_json']
+        self.assertEqual(model_json[0], 'STRING')
+        self.assertTrue(model_json[1].get('forceInput'))
+
+    def test_load_checkpoint_prioritizes_model_json(self) -> None:
+        node = CheckpointSelector()
+        node.load_checkpoint(
+            ckpt_name_1='ckptA.safetensors',
+            slot_active_1=True,
+            model_json=json.dumps({'name': 'ckptB.safetensors'}),
+        )
+        self.assertEqual(comfy_sd_calls[-1]["args"][0], "/tmp/ckptB.safetensors")
 
 
 if __name__ == '__main__':

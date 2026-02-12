@@ -28,6 +28,8 @@ import {
   resolveCheckpointRowLabelFont,
   resolveRowBackground,
   resolveCheckpointLabel,
+  isMissingCheckpointOption,
+  missingCheckpointLabelColor,
   resolveZoomBackgroundPosition,
   resolveCheckpointFontSizes,
   resolveSelectedCheckpointLabels,
@@ -52,7 +54,296 @@ const MIN_NODE_HEIGHT = 60;
 const LABEL_RADIUS = 6;
 const LABEL_TEXT_PADDING_X = 6;
 const LABEL_TEXT_PADDING_Y = 2;
+const MODEL_JSON_INPUT_NAME = 'model_json';
+const MODEL_JSON_INPUT_TYPE = 'STRING';
+const checkpointAutoFillTargetNodes = new Set();
+let checkpointAutoFillApiEventHooked = false;
 let dialogKeydownHandler = null;
+
+const normalizeNodeId = (value) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  return String(value);
+};
+
+const resolveGraphLinkIdCandidates = (linkId) => {
+  if (linkId === undefined || linkId === null) {
+    return [];
+  }
+  const values = [];
+  const seen = new Set();
+  const push = (value) => {
+    const key = String(value);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    values.push(value);
+  };
+  if (typeof linkId === 'number' && Number.isFinite(linkId) && linkId >= 0) {
+    const normalized = Math.trunc(linkId);
+    push(normalized);
+    push(String(normalized));
+    return values;
+  }
+  if (typeof linkId === 'string') {
+    const text = linkId.trim();
+    if (!text) {
+      return [];
+    }
+    push(text);
+    const parsed = Number(text);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      const normalized = Math.trunc(parsed);
+      push(normalized);
+      push(String(normalized));
+    }
+    return values;
+  }
+  return [];
+};
+
+const getGraphLink = (linkId) => {
+  const links = app?.graph?.links;
+  if (!links) {
+    return null;
+  }
+  const candidates = resolveGraphLinkIdCandidates(linkId);
+  if (candidates.length === 0) {
+    return null;
+  }
+  for (const candidate of candidates) {
+    const resolved = links[candidate];
+    if (resolved !== undefined && resolved !== null) {
+      return resolved;
+    }
+  }
+  return null;
+};
+
+const resolveNodeOutputStore = () => app?.nodeOutputs || app?.graph?.nodeOutputs || null;
+
+const parseModelJsonName = (value) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  const queue = [value];
+  while (queue.length > 0) {
+    const entry = queue.shift();
+    if (entry === undefined || entry === null) {
+      continue;
+    }
+    if (Array.isArray(entry)) {
+      queue.unshift(...entry);
+      continue;
+    }
+    if (typeof entry === 'string') {
+      const text = entry.trim();
+      if (!text) {
+        continue;
+      }
+      if (text.startsWith('{') || text.startsWith('[')) {
+        try {
+          const decoded = JSON.parse(text);
+          if (Array.isArray(decoded)) {
+            queue.unshift(...decoded);
+          } else {
+            queue.unshift(decoded);
+          }
+          continue;
+        } catch {
+          return text;
+        }
+      }
+      return text;
+    }
+    if (typeof entry === 'object') {
+      for (const key of ['name', 'modelName', 'model', 'checkpoint', 'ckpt_name']) {
+        const candidate = entry[key];
+        if (candidate === undefined || candidate === null) {
+          continue;
+        }
+        const text = String(candidate).trim();
+        if (text) {
+          return text;
+        }
+      }
+      const nested = entry.model;
+      if (nested && typeof nested === 'object') {
+        queue.unshift(nested);
+      }
+      continue;
+    }
+    const text = String(entry).trim();
+    if (text) {
+      return text;
+    }
+  }
+  return '';
+};
+
+const normalizeCheckpointBasename = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) {
+    return '';
+  }
+  const normalized = text.replaceAll('\\', '/');
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || normalized;
+};
+
+const normalizeCheckpointStem = (value) => {
+  const basename = normalizeCheckpointBasename(value);
+  if (!basename) {
+    return '';
+  }
+  const dot = basename.lastIndexOf('.');
+  const stem = dot > 0 ? basename.slice(0, dot) : basename;
+  return stem.toLowerCase();
+};
+
+const resolveCheckpointFromModelJson = (rawValue, options) => {
+  const list = Array.isArray(options) ? options : [];
+  const name = parseModelJsonName(rawValue);
+  if (!name) {
+    return '';
+  }
+  if (list.includes(name)) {
+    return name;
+  }
+  const targetBasename = normalizeCheckpointBasename(name).toLowerCase();
+  const targetStem = normalizeCheckpointStem(name);
+  if (!targetBasename) {
+    return '';
+  }
+  for (const option of list) {
+    if (!option) {
+      continue;
+    }
+    if (normalizeCheckpointBasename(option).toLowerCase() === targetBasename) {
+      return option;
+    }
+  }
+  for (const option of list) {
+    if (!option) {
+      continue;
+    }
+    if (normalizeCheckpointStem(option) === targetStem) {
+      return option;
+    }
+  }
+  return name;
+};
+
+const resolveModelJsonFromExecutionOutput = (output, originSlot = null) => {
+  if (output === undefined || output === null) {
+    return null;
+  }
+  const candidates = [];
+  if (Array.isArray(output)) {
+    if (Number.isFinite(originSlot)) {
+      candidates.push(output[Math.trunc(originSlot)]);
+    }
+    candidates.push(output[0]);
+  } else if (output && typeof output === 'object') {
+    if (Number.isFinite(originSlot)) {
+      const slotKey = String(Math.trunc(originSlot));
+      if (slotKey in output) {
+        candidates.push(output[slotKey]);
+      }
+    }
+    for (const key of ['model_json', 'model json', 'modelJson', 'text']) {
+      if (key in output) {
+        candidates.push(output[key]);
+      }
+    }
+    if (Array.isArray(output.result)) {
+      if (Number.isFinite(originSlot)) {
+        candidates.push(output.result[Math.trunc(originSlot)]);
+      }
+      candidates.push(output.result[0]);
+    }
+  } else {
+    candidates.push(output);
+  }
+  for (const candidate of candidates) {
+    if (candidate === undefined || candidate === null) {
+      continue;
+    }
+    const parsed = parseModelJsonName(candidate);
+    if (!parsed) {
+      continue;
+    }
+    return candidate;
+  }
+  return null;
+};
+
+const ensureModelJsonAutoFillEventHook = () => {
+  if (checkpointAutoFillApiEventHooked) {
+    return;
+  }
+  if (typeof api?.addEventListener !== 'function') {
+    return;
+  }
+  checkpointAutoFillApiEventHooked = true;
+
+  const dispatchOutput = (sourceNodeId, output) => {
+    const normalizedSourceId = normalizeNodeId(sourceNodeId);
+    if (!normalizedSourceId) {
+      return;
+    }
+    checkpointAutoFillTargetNodes.forEach((targetNode) => {
+      if (!targetNode) {
+        return;
+      }
+      const sourceInfo = targetNode.__checkpointResolveModelJsonSource?.();
+      if (!sourceInfo) {
+        return;
+      }
+      if (normalizeNodeId(sourceInfo.nodeId) !== normalizedSourceId) {
+        return;
+      }
+      targetNode.__checkpointSyncAutoFromOutput?.(output, sourceInfo.slot);
+    });
+  };
+
+  api.addEventListener('executed', (event) => {
+    const detail = event?.detail ?? {};
+    const sourceNodeId = detail?.node ?? detail?.display_node;
+    dispatchOutput(sourceNodeId, detail?.output);
+  });
+
+  api.addEventListener('execution_cached', (event) => {
+    const detail = event?.detail ?? {};
+    const cachedNodes = Array.isArray(detail?.nodes)
+      ? detail.nodes.map((nodeId) => normalizeNodeId(nodeId))
+      : [];
+    if (cachedNodes.length === 0) {
+      return;
+    }
+    const outputs = resolveNodeOutputStore();
+    if (!outputs || typeof outputs !== 'object') {
+      return;
+    }
+    checkpointAutoFillTargetNodes.forEach((targetNode) => {
+      if (!targetNode) {
+        return;
+      }
+      const sourceInfo = targetNode.__checkpointResolveModelJsonSource?.();
+      const sourceNodeId = normalizeNodeId(sourceInfo?.nodeId);
+      if (!sourceNodeId || !cachedNodes.includes(sourceNodeId)) {
+        return;
+      }
+      const output = outputs[sourceNodeId] ?? outputs[Number(sourceNodeId)];
+      if (output === undefined || output === null) {
+        return;
+      }
+      targetNode.__checkpointSyncAutoFromOutput?.(output, sourceInfo.slot);
+    });
+  });
+};
 
 export const releaseCanvasInteraction = () => {
   const canvas = app?.canvas || globalThis?.app?.canvas;
@@ -286,10 +577,16 @@ const createRowWidget = (slot, state) => {
       ctx.fill();
       ctx.strokeStyle = '#3a3a3a';
       ctx.stroke();
-      ctx.fillStyle = active ? '#eaf0ff' : '#d0d0d0';
+      const label = resolveCheckpointLabel(slot.ckptWidget?.value);
+      const options = getCheckpointOptions(slot.ckptWidget);
+      const isMissing = isMissingCheckpointOption(slot.ckptWidget?.value, options);
+      ctx.fillStyle = isMissing
+        ? missingCheckpointLabelColor
+        : active
+          ? '#eaf0ff'
+          : '#d0d0d0';
       ctx.font = resolveCheckpointRowLabelFont(active, fontSize);
       ctx.textBaseline = 'middle';
-      const label = resolveCheckpointLabel(slot.ckptWidget?.value);
       const textX = labelRect.x + LABEL_TEXT_PADDING_X;
       const maxTextWidth = Math.max(0, labelRect.width - LABEL_TEXT_PADDING_X * 2);
       ctx.fillText(
@@ -1116,6 +1413,12 @@ const setupNode = (node) => {
   if (!isTargetNode(node) || node.__checkpointSelectorReady) {
     return;
   }
+  const hasModelJsonInput = Array.isArray(node?.inputs)
+    && node.inputs.some((input) => input?.name === MODEL_JSON_INPUT_NAME);
+  if (!hasModelJsonInput && typeof node?.addInput === 'function') {
+    // 旧定義から復元されたノードでも入力連携を維持するため補完する
+    node.addInput(MODEL_JSON_INPUT_NAME, MODEL_JSON_INPUT_TYPE);
+  }
   const slots = buildSlots(node);
   if (slots.length === 0) {
     return;
@@ -1125,6 +1428,100 @@ const setupNode = (node) => {
     node,
     slots,
   };
+
+  const resolveConnectedInputData = (inputName) => {
+    const inputs = Array.isArray(node?.inputs) ? node.inputs : [];
+    const inputIndex = inputs.findIndex((input) => input?.name === inputName);
+    if (inputIndex < 0) {
+      return null;
+    }
+    if (typeof node?.getInputData === 'function') {
+      try {
+        const inputData = node.getInputData(inputIndex);
+        if (inputData !== undefined && inputData !== null) {
+          return inputData;
+        }
+      } catch {
+        // getInputData未対応のノード互換としてリンク経由を利用
+      }
+    }
+    const target = inputs[inputIndex];
+    const link = getGraphLink(target?.link);
+    if (!link || !('data' in link)) {
+      return null;
+    }
+    return link.data;
+  };
+
+  const resolveConnectedSourceInfo = (inputName) => {
+    const inputs = Array.isArray(node?.inputs) ? node.inputs : [];
+    const target = inputs.find((input) => input?.name === inputName);
+    if (!target) {
+      return null;
+    }
+    const link = getGraphLink(target?.link);
+    if (!link) {
+      return null;
+    }
+    const nodeId = normalizeNodeId(link.origin_id);
+    if (!nodeId) {
+      return null;
+    }
+    const slot = Number.isFinite(link.origin_slot) ? Math.trunc(link.origin_slot) : null;
+    return { nodeId, slot };
+  };
+
+  const syncAutoCheckpointFromRawInput = (rawInput) => {
+    const firstSlot = slots[0];
+    if (!firstSlot?.ckptWidget) {
+      return false;
+    }
+    const options = getCheckpointOptions(firstSlot.ckptWidget);
+    const resolved = resolveCheckpointFromModelJson(rawInput, options);
+    if (!resolved) {
+      return false;
+    }
+
+    let changed = false;
+    slots.forEach((slot, index) => {
+      const targetLabel = index === 0 ? resolved : '';
+      const targetActive = index === 0;
+      if (slot.ckptWidget?.value !== targetLabel) {
+        setWidgetValue(slot.ckptWidget, targetLabel);
+        slot.ckptWidget.value = targetLabel;
+        if ('last_value' in slot.ckptWidget) {
+          slot.ckptWidget.last_value = targetLabel;
+        }
+        changed = true;
+      }
+      if (!!slot.activeWidget?.value !== targetActive) {
+        setWidgetValue(slot.activeWidget, targetActive);
+        slot.activeWidget.value = targetActive;
+        changed = true;
+      }
+    });
+    if (!changed) {
+      return false;
+    }
+    updateVisibleSlots(state);
+    resizeNodeToRows(state);
+    markDirty(node);
+    return true;
+  };
+
+  const syncAutoCheckpointFromConnectedInput = () => {
+    const rawInput = resolveConnectedInputData(MODEL_JSON_INPUT_NAME);
+    return syncAutoCheckpointFromRawInput(rawInput);
+  };
+
+  const syncAutoCheckpointFromExecutionOutput = (output, originSlot = null) => {
+    const rawInput = resolveModelJsonFromExecutionOutput(output, originSlot);
+    if (rawInput === undefined || rawInput === null) {
+      return false;
+    }
+    return syncAutoCheckpointFromRawInput(rawInput);
+  };
+
   slots.forEach((slot) => {
     ensureEmptyOption(slot.ckptWidget);
   });
@@ -1183,11 +1580,52 @@ const setupNode = (node) => {
           node.__checkpointSelectorSavedValues = null;
         }
       }
-      return originalConfigure?.apply(this, arguments);
+      const result = originalConfigure?.apply(this, arguments);
+      queueMicrotask(() => {
+        syncAutoCheckpointFromConnectedInput();
+      });
+      return result;
+    };
+  }
+
+  if (!node.__checkpointSelectorExecutedWrapped) {
+    node.__checkpointSelectorExecutedWrapped = true;
+    const originalOnExecuted = node.onExecuted;
+    node.onExecuted = function (output) {
+      const result = originalOnExecuted?.apply(this, arguments);
+      syncAutoCheckpointFromConnectedInput();
+      return result;
+    };
+  }
+
+  if (!node.__checkpointSelectorConnectionsWrapped) {
+    node.__checkpointSelectorConnectionsWrapped = true;
+    const originalConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function () {
+      const result = originalConnectionsChange?.apply(this, arguments);
+      syncAutoCheckpointFromConnectedInput();
+      return result;
+    };
+  }
+
+  node.__checkpointResolveModelJsonSource = () =>
+    resolveConnectedSourceInfo(MODEL_JSON_INPUT_NAME);
+  node.__checkpointSyncAutoFromOutput = (output, originSlot = null) =>
+    syncAutoCheckpointFromExecutionOutput(output, originSlot);
+  checkpointAutoFillTargetNodes.add(node);
+  ensureModelJsonAutoFillEventHook();
+
+  if (!node.__checkpointSelectorRemovedWrapped) {
+    node.__checkpointSelectorRemovedWrapped = true;
+    const originalOnRemoved = node.onRemoved;
+    node.onRemoved = function () {
+      checkpointAutoFillTargetNodes.delete(node);
+      return originalOnRemoved?.apply(this, arguments);
     };
   }
 
   node.__checkpointSelectorReady = true;
+  syncAutoCheckpointFromConnectedInput();
   markDirty(node);
 };
 

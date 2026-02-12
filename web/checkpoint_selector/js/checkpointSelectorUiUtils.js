@@ -10,6 +10,7 @@ const CHECKPOINT_DIALOG_MATCH_TEXT_COLOR = '#f2d28b';
 const CHECKPOINT_DIALOG_MATCH_FONT_WEIGHT = '600';
 const CHECKPOINT_MIN_FONT_SIZE = 8;
 export const CHECKPOINT_ACTIVE_RADIO_COLOR = '#ffffff';
+const MISSING_CHECKPOINT_LABEL_COLOR = '#ff4d4d';
 const checkpointDialogSelectedIconPath =
   'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0M9 12l2 2l4 -4';
 const checkpointDialogSelectedIconSize = 19.2;
@@ -203,6 +204,44 @@ export const resolveCheckpointLabel = (raw) => {
   return text;
 };
 
+const resolveCheckpointRawLabel = (raw) => {
+  if (raw === undefined || raw === null) {
+    return '';
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return '';
+  }
+  if (raw && typeof raw === 'object') {
+    if ('value' in raw) {
+      return String(raw.value ?? '').trim();
+    }
+    if ('name' in raw) {
+      return String(raw.name ?? '').trim();
+    }
+  }
+  return String(raw).trim();
+};
+
+export const isMissingCheckpointOption = (rawValue, options) => {
+  const label = resolveCheckpointRawLabel(rawValue);
+  if (!label || label === 'None') {
+    return false;
+  }
+  const list = Array.isArray(options) ? options : [];
+  if (list.length === 0) {
+    return false;
+  }
+  if (label.match(/^\d+$/)) {
+    const index = Number(label);
+    if (Number.isFinite(index) && index >= 0 && index < list.length) {
+      return false;
+    }
+  }
+  return !list.includes(label);
+};
+
+export const missingCheckpointLabelColor = MISSING_CHECKPOINT_LABEL_COLOR;
+
 export const resolveCheckpointFontSizes = (value) => {
   const normalized = normalizeCheckpointFontSize(value);
   const safeBase = Math.max(CHECKPOINT_MIN_FONT_SIZE, Math.round(normalized));
@@ -286,6 +325,7 @@ export const updateVisibleSlots = (state) => {
 export {
   CHECKPOINT_DIALOG_MATCH_TEXT_COLOR,
   CHECKPOINT_DIALOG_MATCH_FONT_WEIGHT,
+  MISSING_CHECKPOINT_LABEL_COLOR,
   checkpointDialogSelectedIconPath,
   checkpointDialogSelectedIconSize,
   checkpointDialogOpenFolderIconPath,
