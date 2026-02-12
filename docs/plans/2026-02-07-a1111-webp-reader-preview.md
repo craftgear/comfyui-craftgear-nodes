@@ -14,8 +14,8 @@
 
 **Files:**
 - Modify: `tests/a1111WebpMetadataReaderUtils.test.mjs`
-- Modify: `web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderUtils.js`
-- Reference: `web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderNode.js`
+- Modify: `web/a1111_metadata_reader/js/a1111WebpMetadataReaderUtils.js`
+- Reference: `web/a1111_metadata_reader/js/a1111WebpMetadataReaderNode.js`
 
 **Step 1: Write the failing test**
 
@@ -23,7 +23,7 @@
 import {
   applyWidgetValue,
   wrapWidgetCallback,
-} from '../web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderUtils.js';
+} from '../web/a1111_metadata_reader/js/a1111WebpMetadataReaderUtils.js';
 
 it('applyWidgetValue は callback を呼んで値変更を通知する', () => {
   const calls = [];
@@ -87,14 +87,14 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add tests/a1111WebpMetadataReaderUtils.test.mjs web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderUtils.js
+git add tests/a1111WebpMetadataReaderUtils.test.mjs web/a1111_metadata_reader/js/a1111WebpMetadataReaderUtils.js
 git commit -m "test: add widget sync helpers for webp reader preview"
 ```
 
 ### Task 2: ノード内プレビューを `image_path` 変更へ追従
 
 **Files:**
-- Modify: `web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderNode.js`
+- Modify: `web/a1111_metadata_reader/js/a1111WebpMetadataReaderNode.js`
 - Modify: `tests/a1111WebpMetadataReaderUtils.test.mjs`
 
 **Step 1: Write the failing test**
@@ -159,15 +159,15 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderNode.js tests/a1111WebpMetadataReaderUtils.test.mjs
+git add web/a1111_metadata_reader/js/a1111WebpMetadataReaderNode.js tests/a1111WebpMetadataReaderUtils.test.mjs
 git commit -m "feat: sync webp reader preview with image_path updates"
 ```
 
 ### Task 3: 実行結果の `ui.images` プレビュー追加（Python）
 
 **Files:**
-- Modify: `a1111_webp_metadata_reader/ui/node.py`
-- Modify: `a1111_webp_metadata_reader/tests/test_a1111_webp_metadata_reader_ui.py`
+- Modify: `a1111_metadata_reader/ui/node.py`
+- Modify: `a1111_metadata_reader/tests/test_a1111_metadata_reader_ui.py`
 
 **Step 1: Write the failing test**
 
@@ -187,7 +187,7 @@ def test_read_returns_ui_images_for_relative_input_path(self) -> None:
         'clip_skip': 1,
         'raw_parameters': 'raw',
     }
-    with mock.patch('a1111_webp_metadata_reader.ui.node.logic.read_and_parse_metadata', return_value=payload):
+    with mock.patch('a1111_metadata_reader.ui.node.logic.read_and_parse_metadata', return_value=payload):
         result = reader.read('nested/sample.webp')
     self.assertEqual(result['ui']['images'], [{'filename': 'sample.webp', 'subfolder': 'nested', 'type': 'input'}])
 
@@ -197,7 +197,7 @@ def test_build_input_preview_payload_rejects_empty_path(self) -> None:
 
 **Step 2: Run test to verify it fails**
 
-Run: `python -m unittest a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_ui -v`  
+Run: `python -m unittest a1111_metadata_reader.tests.test_a1111_metadata_reader_ui -v`  
 Expected: FAIL with `tuple indices must be integers` または `_build_input_preview_payload is not defined`
 
 **Step 3: Write minimal implementation**
@@ -240,24 +240,24 @@ def _build_result(parsed: dict[str, Any], preview: dict[str, str] | None) -> dic
 
 **Step 4: Run test to verify it passes**
 
-Run: `python -m unittest a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_ui -v`  
+Run: `python -m unittest a1111_metadata_reader.tests.test_a1111_metadata_reader_ui -v`  
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-git add a1111_webp_metadata_reader/ui/node.py a1111_webp_metadata_reader/tests/test_a1111_webp_metadata_reader_ui.py
+git add a1111_metadata_reader/ui/node.py a1111_metadata_reader/tests/test_a1111_metadata_reader_ui.py
 git commit -m "feat: return input preview payload from webp metadata reader"
 ```
 
 ### Task 4: 回帰確認とUI実機検証
 
 **Files:**
-- Verify: `web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderNode.js`
-- Verify: `a1111_webp_metadata_reader/ui/node.py`
+- Verify: `web/a1111_metadata_reader/js/a1111WebpMetadataReaderNode.js`
+- Verify: `a1111_metadata_reader/ui/node.py`
 - Verify: `tests/a1111WebpMetadataReaderUtils.test.mjs`
-- Verify: `a1111_webp_metadata_reader/tests/test_a1111_webp_metadata_reader_logic.py`
-- Verify: `a1111_webp_metadata_reader/tests/test_a1111_webp_metadata_reader_ui.py`
+- Verify: `a1111_metadata_reader/tests/test_a1111_metadata_reader_logic.py`
+- Verify: `a1111_metadata_reader/tests/test_a1111_metadata_reader_ui.py`
 
 **Step 1: Write the failing test**
 
@@ -269,7 +269,7 @@ Run:
 
 ```bash
 pnpm test tests/a1111WebpMetadataReaderUtils.test.mjs
-python -m unittest a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_logic a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_ui -v
+python -m unittest a1111_metadata_reader.tests.test_a1111_metadata_reader_logic a1111_metadata_reader.tests.test_a1111_metadata_reader_ui -v
 ```
 
 Expected: PASS
@@ -287,7 +287,7 @@ Run:
 
 ```bash
 pnpm test tests/a1111WebpMetadataReaderUtils.test.mjs
-python -m unittest a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_logic a1111_webp_metadata_reader.tests.test_a1111_webp_metadata_reader_ui -v
+python -m unittest a1111_metadata_reader.tests.test_a1111_metadata_reader_logic a1111_metadata_reader.tests.test_a1111_metadata_reader_ui -v
 ```
 
 Expected: PASS

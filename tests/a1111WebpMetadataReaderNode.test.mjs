@@ -26,7 +26,7 @@ vi.mock('../../../../scripts/api.js', () => ({
 const loadExtension = async () => {
   registerExtension.mockClear();
   vi.resetModules();
-  await import('../web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderNode.js');
+  await import('../web/a1111_metadata_reader/js/a1111WebpMetadataReaderNode.js');
   return registerExtension.mock.calls[0][0];
 };
 

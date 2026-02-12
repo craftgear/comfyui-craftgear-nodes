@@ -4,7 +4,7 @@ import tempfile
 import unittest
 import zlib
 
-from a1111_webp_metadata_reader.logic import metadata_parser as logic
+from a1111_metadata_reader.logic import metadata_parser as logic
 
 try:
     from PIL import Image

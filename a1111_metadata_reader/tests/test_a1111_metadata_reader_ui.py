@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from a1111_webp_metadata_reader.ui.node import A1111WebpMetadataReader
+from a1111_metadata_reader.ui.node import A1111WebpMetadataReader
 
 
 class TestA1111WebpMetadataReaderUi(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestA1111WebpMetadataReaderUi(unittest.TestCase):
             'clip_skip': 2,
             'raw_parameters': 'raw',
         }
-        with mock.patch('a1111_webp_metadata_reader.ui.node.logic.read_and_parse_metadata', return_value=payload):
+        with mock.patch('a1111_metadata_reader.ui.node.logic.read_and_parse_metadata', return_value=payload):
             result = reader.read('/tmp/sample.webp')
 
         self.assertEqual(

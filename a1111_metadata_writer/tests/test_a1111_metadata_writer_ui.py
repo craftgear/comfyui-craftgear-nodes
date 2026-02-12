@@ -14,6 +14,12 @@ class DummyImage:
 
 
 class TestA1111MetadataWriterUi(unittest.TestCase):
+    def test_input_types_format_is_png_webp_toggle(self) -> None:
+        required = node_module.A1111MetadataWriter.INPUT_TYPES()['required']
+        self.assertIn('format', required)
+        self.assertEqual(required['format'][0], ['png', 'webp'])
+        self.assertEqual(required['format'][1]['default'], 'png')
+
     def test_build_preview_payload_in_output_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             subfolder = os.path.join(temp_dir, 'nested')
@@ -46,6 +52,18 @@ class TestA1111MetadataWriterUi(unittest.TestCase):
         self.assertTrue(output_path.endswith('ComfyUI_custom_00004_.png'))
         self.assertTrue(output_path.startswith(temp_dir))
 
+    def test_build_output_path_uses_counter_for_webp(self) -> None:
+        dummy = DummyImage(64, 64)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch.object(node_module, '_default_image_path', return_value=temp_dir), mock.patch.object(
+                node_module,
+                '_get_save_image_path',
+                return_value=(temp_dir, 'ComfyUI_custom', 4, '', 'ComfyUI_custom'),
+            ):
+                output_path = node_module._build_output_path(dummy, '_custom', 'webp')
+        self.assertTrue(output_path.endswith('ComfyUI_custom_00004_.webp'))
+        self.assertTrue(output_path.startswith(temp_dir))
+
     def test_build_overwrite_path_uses_latest(self) -> None:
         dummy = DummyImage(64, 64)
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -61,6 +79,24 @@ class TestA1111MetadataWriterUi(unittest.TestCase):
             ):
                 output_path = node_module._build_overwrite_path(dummy, {'1': {'class_type': 'SaveImage'}})
         self.assertEqual(output_path, latest)
+
+    def test_build_overwrite_path_uses_latest_webp(self) -> None:
+        dummy = DummyImage(64, 64)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with open(os.path.join(temp_dir, 'ComfyUI_00001_.png'), 'wb') as file:
+                file.write(b'')
+            latest_webp = os.path.join(temp_dir, 'ComfyUI_00003_.webp')
+            with open(os.path.join(temp_dir, 'ComfyUI_00002_.webp'), 'wb') as file:
+                file.write(b'')
+            with open(latest_webp, 'wb') as file:
+                file.write(b'')
+            with mock.patch.object(node_module, '_default_image_path', return_value=temp_dir), mock.patch.object(
+                node_module,
+                '_get_save_image_path',
+                return_value=(temp_dir, 'ComfyUI', 4, '', 'ComfyUI'),
+            ):
+                output_path = node_module._build_overwrite_path(dummy, {'1': {'class_type': 'SaveImage'}}, 'webp')
+        self.assertEqual(output_path, latest_webp)
 
     def test_resolve_overwrite_prefix(self) -> None:
         prompt = {
@@ -104,8 +140,13 @@ class TestA1111MetadataWriterUi(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with open(os.path.join(temp_dir, 'other.txt'), 'wb') as file:
                 file.write(b'')
-            result = node_module._find_latest_output_path(temp_dir, 'ComfyUI')
+            result = node_module._find_latest_output_path(temp_dir, 'ComfyUI', 'png')
         self.assertEqual(result, '')
+
+    def test_normalize_output_format(self) -> None:
+        self.assertEqual(node_module._normalize_output_format('png'), 'png')
+        self.assertEqual(node_module._normalize_output_format('WEBP'), 'webp')
+        self.assertEqual(node_module._normalize_output_format('invalid'), 'png')
 
     def test_build_preview_payload_no_output_dir(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

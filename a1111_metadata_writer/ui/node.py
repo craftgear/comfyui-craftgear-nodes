@@ -17,6 +17,7 @@ def _default_image_path() -> str:
 
 class A1111MetadataWriter:
     OUTPUT_NODE: ClassVar[bool] = True
+
     @classmethod
     def INPUT_TYPES(cls) -> dict[str, dict[str, tuple]]:
         return {
@@ -24,6 +25,7 @@ class A1111MetadataWriter:
                 'image': ('IMAGE',),
                 'overwrite': ('BOOLEAN', {'default': False}),
                 'suffix': ('STRING', {'default': '_a1111'}),
+                'format': (['png', 'webp'], {'default': 'png'}),
             },
             'hidden': {
                 'prompt': 'PROMPT',
@@ -41,6 +43,7 @@ class A1111MetadataWriter:
         image: Any,
         overwrite: bool,
         suffix: str,
+        format: str = 'png',
         prompt: dict[str, Any] | None = None,
         extra_pnginfo: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
@@ -50,20 +53,26 @@ class A1111MetadataWriter:
         if not parameters:
             return _build_result('', '', None)
         pil_image = _image_to_pil(image)
+        output_format = _normalize_output_format(format)
         if overwrite:
-            output_path = _build_overwrite_path(pil_image, prompt)
+            output_path = _build_overwrite_path(pil_image, prompt, output_format)
         else:
-            output_path = _build_output_path(pil_image, suffix)
-        pnginfo = _build_pnginfo(prompt, extra_pnginfo, parameters)
-        pil_image.save(output_path, pnginfo=pnginfo)
+            output_path = _build_output_path(pil_image, suffix, output_format)
+        if output_format == 'webp':
+            exif = _build_webp_exif(parameters)
+            pil_image.save(output_path, exif=exif)
+        else:
+            pnginfo = _build_pnginfo(prompt, extra_pnginfo, parameters)
+            pil_image.save(output_path, pnginfo=pnginfo)
         preview = _build_preview_payload(output_path)
         return _build_result(parameters, output_path, preview)
 
 
-def _build_output_path(pil_image: Any, suffix: str) -> str:
+def _build_output_path(pil_image: Any, suffix: str, output_format: str = 'png') -> str:
     output_dir = _default_image_path()
     if not output_dir:
         raise ValueError('Output directory is not available')
+    extension = _normalize_output_format(output_format)
     filename_prefix = _build_filename_prefix(suffix)
     width, height = pil_image.size
     full_output_folder, filename, counter, _subfolder, _prefix = _get_save_image_path(
@@ -73,14 +82,17 @@ def _build_output_path(pil_image: Any, suffix: str) -> str:
         height,
     )
     filename_with_batch_num = filename.replace('%batch_num%', '0')
-    file = f'{filename_with_batch_num}_{counter:05}_.png'
+    file = f'{filename_with_batch_num}_{counter:05}_.{extension}'
     return os.path.join(full_output_folder, file)
 
 
-def _build_overwrite_path(pil_image: Any, prompt: dict[str, Any]) -> str:
+def _build_overwrite_path(
+    pil_image: Any, prompt: dict[str, Any], output_format: str = 'png'
+) -> str:
     output_dir = _default_image_path()
     if not output_dir:
         raise ValueError('Output directory is not available')
+    extension = _normalize_output_format(output_format)
     filename_prefix = _resolve_overwrite_prefix(prompt)
     width, height = pil_image.size
     full_output_folder, filename, counter, _subfolder, _prefix = _get_save_image_path(
@@ -91,10 +103,10 @@ def _build_overwrite_path(pil_image: Any, prompt: dict[str, Any]) -> str:
     )
     os.makedirs(full_output_folder, exist_ok=True)
     filename_with_batch_num = filename.replace('%batch_num%', '0')
-    latest = _find_latest_output_path(full_output_folder, filename_with_batch_num)
+    latest = _find_latest_output_path(full_output_folder, filename_with_batch_num, extension)
     if latest:
         return latest
-    file = f'{filename_with_batch_num}_{counter:05}_.png'
+    file = f'{filename_with_batch_num}_{counter:05}_.{extension}'
     return os.path.join(full_output_folder, file)
 
 
@@ -117,6 +129,15 @@ def _normalize_suffix(value: Any) -> str:
     return text
 
 
+def _normalize_output_format(value: Any) -> str:
+    if value is None:
+        return 'png'
+    text = str(value).strip().lower()
+    if text == 'webp':
+        return 'webp'
+    return 'png'
+
+
 def _resolve_overwrite_prefix(prompt: dict[str, Any]) -> str:
     if isinstance(prompt, dict):
         for node in prompt.values():
@@ -131,11 +152,14 @@ def _resolve_overwrite_prefix(prompt: dict[str, Any]) -> str:
     return 'ComfyUI'
 
 
-def _find_latest_output_path(folder: str, filename_with_batch_num: str) -> str:
+def _find_latest_output_path(
+    folder: str, filename_with_batch_num: str, output_format: str = 'png'
+) -> str:
     if not os.path.isdir(folder):
         return ''
+    extension = _normalize_output_format(output_format)
     pattern = re.compile(
-        rf'^{re.escape(filename_with_batch_num)}_(\d+)_\.png$',
+        rf'^{re.escape(filename_with_batch_num)}_(\d+)_\.{re.escape(extension)}$',
         re.IGNORECASE,
     )
     latest_name = ''
@@ -188,6 +212,14 @@ def _build_pnginfo(
             pnginfo.add_text(str(key), json.dumps(value))
     pnginfo.add_text('parameters', parameters)
     return pnginfo
+
+
+def _build_webp_exif(parameters: str) -> bytes:
+    from PIL import Image
+
+    exif = Image.Exif()
+    exif[37510] = b'ASCII\x00\x00\x00' + parameters.encode('utf-8')
+    return exif.tobytes()
 
 
 def _build_preview_payload(output_path: str) -> dict[str, str] | None:

@@ -56,9 +56,9 @@ class A1111ReaderTriggerApiTest(unittest.IsolatedAsyncioTestCase):
         web_module = _DummyWebModule()
         sys.modules['aiohttp'] = types.SimpleNamespace(web=web_module)
         sys.modules['aiohttp.web'] = web_module
-        sys.modules.pop('a1111_webp_metadata_reader.ui.trigger_api', None)
+        sys.modules.pop('a1111_metadata_reader.ui.trigger_api', None)
         self.trigger_api = importlib.import_module(
-            'a1111_webp_metadata_reader.ui.trigger_api'
+            'a1111_metadata_reader.ui.trigger_api'
         )
 
     def tearDown(self) -> None:

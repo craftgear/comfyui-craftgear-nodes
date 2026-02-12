@@ -13,8 +13,8 @@ from .load_loras_with_tags.ui import trigger_api
 from .image_batch_loader.ui import select_directory_api
 from .image_batch_loader.ui.node import ImageBatchLoader
 from .a1111_metadata_writer.ui.node import A1111MetadataWriter
-from .a1111_webp_metadata_reader.ui.node import A1111WebpMetadataReader
-from .a1111_webp_metadata_reader.ui import trigger_api as a1111_webp_metadata_reader_trigger_api
+from .a1111_metadata_reader.ui.node import A1111WebpMetadataReader
+from .a1111_metadata_reader.ui import trigger_api as a1111_metadata_reader_trigger_api
 
 WEB_DIRECTORY: str = "web"
 

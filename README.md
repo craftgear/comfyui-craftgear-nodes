@@ -13,7 +13,8 @@ See the linked documentation for each node for details.
 - [Join Texts](./docs/join_texts.md) : Join multiple text inputs into a single line
 - [Image Batch Loader](./docs/image_batch_loader.md) : Load images from a directory as a batch
 - [Camera Shake](./docs/camera_shake.md) : Add handheld-style shake to image batches
-- [A1111 Metadata Writer](./docs/a1111_metadata_writer.md) : Writes prompts and tag data from this pack’s nodes (e.g., Load Loras With Tags, Commentable Multiline Text, Toggle Tags) into PNG metadata as A1111-compatible `parameters`
+- [A1111 Metadata Writer](./docs/a1111_metadata_writer.md) : Writes prompts and tag data from this pack’s nodes (e.g., Load Loras With Tags, Commentable Multiline Text, Toggle Tags) as A1111-compatible `parameters` into PNG/WebP outputs, with a `png/webp` format toggle
+- [A1111 Metadata Reader](./docs/a1111_metadata_reader.md) : Reads A1111-style metadata from WebP/PNG/JPEG images and returns parsed prompts, model JSON, and LoRA JSON
 
 
 ## Installation

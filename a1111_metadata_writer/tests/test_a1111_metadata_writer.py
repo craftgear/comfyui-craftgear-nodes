@@ -14,6 +14,7 @@ sys.path.append(str(ROOT))
 from a1111_metadata_writer.logic import a1111_metadata as logic
 from a1111_metadata_writer.ui import node as node_module
 from a1111_metadata_writer.ui.node import A1111MetadataWriter
+from a1111_metadata_reader.logic import metadata_parser as reader_logic
 
 try:
     import torch
@@ -488,6 +489,33 @@ class TestA1111MetadataWriter(unittest.TestCase):
             with open(output_path, 'rb') as file:
                 text_map = logic.read_png_text(file.read())
             self.assertEqual(text_map.get('parameters'), params)
+            images = result['ui']['images']
+            self.assertEqual(images[0].get('filename'), os.path.basename(output_path))
+            self.assertEqual(images[0].get('type'), 'output')
+
+    @unittest.skipIf(torch is None or Image is None, 'torch and PIL are required')
+    def test_node_writes_webp_with_parameters_user_comment(self) -> None:
+        prompt = build_prompt()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            node = A1111MetadataWriter()
+            image = torch.zeros((1, 1, 1, 3), dtype=torch.float32)
+            with mock.patch.object(node_module, '_default_image_path', return_value=temp_dir), mock.patch.object(
+                node_module,
+                '_get_save_image_path',
+                return_value=(temp_dir, 'ComfyUI_a1111', 0, '', 'ComfyUI_a1111'),
+            ):
+                result = node.apply(
+                    image=image,
+                    overwrite=False,
+                    suffix='_a1111',
+                    format='webp',
+                    prompt=prompt,
+                    extra_pnginfo={'workflow': {'id': '1'}},
+                )
+            params, output_path = result['result']
+            self.assertTrue(output_path.endswith('_a1111.webp'))
+            self.assertTrue(os.path.exists(output_path))
+            self.assertEqual(reader_logic.read_metadata_text(output_path), params)
             images = result['ui']['images']
             self.assertEqual(images[0].get('filename'), os.path.basename(output_path))
             self.assertEqual(images[0].get('type'), 'output')

@@ -13,7 +13,8 @@ ComfyUI 用の少し便利なカスタムノード集です。
 - [Join Texts](./docs/join_texts.ja.md) : 複数のテキスト入力を 1 行に結合します
 - [Image Batch Loader](./docs/image_batch_loader.ja.md) : ディレクトリ内の画像をバッチで読み込みます
 - [Camera Shake](./docs/camera_shake.ja.md) : 画像バッチに手持ち風の揺れを追加します
-- [A1111 Metadata Writer](./docs/a1111_metadata_writer.ja.md) : 本パックのノードが生成するプロンプト・タグ情報を A1111 互換 `parameters` として PNG メタデータへ書き出します
+- [A1111 Metadata Writer](./docs/a1111_metadata_writer.ja.md) : 本パックのノードが生成するプロンプト・タグ情報を A1111 互換 `parameters` として PNG/WebP 出力へ書き出し、`png/webp` のフォーマットトグルで切り替えできます
+- [A1111 Metadata Reader](./docs/a1111_metadata_reader.ja.md) : WebP/PNG/JPEG 画像から A1111 形式メタデータを読み取り、プロンプトや model/loras JSON を返します
 
 
 ## インストール

@@ -90,8 +90,8 @@ class _DummyPilImage:
         self.size = (32, 32)
         self.saved = None
 
-    def save(self, path, pnginfo=None):
-        self.saved = (path, pnginfo)
+    def save(self, path, **kwargs):
+        self.saved = (path, kwargs)
 
 
 class A1111MetadataWriterUiExtraTest(unittest.TestCase):
@@ -157,7 +157,7 @@ class A1111MetadataWriterUiExtraTest(unittest.TestCase):
             file_path = os.path.join(temp_dir, 'file.txt')
             with open(file_path, 'wb') as file:
                 file.write(b'')
-            self.assertEqual(node_module._find_latest_output_path(file_path, 'ComfyUI'), '')
+            self.assertEqual(node_module._find_latest_output_path(file_path, 'ComfyUI', 'png'), '')
 
     def test_find_latest_output_path_invalid_counter(self) -> None:
         class DummyMatch:
@@ -174,7 +174,7 @@ class A1111MetadataWriterUiExtraTest(unittest.TestCase):
                 'listdir',
                 return_value=['ComfyUI_abc_.png'],
             ), mock.patch.object(node_module.re, 'compile', return_value=DummyPattern()):
-                self.assertEqual(node_module._find_latest_output_path(temp_dir, 'ComfyUI'), '')
+                self.assertEqual(node_module._find_latest_output_path(temp_dir, 'ComfyUI', 'png'), '')
 
     def test_get_save_image_path_uses_folder_paths(self) -> None:
         modules_backup = dict(sys.modules)
@@ -282,7 +282,7 @@ class A1111MetadataWriterUiExtraTest(unittest.TestCase):
             )
         build_output.assert_called_once()
         build_overwrite.assert_not_called()
-        self.assertEqual(dummy_image.saved, ('/tmp/out.png', 'pnginfo'))
+        self.assertEqual(dummy_image.saved, ('/tmp/out.png', {'pnginfo': 'pnginfo'}))
         self.assertEqual(result['result'], ('params', '/tmp/out.png'))
         self.assertEqual(result['ui']['images'], [preview])
 
@@ -309,6 +309,35 @@ class A1111MetadataWriterUiExtraTest(unittest.TestCase):
             )
         build_overwrite.assert_called_once()
         build_output.assert_not_called()
-        self.assertEqual(dummy_image.saved, ('/tmp/out.png', 'pnginfo'))
+        self.assertEqual(dummy_image.saved, ('/tmp/out.png', {'pnginfo': 'pnginfo'}))
         self.assertEqual(result['result'], ('params', '/tmp/out.png'))
+        self.assertEqual(result['ui']['images'], [preview])
+
+    def test_apply_uses_webp_exif_when_format_webp(self) -> None:
+        writer = node_module.A1111MetadataWriter()
+        dummy_image = _DummyPilImage()
+        preview = {'filename': 'out.webp', 'type': 'output'}
+        with mock.patch.object(
+            node_module.logic, 'build_a1111_parameters_from_prompt', return_value='params'
+        ), mock.patch.object(node_module, '_image_to_pil', return_value=dummy_image), mock.patch.object(
+            node_module, '_build_output_path', return_value='/tmp/out.webp'
+        ) as build_output, mock.patch.object(
+            node_module, '_build_pnginfo'
+        ) as build_pnginfo, mock.patch.object(
+            node_module, '_build_webp_exif', return_value=b'exif-bytes'
+        ) as build_webp_exif, mock.patch.object(
+            node_module, '_build_preview_payload', return_value=preview
+        ):
+            result = writer.apply(
+                'image',
+                False,
+                '_demo',
+                format='webp',
+                prompt={'1': {'class_type': 'KSampler', 'inputs': {}}},
+            )
+        build_output.assert_called_once()
+        build_pnginfo.assert_not_called()
+        build_webp_exif.assert_called_once_with('params')
+        self.assertEqual(dummy_image.saved, ('/tmp/out.webp', {'exif': b'exif-bytes'}))
+        self.assertEqual(result['result'], ('params', '/tmp/out.webp'))
         self.assertEqual(result['ui']['images'], [preview])

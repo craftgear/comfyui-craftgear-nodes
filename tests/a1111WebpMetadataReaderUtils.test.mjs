@@ -6,7 +6,7 @@ import {
   isSupportedImagePath,
   normalizeDroppedPath,
   wrapWidgetCallback,
-} from '../web/a1111_webp_metadata_reader/js/a1111WebpMetadataReaderUtils.js';
+} from '../web/a1111_metadata_reader/js/a1111WebpMetadataReaderUtils.js';
 
 describe('a1111WebpMetadataReaderUtils', () => {
   it('判定可能な画像拡張子を受け付ける', () => {
