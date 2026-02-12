@@ -8,6 +8,7 @@ import {
 } from "./tagFilterUtils.js";
 import {
   normalizeSelectionValue,
+  resolveSelectionValueOnLoraChange,
   resolveTagSelection,
   shouldAutoSelectInfinityTagsOnly
 } from './selectionValueUtils.js';
@@ -536,6 +537,45 @@ const fetchTriggers = async (loraName) => {
     triggers: data.triggers.map((trigger) => String(trigger)),
     frequencies,
   };
+};
+
+const applySlotSelectionOnLoraChange = (slot, loraLabel, targetNode) => {
+  if (!slot?.selectionWidget) {
+    return;
+  }
+  const requestToken = Number(slot.__loadLorasSelectionRequestToken ?? 0) + 1;
+  slot.__loadLorasSelectionRequestToken = requestToken;
+  const defaultSelectionValue = resolveSelectionValueOnLoraChange({
+    autoSelectInfinityWordsOnly: false,
+    triggers: [],
+    frequencies: {},
+  });
+  setWidgetValue(slot.selectionWidget, defaultSelectionValue);
+  slot.selectionWidget.__loadLorasResetTopN = true;
+
+  if (!getAutoSelectInfinityWordsOnlyEnabled()) {
+    return;
+  }
+  const normalizedLabel = String(loraLabel ?? '').trim();
+  if (!normalizedLabel || normalizedLabel === 'None') {
+    return;
+  }
+
+  void (async () => {
+    const { triggers, frequencies } = await fetchTriggers(normalizedLabel);
+    if (slot.__loadLorasSelectionRequestToken !== requestToken) {
+      return;
+    }
+    const nextSelectionValue = resolveSelectionValueOnLoraChange({
+      autoSelectInfinityWordsOnly: true,
+      triggers,
+      frequencies,
+    });
+    if (slot.selectionWidget?.value !== nextSelectionValue) {
+      setWidgetValue(slot.selectionWidget, nextSelectionValue);
+      markDirty(targetNode);
+    }
+  })();
 };
 
 const fetchLoraPreviewUrl = async (loraName) => {
@@ -2311,11 +2351,11 @@ const setupLoadLorasUi = (node) => {
       applyLoraValue(slot.loraWidget, targetLabel);
       if (targetLabel === 'None') {
         setWidgetValue(slot.toggleWidget, false);
-        slot.selectionWidget.value = '';
-        slot.selectionWidget.__loadLorasResetTopN = true;
+        applySlotSelectionOnLoraChange(slot, targetLabel, node);
         slot.__loadLorasLoraFilter = '';
       } else {
         setWidgetValue(slot.toggleWidget, true);
+        applySlotSelectionOnLoraChange(slot, targetLabel, node);
       }
       changed = true;
     });
@@ -2356,7 +2396,17 @@ const setupLoadLorasUi = (node) => {
     if (labels.length === 0) {
       return false;
     }
-    return applyAutoLoraLabels(labels);
+    const applied = applyAutoLoraLabels(labels);
+    if (!applied) {
+      return false;
+    }
+    if (getAutoSelectMissingLoraEnabled()) {
+      const normalized = normalizeLoraWidgetValues();
+      if (normalized) {
+        applyRowVisibility();
+      }
+    }
+    return true;
   };
 
   const syncAutoLorasFromConnectedInput = () => {
@@ -2377,6 +2427,7 @@ const setupLoadLorasUi = (node) => {
   };
 
   const normalizeLoraWidgetValues = () => {
+    let changed = false;
     const autoSelectMissing = getAutoSelectMissingLoraEnabled();
     slots.forEach((slot) => {
       const options = getComboOptions(slot.loraWidget);
@@ -2397,13 +2448,16 @@ const setupLoadLorasUi = (node) => {
           return;
         }
         setComboWidgetValue(slot.loraWidget, matchedLabel);
+        changed = true;
         return;
       }
       const resolved = resolveComboLabel(rawValue, options);
       if (slot.loraWidget?.value !== resolved) {
         setWidgetValue(slot.loraWidget, resolved);
+        changed = true;
       }
     });
+    return changed;
   };
 
   const dragState = {
@@ -3299,8 +3353,7 @@ const setupLoadLorasUi = (node) => {
       setComboWidgetValue(slot.loraWidget, nextLabel);
       setWidgetValue(slot.toggleWidget, prevToggle);
       if (prevLabel !== nextLabel) {
-        setWidgetValue(slot.selectionWidget, "");
-        slot.selectionWidget.__loadLorasResetTopN = true;
+        applySlotSelectionOnLoraChange(slot, nextLabel, targetNode);
       }
       slot.__loadLorasLoraFilter = normalizeDialogFilterValue(
         filterInput.value,

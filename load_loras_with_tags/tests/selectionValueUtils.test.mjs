@@ -4,6 +4,7 @@ import { describe, it } from 'vitest';
 import {
   normalizeSelectionValue,
   parseSelection,
+  resolveSelectionValueOnLoraChange,
   resolveTagSelection,
   shouldAutoSelectInfinityTagsOnly,
 } from '../../web/loadLorasWithTags/js/selectionValueUtils.js';
@@ -106,5 +107,37 @@ describe('shouldAutoSelectInfinityTagsOnly', () => {
     assert.equal(shouldAutoSelectInfinityTagsOnly(true, false), false);
     assert.equal(shouldAutoSelectInfinityTagsOnly(false, true), false);
     assert.equal(shouldAutoSelectInfinityTagsOnly(false, false), false);
+  });
+});
+
+describe('resolveSelectionValueOnLoraChange', () => {
+  it('returns empty selection when auto select is disabled', () => {
+    const value = resolveSelectionValueOnLoraChange({
+      autoSelectInfinityWordsOnly: false,
+      triggers: ['alpha', 'beta'],
+      frequencies: { alpha: Infinity, beta: 1 },
+    });
+
+    assert.equal(value, '[]');
+  });
+
+  it('returns only infinity-frequency tags when auto select is enabled', () => {
+    const value = resolveSelectionValueOnLoraChange({
+      autoSelectInfinityWordsOnly: true,
+      triggers: ['alpha', 'beta', 'gamma'],
+      frequencies: { alpha: 2, beta: Infinity, gamma: 'Infinity' },
+    });
+
+    assert.equal(value, '["beta","gamma"]');
+  });
+
+  it('returns empty selection when infinity tags do not exist', () => {
+    const value = resolveSelectionValueOnLoraChange({
+      autoSelectInfinityWordsOnly: true,
+      triggers: ['alpha', 'beta'],
+      frequencies: { alpha: 2, beta: 1 },
+    });
+
+    assert.equal(value, '[]');
   });
 });

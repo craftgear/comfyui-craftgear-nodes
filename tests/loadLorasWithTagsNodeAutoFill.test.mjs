@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const registerExtension = vi.fn();
 const setDirtyCanvas = vi.fn();
+const extensionSettingGet = vi.fn(() => undefined);
+const fetchApi = vi.fn();
 const apiEventListeners = new Map();
 const appGraph = {
   setDirtyCanvas,
@@ -14,7 +16,7 @@ vi.mock('../../../../scripts/app.js', () => ({
     graph: appGraph,
     extensionManager: {
       setting: {
-        get: () => undefined,
+        get: extensionSettingGet,
       },
     },
   },
@@ -22,7 +24,7 @@ vi.mock('../../../../scripts/app.js', () => ({
 
 vi.mock('../../../../scripts/api.js', () => ({
   api: {
-    fetchApi: vi.fn(),
+    fetchApi,
     addEventListener: vi.fn((name, handler) => {
       if (!apiEventListeners.has(name)) {
         apiEventListeners.set(name, []);
@@ -58,10 +60,16 @@ const loadExtension = async () => {
   return registerExtension.mock.calls[0][0];
 };
 
-const createNode = (initialSlotValues = ['None', 'None'], lorasJsonInput = null) => {
-  const options = ['None', 'foo.safetensors', 'bar.safetensors'];
+const createNode = (
+  initialSlotValues = ['None', 'None'],
+  lorasJsonInput = null,
+  slotOptions = null,
+) => {
   const widgets = [];
   for (let index = 1; index <= 2; index += 1) {
+    const options = Array.isArray(slotOptions?.[index - 1])
+      ? slotOptions[index - 1]
+      : ['None', 'foo.safetensors', 'bar.safetensors'];
     const combo = {
       name: `lora_name_${index}`,
       value: initialSlotValues[index - 1] ?? 'None',
@@ -119,6 +127,9 @@ const emitApiEvent = (name, detail) => {
 describe('LoadLorasWithTags node auto fill', () => {
   beforeEach(() => {
     setDirtyCanvas.mockClear();
+    extensionSettingGet.mockReset();
+    extensionSettingGet.mockReturnValue(undefined);
+    fetchApi.mockReset();
     appGraph.links = {};
   });
 
@@ -252,5 +263,59 @@ describe('LoadLorasWithTags node auto fill', () => {
 
     expect(getWidgetValue(node, 'lora_name_1')).toBe('unknown-lora-a');
     expect(getWidgetValue(node, 'lora_name_2')).toBe('unknown-lora-b');
+  });
+
+  it('loras_json更新時にautoSelectMissing=trueなら同名LoRAへ自動解決する', async () => {
+    extensionSettingGet.mockImplementation((id) =>
+      id === 'craftgear.loadLorasWithTags.autoSelectMissingLora',
+    );
+    const extension = await loadExtension();
+    const node = createNode(
+      ['None', 'None'],
+      '[{"name":"foo.safetensors"},{"name":"dir/bar.safetensors"}]',
+      [
+        ['None', 'foo.safetensors'],
+        ['None', 'foo.safetensors', 'bar.safetensors'],
+      ],
+    );
+
+    extension.nodeCreated(node);
+    node.onExecuted?.({});
+
+    expect(getWidgetValue(node, 'lora_name_1')).toBe('foo.safetensors');
+    expect(getWidgetValue(node, 'lora_name_2')).toBe('bar.safetensors');
+  });
+
+  it('LoRA自動反映時にタグ選択を空配列で初期化する', async () => {
+    const extension = await loadExtension();
+    const node = createNode(['None', 'None'], '[{"name":"foo"}]');
+
+    extension.nodeCreated(node);
+    node.onExecuted?.({});
+
+    expect(getWidgetValue(node, 'tag_selection_1')).toBe('[]');
+  });
+
+  it('autoSelectInfinityWordsOnly=trueならInfinityタグで初期化する', async () => {
+    extensionSettingGet.mockImplementation((id) =>
+      id === 'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly',
+    );
+    fetchApi.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        triggers: ['alpha', 'beta', 'gamma'],
+        frequencies: { alpha: 1, beta: Infinity, gamma: 'Infinity' },
+      }),
+    });
+    const extension = await loadExtension();
+    const node = createNode(['None', 'None'], '[{"name":"foo"}]');
+
+    extension.nodeCreated(node);
+    node.onExecuted?.({});
+    await vi.waitFor(() => {
+      expect(getWidgetValue(node, 'tag_selection_1')).toBe('["beta","gamma"]');
+    });
+
+    expect(fetchApi).toHaveBeenCalledTimes(1);
   });
 });

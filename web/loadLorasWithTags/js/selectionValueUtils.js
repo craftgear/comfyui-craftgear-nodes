@@ -52,9 +52,27 @@ const shouldAutoSelectInfinityTagsOnly = (
   isNewLoraSelection,
 ) => autoSelectInfinityWordsOnly === true && isNewLoraSelection === true;
 
+const resolveSelectionValueOnLoraChange = ({
+  autoSelectInfinityWordsOnly,
+  triggers,
+  frequencies,
+}) => {
+  if (autoSelectInfinityWordsOnly !== true) {
+    return '[]';
+  }
+  const selected = resolveTagSelection({
+    selectionText: '',
+    triggers,
+    frequencies,
+    autoSelectInfinityWordsOnly: true,
+  });
+  return JSON.stringify([...selected]);
+};
+
 export {
   normalizeSelectionValue,
   parseSelection,
+  resolveSelectionValueOnLoraChange,
   resolveTagSelection,
   shouldAutoSelectInfinityTagsOnly,
 };
