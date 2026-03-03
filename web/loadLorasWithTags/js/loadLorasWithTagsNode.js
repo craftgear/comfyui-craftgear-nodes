@@ -2336,6 +2336,19 @@ const setupLoadLorasUi = (node) => {
     return labels;
   };
 
+  const isEquivalentAutoLoraLabel = (currentLabel, targetLabel) => {
+    const current = String(currentLabel ?? '').trim();
+    const target = String(targetLabel ?? '').trim();
+    if (current === target) {
+      return true;
+    }
+    if (!isFilledName(current) || !isFilledName(target)) {
+      return false;
+    }
+    const matched = resolveAutoLoraLabels([current], ['None', target], 1);
+    return matched[0] === target;
+  };
+
   const applyAutoLoraLabels = (labels) => {
     if (!Array.isArray(labels) || labels.length === 0) {
       return false;
@@ -2345,7 +2358,11 @@ const setupLoadLorasUi = (node) => {
       const targetLabel = labels[index] ?? 'None';
       const options = getComboOptions(slot.loraWidget);
       const currentLabel = resolveComboDisplayLabel(slot.loraWidget?.value, options);
-      if (targetLabel === currentLabel) {
+      if (isEquivalentAutoLoraLabel(currentLabel, targetLabel)) {
+        if (targetLabel !== currentLabel) {
+          applyLoraValue(slot.loraWidget, targetLabel);
+          changed = true;
+        }
         return;
       }
       applyLoraValue(slot.loraWidget, targetLabel);

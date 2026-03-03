@@ -296,6 +296,40 @@ describe('LoadLorasWithTags node auto fill', () => {
     expect(getWidgetValue(node, 'tag_selection_1')).toBe('[]');
   });
 
+  it('同一LoRAへの自動正規化ではタグ選択を保持する', async () => {
+    const extension = await loadExtension();
+    const node = createNode(['dir/foo.safetensors', 'None'], null);
+
+    extension.nodeCreated(node);
+    node.getInputData.mockReturnValue('[{"name":"foo"}]');
+    const selectionWidget = node.widgets.find(
+      (widget) => widget.name === 'tag_selection_1',
+    );
+    selectionWidget.value = '["keep-tag"]';
+
+    node.onExecuted?.({});
+
+    expect(getWidgetValue(node, 'lora_name_1')).toBe('foo.safetensors');
+    expect(getWidgetValue(node, 'tag_selection_1')).toBe('["keep-tag"]');
+  });
+
+  it('別LoRAへ自動反映された場合はタグ選択を初期化する', async () => {
+    const extension = await loadExtension();
+    const node = createNode(['foo.safetensors', 'None'], null);
+
+    extension.nodeCreated(node);
+    node.getInputData.mockReturnValue('[{"name":"bar"}]');
+    const selectionWidget = node.widgets.find(
+      (widget) => widget.name === 'tag_selection_1',
+    );
+    selectionWidget.value = '["keep-tag"]';
+
+    node.onExecuted?.({});
+
+    expect(getWidgetValue(node, 'lora_name_1')).toBe('bar.safetensors');
+    expect(getWidgetValue(node, 'tag_selection_1')).toBe('[]');
+  });
+
   it('autoSelectInfinityWordsOnly=trueならInfinityタグで初期化する', async () => {
     extensionSettingGet.mockImplementation((id) =>
       id === 'craftgear.loadLorasWithTags.autoSelectInfinityWordsOnly',
