@@ -313,6 +313,27 @@ describe('LoadLorasWithTags node auto fill', () => {
     expect(getWidgetValue(node, 'tag_selection_1')).toBe('["keep-tag"]');
   });
 
+  it('候補リストが空でも同一LoRAならタグ選択を保持する', async () => {
+    const extension = await loadExtension();
+    const node = createNode(
+      ['mitsuyoshi-000047.safetensors', 'None'],
+      null,
+      [[], ['None', 'foo.safetensors', 'bar.safetensors']],
+    );
+
+    extension.nodeCreated(node);
+    node.getInputData.mockReturnValue('[{"name":"mitsuyoshi-000047.safetensors"}]');
+    const selectionWidget = node.widgets.find(
+      (widget) => widget.name === 'tag_selection_1',
+    );
+    selectionWidget.value = '["keep-tag"]';
+
+    node.onExecuted?.({});
+
+    expect(getWidgetValue(node, 'lora_name_1')).toBe('mitsuyoshi-000047.safetensors');
+    expect(getWidgetValue(node, 'tag_selection_1')).toBe('["keep-tag"]');
+  });
+
   it('別LoRAへ自動反映された場合はタグ選択を初期化する', async () => {
     const extension = await loadExtension();
     const node = createNode(['foo.safetensors', 'None'], null);
